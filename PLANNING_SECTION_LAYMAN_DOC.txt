@@ -1,0 +1,1612 @@
+PLANNING SECTION DOCUMENTATION
+Layman Understanding Guide
+
+File purpose:
+This document explains the Planning section in simple language. It covers all main views, buttons, fields, schedule parameters, calculations, and how the user is expected to use them.
+
+Current scope:
+The Planning section is a frontend/local planning workspace. It does not use a backend database yet. Any data created or edited is stored only in the running app state unless backend/local persistence is added later.
+
+
+1. WHAT THE PLANNING SECTION IS
+
+The Planning section is used to manage construction schedule work.
+
+It helps the team answer:
+- What work is planned?
+- What phase does the work belong to?
+- When should it start and finish?
+- What is actually happening on site?
+- Which work is late?
+- Which work is ready for the next few weeks?
+- What is the approved baseline schedule?
+- What milestones are important?
+- What dependencies control one activity after another?
+
+The Planning section is organized like this:
+- Phase / Work Package
+- Task
+- Subtask
+
+Example:
+Phase: Site Mobilization
+Task: Temporary Power, Water & Safety Setup
+Subtask: Temporary power connection
+
+
+2. MAIN DATA STRUCTURE
+
+2.1 Phase / Work Package
+
+A phase is a big section of work.
+
+Examples:
+- Pre-Construction
+- Site Mobilization
+- Substructure
+- Superstructure
+- MEP Rough-in
+
+Fields used in a phase:
+
+ID:
+Internal technical ID used by the app.
+
+Code:
+Numbering like 1, 2, 3. It helps create WBS-style hierarchy.
+
+Name:
+Phase name shown to the user.
+
+Owner:
+Main department responsible for the phase.
+
+Status:
+Overall phase condition, calculated or selected from tasks.
+
+Progress:
+Average progress of all tasks inside the phase.
+
+Start:
+Earliest task start date inside the phase.
+
+End:
+Latest task finish date inside the phase.
+
+Tasks:
+List of tasks inside that phase.
+
+
+2.2 Task
+
+A task is the main schedule activity under a phase.
+
+Example:
+Task: Design Freeze & Consultant Sign-off
+
+Fields used in a task:
+
+ID:
+Internal technical ID.
+
+Code:
+Numbering like 1.1, 1.2, 2.1.
+
+Activity ID:
+Construction schedule activity number shown to the user. If not manually set, it uses the code.
+
+Name:
+Task name.
+
+Owner / Responsible:
+Department or team responsible for the task.
+
+Status:
+Current schedule condition.
+
+Progress:
+Actual progress percentage from 0 to 100.
+
+Start:
+Planned start date.
+
+End:
+Planned finish date.
+
+Actual Start:
+Date when work actually started on site.
+
+Actual Finish:
+Date when work actually finished on site.
+
+Actual Days:
+Actual duration. If Actual Start and Actual Finish are entered, the app calculates it automatically.
+
+Float:
+Extra available time before the task affects another activity. It is read-only and calculated from schedule logic.
+
+Constraint:
+Rule that limits how the task can move in the schedule.
+
+Dependencies:
+Predecessor activities that control when this task can happen.
+
+Buffer:
+Planned extra time added intentionally by planners.
+
+Delay:
+Unplanned extra time caused by execution problems.
+
+Remarks:
+Short note or site update.
+
+Recovery Plan:
+What the team will do to recover delay.
+
+Color:
+Timeline / Gantt bar color.
+
+Subtasks:
+Smaller steps under the task.
+
+
+2.3 Subtask
+
+A subtask is a smaller work item under a task.
+
+Example:
+Task: Temporary Power, Water & Safety Setup
+Subtask: Temporary power connection
+
+Subtasks use almost the same fields as tasks:
+- Activity ID
+- Name
+- Responsible
+- Status
+- Progress
+- Start
+- Finish
+- Actual Start
+- Actual Finish
+- Actual Days
+- Float
+- Constraint
+- Dependency
+- Buffer
+- Delay
+- Remarks
+- Recovery Plan
+- Color
+
+Difference:
+A subtask always belongs to a parent task.
+
+
+3. TOP BAR CONTROLS
+
+3.1 Currently Showing
+
+This pill shows which phase is selected right now.
+
+It displays:
+- Selected phase activity ID
+- Phase name
+- Number of tasks
+- Number of subtasks
+
+If the user has clicked Start fresh, it shows that the planning workspace is blank.
+
+
+3.2 Planning View Dropdown
+
+This dropdown switches between different planning views.
+
+Available views:
+- WBS
+- Milestones
+- Timeline
+- Gantt
+- Scheduled vs Actual
+- Baseline
+- Lookahead
+
+
+3.3 Create Phase
+
+When the workspace is empty, the main create button becomes Create phase.
+
+Use it to create the first phase before adding tasks.
+
+
+3.4 Create Task
+
+Creates a new main task inside the selected phase.
+
+If no phase exists, the app asks the user to create a phase first.
+
+
+3.5 Create Subtask
+
+Creates a subtask under an existing task.
+
+If no task exists, the app asks the user to create a task first.
+
+
+3.6 Export CSV
+
+Exports planning data to a CSV file.
+
+The CSV includes:
+- Package / phase
+- Type
+- Activity ID
+- Task
+- Parent task
+- Start
+- Finish
+- Actual days
+- Float
+- Constraint
+- Dependencies
+- Buffer details
+- Delay details
+- Responsible
+- Status
+- Timeline color
+
+
+3.7 Fullscreen
+
+Expands the planning section to use the full screen area.
+
+
+3.8 Start Fresh
+
+Temporary frontend button.
+
+It clears all demo planning data so the user can start with a blank planning workspace.
+
+It clears:
+- Phases
+- Tasks
+- Subtasks
+- Baseline snapshot
+- Lookahead overrides
+- Selected actual drawer
+- Selected milestone
+- Search and timeline range
+
+Important:
+This is local only. Since backend is ignored, it does not delete anything from a server.
+
+
+3.9 Load Demo Data
+
+Appears after Start fresh.
+
+It restores the sample/demo planning data so the user can test the Planning section again.
+
+
+4. PHASE SIDEBAR
+
+The left sidebar shows all phases.
+
+Each phase card shows:
+- Phase ID and name
+- Progress percentage
+- Task and subtask count
+- Start and finish date range
+- Progress bar
+
+Clicking a phase changes the selected phase.
+
+Plus button:
+Adds a new phase.
+
+Blank state:
+If no phases exist, the sidebar shows a message and Add phase button.
+
+
+5. WBS VIEW
+
+WBS means Work Breakdown Structure.
+
+In simple words:
+It is a table view showing work in hierarchy:
+Phase -> Task -> Subtask
+
+Main WBS columns:
+
+Activity ID:
+Schedule number like 1.1 or 2.3.1.
+
+Task:
+Task name. Clicking can expand or collapse subtasks.
+
+Start:
+Planned start date.
+
+Finish:
+Planned finish date.
+
+Actual:
+Actual days spent.
+
+Float:
+Extra available time before impacting schedule.
+
+Constraint:
+Scheduling rule applied to the task.
+
+Dependency:
+Predecessor logic controlling this task.
+
+Responsible:
+Team or department responsible.
+
+Task Timeline:
+Small timeline bar showing date position.
+
+Status:
+Current state such as Planned, On Track, At Risk, Delayed, Completed.
+
+Actions:
+Buttons for edit and adding subtask.
+
+Subtask row:
+When a task is expanded, subtasks appear below it in a nested lighter style.
+
+Subtask fields shown:
+- Activity ID
+- Name
+- Responsible
+- Float
+- Date range
+- Mini timeline
+- Status
+- Actual days
+- Edit schedule button
+
+
+6. WBS FILTERS
+
+Search:
+Search by activity ID, task name, responsible team, status, constraint, dependency, or subtask.
+
+Status filter:
+Shows only selected status.
+
+Responsible filter:
+Shows only selected department/team.
+
+Date text:
+Shows current selected phase date range.
+
+
+7. TIMELINE VIEW
+
+Timeline view shows tasks and subtasks on a date line.
+
+Purpose:
+To see where each activity sits across calendar dates.
+
+Main controls:
+
+Date Range:
+Calendar filter to choose From and To date.
+
+Zoom Out:
+Makes timeline more compressed.
+
+Zoom In:
+Makes timeline more detailed.
+
+Scroll Left / Right:
+Moves timeline horizontally.
+
+Show Visualization:
+Opens the side analytics panel.
+
+Create Task:
+Adds task.
+
+Create Subtask:
+Adds subtask.
+
+Export CSV:
+Exports data.
+
+Timeline content:
+- Left side shows task/subtask names.
+- Right side shows bars across dates.
+- Task bars are larger.
+- Subtask bars are smaller/lighter.
+- Clicking a bar opens the edit schedule modal.
+- Hovering a bar shows a detailed tooltip.
+
+
+8. TIMELINE TOOLTIP
+
+When hovering a timeline bar, a tooltip shows:
+- Activity ID
+- Activity name
+- Item type: task/subtask/package
+- Status
+- Start date
+- Finish date
+- Actual days
+- Float days
+- Responsible
+- Dependency
+- Buffer days
+- Delay days
+- Date range
+- Duration
+- Explanation that buffer is planned safe time and delay is unplanned slippage
+
+
+9. GANTT VIEW
+
+Gantt view is a proper schedule chart style view.
+
+It shows:
+- Phases
+- Tasks
+- Subtasks
+- Date axis
+- Task bars
+- Subtask bars
+- Dependency arrows
+- Planned buffer extensions
+
+Important:
+Buffer appears as a faded/dashed extension after the main task bar.
+
+Meaning:
+Main solid bar = planned task duration.
+Faded dashed extension = planned buffer.
+
+This buffer is not delay.
+
+Dependency arrows:
+Arrows show predecessor/successor logic where dependencies exist.
+
+Clicking a bar:
+Opens the edit schedule modal.
+
+
+10. SCHEDULE VISUALIZATION PANEL
+
+This panel appears when Show Visualization is clicked in Timeline/Gantt.
+
+It shows:
+
+Average Progress:
+Average progress across phases.
+
+Tasks:
+Total number of tasks.
+
+Subtasks:
+Total number of subtasks.
+
+Days Range:
+Total date range of the full plan.
+
+Status breakdown:
+Counts for:
+- Planned
+- On Track
+- At Risk
+- Delayed
+- Completed
+
+Phase progress:
+Progress bars for each phase.
+
+
+11. MILESTONES VIEW
+
+Milestones view focuses on main tasks only.
+
+In this app:
+Every main task can behave like a milestone card.
+
+Purpose:
+To quickly see important task finish points.
+
+Top filters:
+
+Department:
+Filter milestones by department.
+
+Assigned person:
+Filter by assigned person.
+
+Milestone of:
+Filter by phase/work package.
+
+Created by:
+Filter by creator role/person.
+
+Created for:
+Filter by recipient/phase.
+
+Count:
+Shows visible milestones out of total milestones.
+
+Add Milestone:
+Creates a new main task.
+
+
+12. MILESTONE CARD
+
+Each milestone card shows:
+- Finish date
+- Month
+- Status badge
+- Activity ID
+- Milestone/task name
+- Phase name
+- Responsible department
+- Progress bar
+- Progress %
+- Subtask count
+
+Visual behavior:
+
+Completed:
+Card is greyed out.
+
+Current / In Progress:
+Card is highlighted with blue/purple modern style and elevated shadow.
+
+Upcoming:
+Card uses purple/violet style.
+
+Late:
+Card uses rose/red style.
+
+Horizontal scroll:
+The whole milestone strip can be dragged horizontally.
+
+Info icon:
+Clicking the info icon opens a details popup.
+
+Edit icon:
+Only appears on the active card. Clicking it opens the edit schedule modal.
+
+
+13. MILESTONE DETAILS POPUP
+
+Opened by clicking the info icon inside a milestone card.
+
+It shows:
+- Activity ID
+- Milestone name
+- Phase
+- Responsible
+- Status
+- Start date
+- Finish date
+- Progress
+- Created by
+- Created for
+- Progress bar
+- Nested subtasks
+- Add subtask button
+
+Important:
+Subtasks are not shown on hover anymore. They are shown after the main milestone is active or inside the details popup.
+
+
+14. SUBTASK MILESTONE STRIP
+
+Below the active main milestone, the app shows subtask milestone cards.
+
+Each subtask card shows:
+- Finish date
+- Status
+- Activity ID
+- Subtask name
+- Date range
+- Responsible
+- Progress bar
+- Duration
+
+Clicking a subtask card:
+Opens edit schedule modal.
+
+Plus card:
+The last empty card with plus icon creates a new subtask.
+
+
+15. SCHEDULED VS ACTUAL VIEW
+
+Purpose:
+To compare planned schedule vs actual site execution.
+
+It answers:
+- What should happen today?
+- What is actually happening?
+- What is behind?
+- What got completed?
+- What is upcoming?
+
+Top summary cards:
+
+Scheduled Today:
+Number of activities planned for today.
+
+Actually In Progress:
+Number of activities actually running on site.
+
+Behind Schedule:
+Number of delayed or behind activities.
+
+Completed Today:
+Number of activities finished today.
+
+Upcoming This Week:
+Activities planned to start in the next 7 days.
+
+
+16. SCHEDULED VS ACTUAL FILTERS
+
+Phase / WBS:
+Filter by phase.
+
+Responsible Team:
+Filter by team.
+
+Status:
+Filter by schedule execution status.
+
+Date Range:
+Options include All Dates, Today, This Week, Next 7 Days, Overdue.
+
+Delayed Only:
+Shows only delayed/behind/late items.
+
+Critical Path Only:
+Shows only critical items.
+
+Today's Work:
+Shows work touching today.
+
+This Week:
+Shows work touching this week.
+
+
+17. EXECUTION INSIGHTS
+
+Small smart callouts.
+
+Examples:
+- Activities should have started but have not started
+- Activities running behind planned progress
+- Substructure work behind schedule
+- Delayed activities on critical path
+
+
+18. SCHEDULED VS ACTUAL TABLE
+
+Columns:
+
+Activity ID:
+Schedule activity number.
+
+Activity Name:
+Task or subtask name.
+
+WBS / Phase:
+Which phase the activity belongs to.
+
+Planned Start:
+Original planned start date.
+
+Planned Finish:
+Original planned finish date.
+
+Actual Start:
+Site actual start date.
+
+Actual Finish:
+Site actual finish date.
+
+Planned Progress %:
+Expected progress based on planned date and today's date.
+
+Actual Progress %:
+Real progress entered by user.
+
+Variance:
+Actual Progress - Planned Progress.
+
+Example:
+Planned 60%, Actual 40% = -20% behind.
+Planned 50%, Actual 70% = +20% ahead.
+
+Delay Days:
+If not completed: Today - Planned Finish.
+If completed: Actual Finish - Planned Finish.
+Shown only if greater than 0.
+
+Status:
+Calculated execution status.
+
+Responsible:
+Team responsible.
+
+Remarks:
+Latest site note or remark.
+
+
+19. SCHEDULED VS ACTUAL STATUS LOGIC
+
+Not Started:
+Planned date has not reached and actual start is empty.
+
+Should Start Today:
+Planned start is today and actual start is empty.
+
+In Progress:
+Actual start exists and actual finish is empty.
+
+On Track:
+Actual progress is equal to or ahead of planned progress.
+
+Behind Schedule:
+Actual progress is less than planned progress.
+
+Delayed:
+Planned finish passed and actual finish is empty.
+
+Completed:
+Actual finish exists and equals planned finish.
+
+Completed Late:
+Actual finish is after planned finish.
+
+Completed Early:
+Actual finish is before planned finish.
+
+
+20. SCHEDULED VS ACTUAL ROW COLORS
+
+Green:
+On track or completed.
+
+Amber:
+Behind schedule.
+
+Red:
+Delayed or completed late.
+
+Blue:
+Currently in progress.
+
+Grey:
+Not started.
+
+Color is subtle and used as row indicator, not heavy background.
+
+
+21. ACTUAL DETAIL DRAWER
+
+Clicking an activity row opens a right-side drawer.
+
+This drawer also opens from Lookahead Update button.
+
+It shows:
+- Activity ID
+- Phase
+- Activity name
+- Planned schedule
+- Actual schedule
+- Planned progress
+- Actual progress
+- Variance
+- Delay days
+- Responsible person/team
+- Latest site update
+- Linked DPR
+- Photos/documents if uploaded
+
+Daily update actions:
+
+Mark Started:
+Sets Actual Start to today and progress to at least 5%.
+
+Mark Completed:
+Sets Actual Finish to today, progress to 100%, and status to Completed.
+
+Update Progress %:
+Manually changes actual progress.
+
+Delay Reason:
+Selects reason for delay.
+
+Remark:
+Adds latest site remark.
+
+Recovery Plan:
+Adds plan to recover delay.
+
+Upload Site Photo:
+Adds uploaded file name to the activity.
+
+
+22. BASELINE VIEW
+
+Baseline means approved original schedule.
+
+Layman example:
+If the project team approved that a task should finish on 10 June, that date becomes baseline.
+Later, if live forecast says it will finish on 14 June, variance is +4 days.
+
+Purpose:
+To compare approved schedule vs current live forecast.
+
+Important:
+Baseline is now a local frontend snapshot. Save Baseline freezes the current task dates inside the app state.
+
+
+23. BASELINE TOP CARDS
+
+Baseline Start:
+Earliest start date in saved baseline.
+
+Baseline Finish:
+Latest finish date in saved baseline.
+
+Approved Duration:
+Total duration between baseline start and baseline finish.
+
+Forecast Finish:
+Current latest forecast finish based on live schedule.
+
+Variance:
+Difference between baseline finish and forecast finish.
+
+
+24. SAVE BASELINE
+
+Save Baseline freezes the current schedule as an approved baseline snapshot.
+
+It saves:
+- Task ID
+- Activity ID
+- Task name
+- Phase name
+- Start date
+- End date
+- Responsible team
+
+It creates a local revision:
+- Rev A
+- Rev B
+- Rev C
+and so on.
+
+Important:
+This is frontend only. Refreshing the app can lose this unless persistence is added later.
+
+
+25. BASELINE OVERLAY
+
+Shows two bars:
+
+Grey bar:
+Approved baseline.
+
+Blue/Indigo/Rose bar:
+Current live forecast.
+
+Meaning:
+If current bar finishes after grey bar, the task has slipped beyond baseline.
+
+
+26. BASELINE INSIGHTS
+
+Shows:
+- How many activities moved beyond baseline
+- Largest finish variance
+- How many activities remain within baseline
+
+
+27. BASELINE CHANGE LOG
+
+Shows tasks with the biggest variance.
+
+Each log item shows:
+- Activity ID
+- Task name
+- Variance days
+- Reason
+
+Reasons can include:
+- Within approved baseline
+- Material delay
+- Open constraint risk
+- Execution delay
+- Forecast adjustment
+- New task after baseline
+
+
+28. BASELINE TABLE
+
+Columns:
+
+Activity ID:
+Task schedule ID.
+
+Task:
+Task name.
+
+Phase:
+Phase name.
+
+Baseline Start:
+Saved approved start date.
+
+Baseline Finish:
+Saved approved finish date.
+
+Current Start:
+Current live start date.
+
+Current Finish:
+Current live forecast finish.
+
+Variance:
+Delay or slip against baseline.
+
+Reason:
+Why the task moved or whether it is still within baseline.
+
+Responsible:
+Responsible team.
+
+
+29. LOOKAHEAD VIEW
+
+Lookahead means short-term planning.
+
+Layman example:
+Instead of looking at the whole project, the team looks at the next 1, 2, 3, or 6 weeks and asks:
+Are we ready to do this work?
+
+Purpose:
+To check readiness before work reaches the site.
+
+
+30. LOOKAHEAD CONTROLS
+
+Window:
+Selects planning period.
+
+Options:
+- 1 Week
+- 2 Weeks
+- 3 Weeks
+- 6 Weeks
+
+Team filter:
+Shows work for all teams or selected team.
+
+Date pill:
+Shows today's date to lookahead end date.
+
+
+31. LOOKAHEAD SUMMARY CARDS
+
+Planned Work:
+Activities inside the selected lookahead window.
+
+Ready:
+Activities ready to execute.
+
+At Risk:
+Activities needing follow-up.
+
+Blocked:
+Activities blocked by a constraint.
+
+Critical:
+Critical path activities inside the lookahead window.
+
+
+32. LOOKAHEAD WEEK CARDS
+
+The work is split into weekly buckets.
+
+Each week card shows:
+- Week number
+- Date range
+- Number of items
+- Work item cards
+- Readiness status
+- Readiness progress bar
+
+
+33. LOOKAHEAD READINESS CHECKS
+
+The app checks these items:
+
+Drawings:
+Are drawings/information ready?
+
+Materials:
+Are materials/procurement ready?
+
+Labor:
+Is manpower available?
+
+Equipment:
+Is equipment available?
+
+Access:
+Is site access available?
+
+Each check can be ready or blocked.
+
+
+34. LOOKAHEAD TABLE
+
+Columns:
+
+Activity ID:
+Schedule number.
+
+Work Item:
+Task or subtask name.
+
+Phase:
+Phase name.
+
+Planned Dates:
+Start and finish.
+
+Responsible:
+Team responsible.
+
+Readiness:
+Readiness percentage plus small chips for Drawing, Materials, Labor, Equipment, Access.
+
+Constraint:
+Dropdown where user can select the blocker.
+
+Options:
+- None
+- Drawings
+- Materials
+- Labor
+- Equipment
+- Access
+
+Status:
+Ready, At Risk, or Blocked.
+
+Action:
+Ready button and Update button.
+
+
+35. LOOKAHEAD ACTIONS
+
+Constraint dropdown:
+Selecting a blocker reduces readiness and marks the activity at risk/blocked.
+
+Ready button:
+Marks all readiness checks as ready.
+
+Update button:
+Opens the right-side actual detail drawer for progress/site update.
+
+
+36. EDIT SCHEDULE ITEM MODAL
+
+This is the main modal used for:
+- Editing a task
+- Editing a subtask
+- Creating a task
+- Creating a subtask
+- Creating a phase
+
+Top pinned buttons:
+
+Cancel:
+Closes modal without saving.
+
+Save schedule:
+Saves changes to local planning data and refreshes views.
+
+
+37. MODAL SECTION: ACTIVITY DETAILS
+
+Task Name:
+Name of task/subtask/phase.
+
+Parent Task:
+Only shown when creating a subtask. Selects which task the subtask belongs to.
+
+Activity ID:
+User-visible schedule number.
+
+Responsible:
+Team/department responsible.
+
+Status:
+Schedule state.
+
+Options:
+- Planned
+- On Track
+- At Risk
+- Delayed
+- Completed
+
+Progress %:
+Actual progress from 0 to 100.
+
+If status is Completed, progress is treated as 100%.
+
+Schedule Effect:
+User-facing option for how the schedule update should be treated.
+
+Options:
+- Update live forecast
+- Save as recovery scenario
+- Flag for approval
+
+Current note:
+This is stored in form UI only. No backend workflow is attached yet.
+
+Timeline Color:
+Color used for timeline/Gantt bar.
+
+
+38. MODAL SECTION: SCHEDULE DATES & LOGIC
+
+Planned Start:
+Date when work is planned to start.
+
+Planned Finish:
+Date when work is planned to finish.
+
+Constraint:
+Scheduling rule.
+
+Actual Start:
+Date when work actually started.
+
+Actual Finish:
+Date when work actually finished.
+
+Actual Days:
+If actual start and actual finish exist, it is automatically calculated.
+If dates are incomplete, user can type actual days.
+
+Float Days:
+Read-only.
+Calculated from dependency network and schedule logic.
+
+
+39. CONSTRAINT OPTIONS
+
+Flexible:
+Task can move normally.
+
+Fixed Start:
+Start date should not move.
+
+Fixed Finish:
+Finish date should not move.
+
+Start After:
+Task should start after a certain date/logic.
+
+Finish Before:
+Task should finish before a certain date/logic.
+
+
+40. MODAL SECTION: DEPENDENCY MANAGEMENT
+
+Dependency means one activity depends on another.
+
+Example:
+Concrete pouring cannot start before reinforcement is complete.
+
+Each dependency row has:
+
+Predecessor Activity:
+The activity that controls the current activity.
+
+Dependency Type:
+Relationship between predecessor and current activity.
+
+Lag:
+Extra gap or overlap in days.
+
+Remove button:
+Deletes dependency row.
+
+Add Dependency:
+Adds a new dependency row.
+
+
+41. DEPENDENCY TYPES
+
+FS - Finish to Start:
+Current activity starts after predecessor finishes.
+
+Example:
+Painting starts after plaster finishes.
+
+SS - Start to Start:
+Current activity starts after predecessor starts.
+
+Example:
+Inspection starts after installation starts.
+
+FF - Finish to Finish:
+Current activity finishes after predecessor finishes.
+
+Example:
+Testing finishes only after installation finishes.
+
+SF - Start to Finish:
+Current activity finishes after predecessor starts.
+
+Less common, but supported.
+
+
+42. LAG INPUT
+
+Lag means extra days added or subtracted from dependency logic.
+
+Examples:
+
++2d:
+Wait 2 days after predecessor logic.
+
+-1d:
+Start/finish 1 day earlier than dependency point.
+
++5d:
+Add 5 days gap.
+
+
+43. MODAL SECTION: SCHEDULE BUFFER
+
+Buffer means planned extra safe time.
+
+Important:
+Buffer is not delay.
+
+Buffer is intentionally added by planners to absorb risk.
+
+Examples:
+- Weather uncertainty
+- Approval delay risk
+- Procurement uncertainty
+- Labor risk
+- Inspection delay
+
+Fields:
+
+Buffer Days:
+Number of planned extra days.
+
+Buffer Reason:
+Why buffer was added.
+
+Options:
+- Weather Risk
+- Approval Risk
+- Procurement Risk
+- Labor Risk
+- Inspection Buffer
+- Safety Margin
+- Custom
+
+Buffer Type:
+Type of buffer.
+
+Options:
+- Project Buffer
+- Feeding Buffer
+- Task Buffer
+
+Buffer Visibility:
+Toggle to show/hide buffer visually.
+
+Show in Gantt:
+Buffer appears as faded/dashed extension.
+
+Hide from reports:
+Buffer is not shown in client-facing visual.
+
+Planned Buffer:
+Total buffer days.
+
+Consumed by Delay:
+How much buffer has already been used by actual delay.
+
+Remaining Usable Buffer:
+Buffer left before task becomes real delay.
+
+
+44. MODAL SECTION: DELAY TRACKING
+
+Delay means unplanned slippage from site execution.
+
+Delay is different from buffer.
+
+Fields:
+
+Delay Days:
+Actual Finish - Planned Finish.
+Read-only calculated field.
+
+Delay Status:
+Calculated automatically.
+
+Options:
+- On Track
+- Minor Delay
+- Critical Delay
+- Recovered
+
+Delay Reason:
+Reason for unplanned delay.
+
+Options:
+- Material Delay
+- Labor Shortage
+- Weather
+- Approval Pending
+- Equipment Failure
+- Rework
+- Client Change
+- Site Access Issue
+- Other
+
+Delay Impact:
+Calculated automatically.
+
+Options:
+- No Impact
+- Impacts Successor
+- Impacts Milestone
+- Impacts Critical Path
+
+Recovery Plan:
+Optional text area for how to recover.
+
+Schedule variance note:
+Shows delay, buffer consumed, and net delay.
+
+
+45. BUFFER VS DELAY
+
+Buffer:
+Planned safe time.
+Added intentionally before execution.
+Used to absorb uncertainty.
+Shown as faded/dashed bar.
+Should not be treated as failure.
+
+Delay:
+Unplanned slippage.
+Happens because actual work did not follow plan.
+Can affect successor, milestone, or critical path.
+Needs reason and recovery plan.
+
+Example:
+Planned Finish: 10 June
+Buffer: 3 days
+Actual Finish: 12 June
+
+Delay from planned finish = 2 days.
+Buffer consumed = 2 days.
+Remaining buffer = 1 day.
+Net delay = 0 days.
+This should not be marked as critical delay.
+
+
+46. AUTOMATIC CALCULATIONS
+
+Progress:
+If status is Completed, progress becomes 100%.
+If actual start and actual finish exist, progress can be calculated from actual days vs planned duration.
+If actual dates are incomplete, entered progress is preserved.
+
+Actual Days:
+Actual Finish - Actual Start.
+
+Delay Days:
+If completed: Actual Finish - Planned Finish.
+If not completed and planned finish passed: Today - Planned Finish.
+
+Planned Progress:
+Based on today's date between planned start and planned finish.
+
+Variance:
+Actual Progress - Planned Progress.
+
+Float:
+Calculated from dependency/successor schedule logic where possible.
+
+Phase Progress:
+Average progress of tasks inside the phase.
+
+Phase Start:
+Earliest task start.
+
+Phase Finish:
+Latest task finish.
+
+Phase Status:
+Calculated from task statuses.
+
+
+47. CRITICAL PATH LOGIC
+
+Current critical path logic is simplified.
+
+An item is treated as critical if:
+- Float is zero or negative
+- Delay impact says Impacts Critical Path
+- Delay days exceed buffer plus a small threshold
+
+Important:
+This is not a full Primavera/MS Project CPM engine yet.
+
+
+48. DATE LOGIC
+
+Today:
+The app now uses real browser current date.
+
+This affects:
+- Scheduled Today
+- Completed Today
+- Upcoming This Week
+- Lookahead range
+- Delay calculations
+- Current milestone highlighting
+
+
+49. EMPTY / START FRESH MODE
+
+When Start fresh is clicked:
+- All demo data is removed
+- User sees blank workspace
+- Create phase becomes the first action
+- Views show safe empty messages
+
+How to start fresh:
+
+Step 1:
+Click Start fresh.
+
+Step 2:
+Click Create phase.
+
+Step 3:
+Create task inside the phase.
+
+Step 4:
+Create subtasks under the task.
+
+Step 5:
+Edit schedule dates, dependency, buffer, progress, and delay details.
+
+Step 6:
+Save baseline when the plan is approved.
+
+Step 7:
+Use Lookahead and Scheduled vs Actual for execution tracking.
+
+
+50. CURRENT FRONTEND-ONLY LIMITATIONS
+
+No backend persistence:
+Data can be lost on refresh.
+
+No user login:
+Responsible/assignee values are simple labels.
+
+No full CPM scheduling engine:
+Dependency and float logic is simplified.
+
+No import/export to Primavera/MS Project yet:
+Only CSV export is available.
+
+No permanent audit trail:
+Baseline and updates are local state only.
+
+No real document/photo storage:
+Uploaded photo stores file name only in local state.
+
+
+51. BEST PRACTICE WORKFLOW
+
+Recommended use:
+
+1. Create phases.
+2. Add tasks.
+3. Add subtasks.
+4. Set planned start and finish dates.
+5. Add dependencies.
+6. Add planned buffer where needed.
+7. Save baseline once schedule is approved.
+8. Use Timeline/Gantt to visualize.
+9. Use Lookahead weekly to check readiness.
+10. Use Scheduled vs Actual daily to update site progress.
+11. Use delay reason and recovery plan for slippage.
+12. Export CSV when data needs to be shared.
+
+
+52. SIMPLE DEFINITIONS
+
+Phase:
+Big work area.
+
+Task:
+Main activity.
+
+Subtask:
+Smaller step inside a task.
+
+Activity ID:
+Schedule number.
+
+WBS:
+Work breakdown hierarchy.
+
+Timeline:
+Calendar view of work.
+
+Gantt:
+Schedule chart with bars and dependencies.
+
+Milestone:
+Important task finish point.
+
+Baseline:
+Approved original plan.
+
+Forecast:
+Current expected plan after updates.
+
+Lookahead:
+Short-term readiness planning.
+
+Scheduled vs Actual:
+Comparison between plan and real site execution.
+
+Dependency:
+One task depends on another task.
+
+Lag:
+Extra gap or overlap between dependent tasks.
+
+Float:
+Extra available time before delay affects another activity.
+
+Buffer:
+Planned safe time.
+
+Delay:
+Unplanned late time.
+
+Variance:
+Difference between planned progress and actual progress.
+
+Recovery Plan:
+Action plan to reduce delay.
+
+
+END OF DOCUMENT
