@@ -2,6 +2,7 @@ import { Brain, Send, Package, Users, FileText, Upload, Truck, CheckCircle, Cloc
 import { useState, useEffect, useMemo, useRef } from "react";
 import { generateFromElement, inlineComputedStyles } from "@magicpatterns/html-to-figma";
 import { useNavigate, useSearchParams } from "react-router";
+import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "../ui/dropdown-menu";
 import { useSidebar } from "../../context/SidebarContext";
@@ -13,6 +14,11 @@ import { MaterialProcurementTracker } from "./MaterialProcurementTracker";
 import { ResourceProcurementTracker } from "./ResourceProcurementTracker";
 import { VendorTracker } from "./VendorTracker";
 import { PlanningTracker, type PlanningTemplateKey } from "./PlanningTracker";
+import { ResourcesWorkspace, type ResourceSection } from "./ResourcesWorkspace";
+import MaterialCatalog from "./MaterialCatalog";
+import EquipmentCatalog from "./EquipmentCatalog";
+import VendorCatalog from "./VendorCatalog";
+import StandardsCatalog from "./StandardsCatalog";
 
 const insightsPieData = [
   { name: "Active", value: 42, color: "#3b82f6" },
@@ -129,6 +135,7 @@ const planningTemplateOptions: Array<{ value: PlanningTemplateKey; label: string
   { value: "new", label: "New blank template", description: "Start clean, rename, and save your own planning setup" },
   { value: "construction", label: "Construction template", description: "Full WBS with site, structure, and MEP phases" },
   { value: "preconstruction", label: "Pre-construction template", description: "Design, approvals, and procurement planning" },
+  { value: "bep", label: "BEP template", description: "BIM execution plan with standards, modeling, coordination, and handover" },
   { value: "site-survey", label: "Site survey template", description: "Survey planning, capture, and deliverables" },
   { value: "facility-management", label: "Facility management template", description: "Handover, maintenance, and operations" },
 ];
@@ -137,9 +144,36 @@ const planningTemplateVisuals: Record<PlanningTemplateKey, { icon: typeof Activi
   new: { icon: Plus, tone: "bg-blue-600 text-white shadow-md shadow-blue-600/30 ring-1 ring-blue-600/10" },
   construction: { icon: Package, tone: "bg-blue-600 text-white shadow-md shadow-blue-600/30 ring-1 ring-blue-600/10" },
   preconstruction: { icon: Clock, tone: "bg-indigo-600 text-white shadow-md shadow-indigo-600/30 ring-1 ring-indigo-600/10" },
+  bep: { icon: Box, tone: "bg-slate-900 text-white shadow-md shadow-slate-900/25 ring-1 ring-slate-900/10" },
   "site-survey": { icon: MapPin, tone: "bg-teal-600 text-white shadow-md shadow-teal-600/30 ring-1 ring-teal-600/10" },
   "facility-management": { icon: Folder, tone: "bg-purple-600 text-white shadow-md shadow-purple-600/30 ring-1 ring-purple-600/10" },
 };
+
+const planningTemplateExploreChips = ["All", "BIM", "Construction", "Pre-construction", "Survey", "MEP", "Handover", "Infrastructure"] as const;
+type PlanningTemplateExploreChip = typeof planningTemplateExploreChips[number];
+type PlanningTemplateGalleryItem = {
+  id: string;
+  value: PlanningTemplateKey;
+  label: string;
+  description: string;
+  category: Exclude<PlanningTemplateExploreChip, "All">;
+  duration: string;
+  scope: string;
+  tags: string[];
+};
+
+const planningTemplateGalleryItems: PlanningTemplateGalleryItem[] = [
+  { id: "tpl-bep-core", value: "bep", label: "BIM Execution Planning template", description: "BEP setup with BIM roles, CDE workflow, LOD matrix, model standards, coordination cycles, and handover deliverables.", category: "BIM", duration: "15 weeks", scope: "BIM execution", tags: ["BEP", "LOD", "Clash"] },
+  { id: "tpl-construction-core", value: "construction", label: "Construction template", description: "Full WBS with site setup, substructure, superstructure, facade, MEP, finishing, and handover phases.", category: "Construction", duration: "14 months", scope: "High-rise building", tags: ["WBS", "Civil", "MEP"] },
+  { id: "tpl-preconstruction-approval", value: "preconstruction", label: "Pre-construction template", description: "Design coordination, authority approvals, tendering, procurement planning, and baseline preparation.", category: "Pre-construction", duration: "16 weeks", scope: "Design to tender", tags: ["Approvals", "Tender", "Baseline"] },
+  { id: "tpl-site-survey", value: "site-survey", label: "Site survey template", description: "Control points, drone capture, topographic survey, utility mapping, deliverables, and review milestones.", category: "Survey", duration: "6 weeks", scope: "Survey package", tags: ["Drone", "Topo", "GIS"] },
+  { id: "tpl-mep-coordination", value: "construction", label: "MEP coordination template", description: "Shop drawings, sleeves, first fix, second fix, testing, commissioning, and consultant inspection flow.", category: "MEP", duration: "24 weeks", scope: "MEP works", tags: ["HVAC", "Electrical", "Testing"] },
+  { id: "tpl-infra-road", value: "construction", label: "Road infrastructure template", description: "Survey, earthwork, subgrade, utilities, drainage, asphalt, signage, and traffic handover milestones.", category: "Infrastructure", duration: "10 months", scope: "Roadworks", tags: ["Earthwork", "Drainage", "Asphalt"] },
+  { id: "tpl-fitout", value: "construction", label: "Interior fitout template", description: "Partition, MEP rough-in, ceiling, flooring, joinery, painting, snags, and client handover sequencing.", category: "Construction", duration: "18 weeks", scope: "Fitout", tags: ["Finishes", "Snagging", "Client handover"] },
+  { id: "tpl-facility-handover", value: "facility-management", label: "Facility handover template", description: "Asset register, O&M manuals, warranties, training, defect liability, and planned maintenance setup.", category: "Handover", duration: "12 weeks", scope: "Closeout", tags: ["O&M", "Assets", "DLP"] },
+  { id: "tpl-basement", value: "construction", label: "Basement construction template", description: "Excavation, shoring, dewatering, raft, retaining wall, waterproofing, and podium transfer milestones.", category: "Construction", duration: "20 weeks", scope: "Substructure", tags: ["Dewatering", "Raft", "Waterproofing"] },
+  { id: "tpl-approval-fasttrack", value: "preconstruction", label: "Fast-track approvals template", description: "Parallel approval matrix for design submissions, statutory documents, consultant comments, and revisions.", category: "Pre-construction", duration: "8 weeks", scope: "Authority approvals", tags: ["Matrix", "Submittals", "Revisions"] },
+];
 
 type PlanningPermission = "edit" | "view";
 type PlanningAssignTab = "members" | "partners" | "consultants";
@@ -423,6 +457,9 @@ export function Hub() {
   const [globalSelectedProject, setGlobalSelectedProject] = useState("Downtown Tower Complex");
   const [planningTemplate, setPlanningTemplate] = useState<PlanningTemplateKey>("construction");
   const [planningTemplateOpen, setPlanningTemplateOpen] = useState(false);
+  const [planningTemplateExploreOpen, setPlanningTemplateExploreOpen] = useState(false);
+  const [planningTemplateExploreSearch, setPlanningTemplateExploreSearch] = useState("");
+  const [planningTemplateExploreChip, setPlanningTemplateExploreChip] = useState<PlanningTemplateExploreChip>("All");
   const [customPlanningTemplateName, setCustomPlanningTemplateName] = useState("New blank template");
   const [customPlanningTemplateDraft, setCustomPlanningTemplateDraft] = useState("My planning template");
   const [savedPlanningTemplates, setSavedPlanningTemplates] = useState<SavedPlanningTemplate[]>([]);
@@ -433,6 +470,7 @@ export function Hub() {
   const [planningInvitePermission, setPlanningInvitePermission] = useState<PlanningPermission>("view");
   const [planningInvitedAssignees, setPlanningInvitedAssignees] = useState<PlanningAssigneeOption[]>([]);
   const [planningSelectedAssignees, setPlanningSelectedAssignees] = useState<string[]>(["planning-lead", "civil-team", "mep-team"]);
+  const [activeResourceSection, setActiveResourceSection] = useState<ResourceSection>("organization");
   const [planningAssigneePermissions, setPlanningAssigneePermissions] = useState<Record<string, PlanningPermission>>({
     "planning-lead": "edit",
     "civil-team": "edit",
@@ -441,6 +479,17 @@ export function Hub() {
 
   const myDummyProjects = ["Downtown Tower Complex", "Riverside Residential", "Tech Park Phase 2", "Green Valley Homes"];
   const sharedDummyProjects = ["Metro Mall Expansion", "Northern Highway Corridor", "Smart Campus Replica", "Airport Apron Upgrade"];
+  const resourceSections: ResourceSection[] = [
+    "organization",
+    "workforce",
+    "teams",
+    "attendance",
+    "access-control",
+    "allocation",
+    "payroll",
+    "performance",
+    "compliance",
+  ];
   
   useEffect(() => {
     const moduleParam = searchParams.get("module") as HubModule | null;
@@ -461,6 +510,9 @@ export function Hub() {
       }
       if (moduleParam === "catalog" && sectionParam) {
         setCatalogFilters({});
+      }
+      if (moduleParam === "resources" && sectionParam && resourceSections.includes(sectionParam as ResourceSection)) {
+        setActiveResourceSection(sectionParam as ResourceSection);
       }
       return;
     }
@@ -725,8 +777,17 @@ export function Hub() {
   const activePlanningTemplate = planningTemplateOptions.find((template) => template.value === planningTemplate) ?? planningTemplateOptions[0];
   const blankPlanningTemplate = planningTemplateOptions.find((template) => template.value === "new") ?? planningTemplateOptions[0];
   const presetPlanningTemplates = planningTemplateOptions.filter((template) => template.value !== "new");
+  const compactPresetPlanningTemplates = presetPlanningTemplates.slice(0, 3);
   const selectedSavedPlanningTemplate = savedPlanningTemplates.find((template) => template.id === selectedSavedPlanningTemplateId) ?? null;
   const activePlanningTemplateLabel = planningTemplate === "new" ? (selectedSavedPlanningTemplate?.label ?? customPlanningTemplateName) : activePlanningTemplate.label;
+  const filteredPlanningTemplateGallery = useMemo(() => {
+    const query = planningTemplateExploreSearch.trim().toLowerCase();
+    return planningTemplateGalleryItems.filter((template) => {
+      const matchesChip = planningTemplateExploreChip === "All" || template.category === planningTemplateExploreChip || template.tags.includes(planningTemplateExploreChip);
+      const searchable = [template.label, template.description, template.category, template.scope, ...template.tags].join(" ").toLowerCase();
+      return matchesChip && (!query || searchable.includes(query));
+    });
+  }, [planningTemplateExploreChip, planningTemplateExploreSearch]);
   const createNewPlanningTemplate = () => {
     setPlanningTemplate("new");
     setSelectedSavedPlanningTemplateId(null);
@@ -744,6 +805,17 @@ export function Hub() {
     }
     setSelectedSavedPlanningTemplateId(null);
     setPlanningTemplateOpen(false);
+  };
+  const openPlanningTemplateExplorer = () => {
+    setPlanningTemplateOpen(false);
+    setPlanningTemplateExploreOpen(true);
+  };
+  const choosePlanningGalleryTemplate = (template: PlanningTemplateGalleryItem) => {
+    setPlanningTemplate(template.value);
+    setSelectedSavedPlanningTemplateId(null);
+    setPlanningTemplateExploreOpen(false);
+    setPlanningTemplateOpen(false);
+    toast.success(`${template.label} loaded.`);
   };
   const chooseSavedPlanningTemplate = (template: SavedPlanningTemplate) => {
     setPlanningTemplate("new");
@@ -1319,10 +1391,10 @@ export function Hub() {
         }),
       ]);
 
-      alert("Figma layers copied. Paste into Figma (Cmd+V / Ctrl+V).");
+      toast.success("Figma layers copied. Paste into Figma (Cmd+V / Ctrl+V).");
     } catch (err) {
       console.error('Failed to copy to figma', err);
-      alert("Failed to copy native Figma layers.");
+      toast.error("Failed to copy native Figma layers.");
     } finally {
       isCopyingFigmaRef.current = false;
       setIsCopyingFigma(false);
@@ -1821,7 +1893,7 @@ export function Hub() {
 
   return (
     <div className="min-h-screen bg-white">
-      <div className="w-full px-8 py-10">
+      <div className={`w-full ${activeSection === "resources" ? "px-5 pb-6 pt-2" : "px-8 py-10"}`}>
         {/* Hub Launcher */}
         {activeSection === "home" && (
           <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-6xl flex-col justify-center">
@@ -2258,19 +2330,19 @@ export function Hub() {
                       </div>
                       </div>
 
-                      <div className="min-h-0 flex-1 overflow-y-auto p-2">
+                      <div className="min-h-0 flex-1 overflow-y-auto p-3">
                         <button
                           type="button"
                           onClick={createNewPlanningTemplate}
-                          className="mb-2 flex h-9 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-3 text-xs font-medium text-white shadow-sm transition-all hover:bg-blue-700 hover:shadow-md"
+                          className="mb-3 flex h-9 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-3 text-xs font-medium text-white shadow-sm transition-all hover:bg-blue-700 hover:shadow-md"
                         >
                           <Plus className="h-4 w-4 text-white" />
                           Create new template
                         </button>
-                      <div className="space-y-1.5">
+                      <div className="space-y-2">
                         {savedPlanningTemplates.length > 0 && (
                           <>
-                            <div className="px-2 pt-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-slate-400">
+                            <div className="px-1 pt-1 text-[10px] font-medium uppercase tracking-[0.14em] text-slate-400">
                               My templates
                             </div>
                             {savedPlanningTemplates.map((template) => {
@@ -2279,19 +2351,19 @@ export function Hub() {
                                 <DropdownMenuItem
                                   key={template.id}
                                   onSelect={() => chooseSavedPlanningTemplate(template)}
-                                  className={`flex cursor-pointer items-center justify-between gap-3 rounded-xl border px-2.5 py-2 transition-all focus:bg-blue-50 ${
-                                    selected ? "border-blue-200 bg-blue-50/90 shadow-sm" : "border-transparent bg-white hover:border-slate-200 hover:bg-slate-50"
+                                  className={`flex cursor-pointer items-center justify-between gap-3 rounded-2xl border px-3 py-2.5 transition-all focus:bg-blue-50 ${
+                                    selected ? "border-blue-200 bg-blue-50/70 shadow-sm" : "border-transparent bg-white hover:border-slate-200 hover:bg-slate-50"
                                   }`}
                                 >
-                                  <span className="flex min-w-0 items-center gap-2.5">
-                                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-blue-600 text-white shadow-md shadow-blue-600/20">
+                                  <span className="flex min-w-0 items-center gap-3">
+                                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl bg-blue-600 text-white shadow-md shadow-blue-600/20">
                                       <FolderPlus className="h-4 w-4 text-white" strokeWidth={2.4} />
                                     </span>
                                     <span className="min-w-0 text-left">
-                                      <span className={`block truncate text-sm font-medium ${selected ? "text-blue-700" : "text-slate-800"}`}>
+                                      <span className={`block truncate text-sm font-medium leading-5 ${selected ? "text-blue-700" : "text-slate-800"}`}>
                                         {template.label}
                                       </span>
-                                      <span className="mt-0.5 block truncate text-xs font-normal text-slate-500">
+                                      <span className="mt-0.5 block truncate text-xs font-normal leading-4 text-slate-500">
                                         {template.description}
                                       </span>
                                     </span>
@@ -2318,19 +2390,19 @@ export function Hub() {
                                 event.preventDefault();
                                 choosePlanningTemplate("new");
                               }}
-                              className={`flex cursor-pointer items-center justify-between gap-3 rounded-xl border px-2.5 py-2 transition-all focus:bg-blue-50 ${
-                                selected ? "border-blue-200 bg-blue-50 shadow-sm" : "border-blue-100 bg-blue-50/55 hover:bg-blue-50"
+                              className={`flex cursor-pointer items-center justify-between gap-3 rounded-2xl border px-3 py-2.5 transition-all focus:bg-blue-50 ${
+                                selected ? "border-blue-200 bg-blue-50/70 shadow-sm" : "border-blue-100 bg-blue-50/45 hover:bg-blue-50"
                               }`}
                             >
-                              <span className="flex min-w-0 items-center gap-2.5">
-                                <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-xl ${templateVisual.tone}`}>
+                              <span className="flex min-w-0 items-center gap-3">
+                                <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-2xl ${templateVisual.tone}`}>
                                   <TemplateIcon className="h-4 w-4 text-white" strokeWidth={2.5} />
                                 </span>
                                 <span className="min-w-0 text-left">
-                                  <span className="block truncate text-sm font-medium text-slate-950">
+                                  <span className="block truncate text-sm font-medium leading-5 text-slate-950">
                                     {customPlanningTemplateName !== "New blank template" ? customPlanningTemplateName : blankPlanningTemplate.label}
                                   </span>
-                                  <span className="mt-0.5 block text-xs font-normal leading-5 text-slate-500">
+                                  <span className="mt-0.5 block text-xs font-normal leading-4 text-slate-500">
                                     {blankPlanningTemplate.description}
                                   </span>
                                 </span>
@@ -2344,10 +2416,10 @@ export function Hub() {
                           );
                         })()}
 
-                        <div className="px-2 pt-0.5 text-[10px] font-medium uppercase tracking-[0.14em] text-slate-400">
+                        <div className="px-1 pt-2 text-[10px] font-medium uppercase tracking-[0.14em] text-slate-400">
                           Ready templates
                         </div>
-                        {presetPlanningTemplates.map((template) => {
+                        {compactPresetPlanningTemplates.map((template) => {
                           const selected = planningTemplate === template.value;
                           const templateVisual = planningTemplateVisuals[template.value];
                           const TemplateIcon = templateVisual.icon;
@@ -2355,19 +2427,19 @@ export function Hub() {
                             <DropdownMenuItem
                               key={template.value}
                               onSelect={() => choosePlanningTemplate(template.value)}
-                              className={`flex cursor-pointer items-center justify-between gap-3 rounded-xl border px-2.5 py-2 transition-all focus:bg-blue-50 ${
-                                selected ? "border-blue-200 bg-blue-50/80 shadow-sm" : "border-transparent bg-white hover:border-slate-200 hover:bg-slate-50"
+                              className={`flex cursor-pointer items-center justify-between gap-3 rounded-2xl border px-3 py-2.5 transition-all focus:bg-blue-50 ${
+                                selected ? "border-blue-200 bg-blue-50/70 shadow-sm ring-1 ring-blue-100" : "border-transparent bg-white hover:border-slate-200 hover:bg-slate-50"
                               }`}
                             >
-                              <span className="flex min-w-0 items-center gap-2.5">
-                                <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-xl ${templateVisual.tone}`}>
+                              <span className="flex min-w-0 items-center gap-3">
+                                <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-2xl ${templateVisual.tone}`}>
                                   <TemplateIcon className="h-4 w-4 text-white" strokeWidth={2.4} />
                                 </span>
                                 <span className="min-w-0 text-left">
-                                  <span className={`block truncate text-sm font-medium ${selected ? "text-blue-700" : "text-slate-800"}`}>
+                                  <span className={`block truncate text-sm font-medium leading-5 ${selected ? "text-blue-700" : "text-slate-800"}`}>
                                     {template.label}
                                   </span>
-                                  <span className={`mt-0.5 block truncate text-xs font-normal ${selected ? "text-blue-500" : "text-slate-500"}`}>
+                                  <span className={`mt-0.5 block truncate text-xs font-normal leading-4 ${selected ? "text-blue-500" : "text-slate-500"}`}>
                                     {template.description}
                                   </span>
                                 </span>
@@ -2380,6 +2452,24 @@ export function Hub() {
                             </DropdownMenuItem>
                           );
                         })}
+                        <DropdownMenuItem
+                          onSelect={(event) => {
+                            event.preventDefault();
+                            openPlanningTemplateExplorer();
+                          }}
+                          className="mt-2 flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 px-3 py-2.5 transition-all focus:bg-blue-50 hover:border-blue-200 hover:bg-blue-50/60"
+                        >
+                          <span className="flex min-w-0 items-center gap-3">
+                            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl bg-white text-slate-500 shadow-sm ring-1 ring-slate-200">
+                              <Grid3x3 className="h-4 w-4" strokeWidth={2.2} />
+                            </span>
+                            <span className="min-w-0 text-left">
+                              <span className="block truncate text-sm font-medium leading-5 text-blue-700">Explore more templates</span>
+                              <span className="mt-0.5 block truncate text-xs font-normal leading-4 text-slate-500">Browse construction, MEP, survey, and handover templates</span>
+                            </span>
+                          </span>
+                          <ChevronRight className="h-4 w-4 shrink-0 text-blue-500" />
+                        </DropdownMenuItem>
                       </div>
                       </div>
                       {planningTemplate === "new" && (
@@ -2417,6 +2507,124 @@ export function Hub() {
                       )}
                     </DropdownMenuContent>
                   </DropdownMenu>
+                  <Dialog open={planningTemplateExploreOpen} onOpenChange={setPlanningTemplateExploreOpen}>
+                    <DialogContent className="flex max-h-[86vh] flex-col gap-0 overflow-hidden border-0 bg-white p-0 shadow-[0_28px_80px_rgba(15,23,42,0.22)] sm:max-w-5xl [&>button:last-child]:hidden">
+                      <div className="border-b border-slate-100 bg-white px-5 py-4">
+                        <DialogHeader className="gap-0">
+                          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                            <div className="min-w-0">
+                              <DialogTitle className="text-xl font-semibold tracking-tight text-slate-950">Planning templates</DialogTitle>
+                              <DialogDescription className="mt-1 text-sm text-slate-500">
+                                Ready structures for project planning.
+                              </DialogDescription>
+                            </div>
+                            <div className="flex w-full items-center gap-2 lg:w-auto">
+                              <div className="relative min-w-0 flex-1 lg:w-[360px]">
+                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                                <input
+                                  value={planningTemplateExploreSearch}
+                                  onChange={(event) => setPlanningTemplateExploreSearch(event.target.value)}
+                                  placeholder="Search templates..."
+                                  className="h-10 w-full rounded-2xl border border-slate-200 bg-slate-50/70 pl-10 pr-3 text-sm text-slate-900 outline-none transition focus:border-blue-300 focus:bg-white focus:ring-4 focus:ring-blue-100"
+                                />
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setPlanningTemplateExploreOpen(false)}
+                                className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-slate-900"
+                                aria-label="Close template library"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </DialogHeader>
+
+                        <div className="mt-4 flex gap-1.5 overflow-x-auto pb-1">
+                          {planningTemplateExploreChips.map((chip) => (
+                            <button
+                              key={chip}
+                              type="button"
+                              onClick={() => setPlanningTemplateExploreChip(chip)}
+                              className={`h-8 shrink-0 rounded-full border px-3 text-xs font-medium transition-all ${
+                                planningTemplateExploreChip === chip
+                                  ? "border-blue-600 bg-blue-600 text-white shadow-sm shadow-blue-600/20"
+                                  : "border-slate-200 bg-white text-slate-500 hover:border-blue-200 hover:text-blue-700"
+                              }`}
+                            >
+                              {chip}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50/60 p-4">
+                        {filteredPlanningTemplateGallery.length === 0 ? (
+                          <div className="flex min-h-[280px] flex-col items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-white text-center">
+                            <Search className="mb-3 h-8 w-8 text-slate-300" />
+                            <p className="text-sm font-semibold text-slate-900">No templates found</p>
+                            <p className="mt-1 text-xs text-slate-500">Try another keyword or category chip.</p>
+                          </div>
+                        ) : (
+                          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                            {filteredPlanningTemplateGallery.map((template) => {
+                              const templateVisual = planningTemplateVisuals[template.value];
+                              const TemplateIcon = templateVisual.icon;
+                              const selected = template.value === planningTemplate && template.label === activePlanningTemplate.label;
+                              return (
+                                <button
+                                  key={template.id}
+                                  type="button"
+                                  onClick={() => choosePlanningGalleryTemplate(template)}
+                                  className={`group flex min-h-[168px] flex-col rounded-2xl border bg-white p-3 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-lg hover:shadow-blue-950/5 ${
+                                    selected ? "border-blue-300 ring-2 ring-blue-100" : "border-slate-200"
+                                  }`}
+                                >
+                                  <div className="mb-3 flex items-start justify-between gap-3">
+                                    <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${templateVisual.tone}`}>
+                                      <TemplateIcon className="h-4 w-4 text-white" strokeWidth={2.4} />
+                                    </span>
+                                    <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-medium text-slate-500">
+                                      {template.category}
+                                    </span>
+                                  </div>
+                                  <h3 className="text-sm font-semibold leading-tight text-slate-950 group-hover:text-blue-700">{template.label}</h3>
+                                  <p className="mt-1.5 line-clamp-2 text-xs leading-5 text-slate-500">{template.description}</p>
+                                  <div className="mt-3 flex items-center gap-2 border-t border-slate-100 pt-3 text-[11px] text-slate-500">
+                                    <span className="font-semibold text-slate-800">{template.duration}</span>
+                                    <span className="h-1 w-1 rounded-full bg-slate-300" />
+                                    <span className="truncate">{template.scope}</span>
+                                  </div>
+                                  <div className="mt-2 flex flex-wrap gap-1.5">
+                                    {template.tags.slice(0, 2).map((tag) => (
+                                      <span key={tag} className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600">{tag}</span>
+                                    ))}
+                                  </div>
+                                  <span className="mt-auto flex items-center justify-between pt-3 text-xs font-semibold text-blue-600">
+                                    Use
+                                    {selected ? <CheckCircle className="h-4 w-4 text-blue-600" /> : <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex items-center justify-between gap-3 border-t border-slate-100 bg-white px-5 py-3">
+                        <p className="text-xs text-slate-500">
+                          {filteredPlanningTemplateGallery.length} templates
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setPlanningTemplateExploreOpen(false)}
+                          className="h-9 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                        >
+                          Close
+                        </button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                 </div>
                 )}
 
@@ -3272,6 +3480,14 @@ export function Hub() {
                   </button>
                 </div>
               </div>
+            ) : activeCatalogSection === "materials" ? (
+              <MaterialCatalog onBack={() => selectHubModule("catalog", "home")} />
+            ) : activeCatalogSection === "equipment" ? (
+              <EquipmentCatalog onBack={() => selectHubModule("catalog", "home")} />
+            ) : activeCatalogSection === "vendors" ? (
+              <VendorCatalog onBack={() => selectHubModule("catalog", "home")} />
+            ) : activeCatalogSection === "standards" ? (
+              <StandardsCatalog onBack={() => selectHubModule("catalog", "home")} />
             ) : (
               <div className="space-y-4">
                 <div className="flex items-center justify-between border-b border-gray-100 pb-4">
@@ -4083,66 +4299,17 @@ export function Hub() {
 
         {/* Resources Section */}
         {activeSection === "resources" && (
-          <div>
-            <div className="mb-6 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-cyan-50 text-cyan-600">
-                  <Users className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="text-2xl">Resources</h3>
-                  <p className="text-sm text-gray-500">Organization structure, teams, access point, and payroll readiness.</p>
-                </div>
-              </div>
-              <button className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm hover:border-gray-900">
-                <UserCheck className="h-4 w-4" />
-                Sync Access
-              </button>
-            </div>
-
-            <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-              {["164 people", "12 teams", "148 active access", "92% payroll ready"].map((stat) => (
-                <div key={stat} className="rounded-xl border border-gray-200 bg-white p-4">
-                  <p className="text-xl text-gray-950">{stat.split(" ")[0]}</p>
-                  <p className="mt-1 text-xs text-gray-500">{stat.split(" ").slice(1).join(" ")}</p>
-                </div>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-1 gap-5 lg:grid-cols-[0.9fr_1.5fr]">
-              <div className="rounded-2xl border border-gray-200 bg-white p-5">
-                <h4 className="mb-4 text-lg">Organization</h4>
-                {["Project Director", "Project Manager", "Site Engineer", "Team Lead", "Crew Member"].map((role, index) => (
-                  <div key={role} className="flex items-center gap-3 border-b border-gray-100 py-3 last:border-b-0">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-xs text-gray-600">{index + 1}</div>
-                    <span className="text-sm text-gray-800">{role}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="rounded-2xl border border-gray-200 bg-white">
-                <div className="grid grid-cols-[1.3fr_1fr_90px_100px_100px] gap-4 border-b border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-500">
-                  <span>Team</span>
-                  <span>Lead</span>
-                  <span>Members</span>
-                  <span>Access</span>
-                  <span>Payroll</span>
-                </div>
-                {resourceRows.map((team) => (
-                  <div key={team.team} className="grid grid-cols-[1.3fr_1fr_90px_100px_100px] gap-4 border-b border-gray-100 px-4 py-3 text-sm last:border-b-0 hover:bg-gray-50">
-                    <span className="text-gray-950">{team.team}</span>
-                    <span className="text-gray-600">{team.lead}</span>
-                    <span className="text-gray-600">{team.members}</span>
-                    <span className="text-gray-600">{team.access}</span>
-                    <span>
-                      <span className={`rounded-full px-2 py-1 text-xs ${team.payroll === "Ready" ? "bg-green-50 text-green-700" : "bg-orange-50 text-orange-700"}`}>
-                        {team.payroll}
-                      </span>
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+          <ResourcesWorkspace
+            activeSection={activeResourceSection}
+            selectedProject={globalSelectedProject}
+            onProjectChange={setGlobalSelectedProject}
+            myProjects={myDummyProjects}
+            sharedProjects={sharedDummyProjects}
+            onSectionChange={(section) => {
+              setActiveResourceSection(section);
+              navigate(`/dashboard?module=resources&section=${section}`);
+            }}
+          />
         )}
 
         {/* Finance Section */}

@@ -12,6 +12,8 @@ import { Construction } from "./components/pages/Construction";
 import { FacilityManagement } from "./components/pages/FacilityManagement";
 import { DigitalTwin } from "./components/pages/DigitalTwin";
 import { SiteSurvey } from "./components/pages/SiteSurvey";
+import BIMBOXVIWER from "./components/pages/BIMBOXVIWER";
+import BIMBOXVIWERExperiment from "./components/pages/BIMBOXVIWERExperiment";
 
 export const router = createBrowserRouter([
   {
@@ -32,4 +34,12 @@ export const router = createBrowserRouter([
       { path: "site-survey", Component: SiteSurvey },
     ],
   },
+  {
+    path: "/viewer",
+    Component: BIMBOXVIWER
+  },
+  {
+    path: "/viewer-experiment",
+    Component: BIMBOXVIWERExperiment
+  }
 ]);

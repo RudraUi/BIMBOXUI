@@ -2,6 +2,7 @@ import { Search, Filter, FileText, Image, File, FileSpreadsheet, Download, Share
 import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../ui/dialog";
 import { useSidebar } from "../../context/SidebarContext";
+import { GraphySetupCard } from "../graphy/GraphySetupCard";
 
 type FileTypeFilter = "All" | "Drawings" | "Documents" | "Images" | "Reports" | "BIM Models";
 type ProjectFilter = "All Projects" | "Downtown Tower Complex" | "Riverside Residential" | "Tech Park Phase 2";
@@ -263,6 +264,8 @@ export function DataExplorer() {
           </div>
 
           <div className="flex-1 overflow-auto p-6">
+            <GraphySetupCard />
+
             <div className="mb-6 flex items-center justify-between gap-4">
               <div>
                 <h2 className="text-xl mb-2">All Files</h2>

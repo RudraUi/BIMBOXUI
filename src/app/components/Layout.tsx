@@ -25,7 +25,8 @@ import {
   AlertCircle,
   Edit,
   Activity,
-  Plus
+  Plus,
+  Monitor
 } from "lucide-react";
 import { useState } from "react";
 import { useSidebar } from "../context/SidebarContext";
@@ -97,10 +98,15 @@ export function Layout() {
       { icon: CheckCircle, label: "Performance", sublabel: "Scorecards", module: "vendor", section: "performance" },
     ],
     "hub-resources": [
-      { icon: LayoutDashboard, label: "Org Structure", sublabel: "Roles & reporting", module: "resources", section: "organization" },
-      { icon: Users, label: "Teams", sublabel: "Project crews", module: "resources", section: "teams" },
-      { icon: UserCheck, label: "Access Point", sublabel: "Site access", module: "resources", section: "access-point" },
-      { icon: DollarSign, label: "Payroll", sublabel: "Wages & payout", module: "resources", section: "payroll" },
+      { icon: LayoutDashboard, label: "Organization", sublabel: "Hierarchy & reporting", module: "resources", section: "organization" },
+      { icon: Users, label: "Workforce", sublabel: "People and skills", module: "resources", section: "workforce" },
+      { icon: Box, label: "Teams", sublabel: "Crews and units", module: "resources", section: "teams" },
+      { icon: Calendar, label: "Attendance", sublabel: "Check-in and shifts", module: "resources", section: "attendance" },
+      { icon: UserCheck, label: "Access Control", sublabel: "Roles and approvals", module: "resources", section: "access-control" },
+      { icon: Share2, label: "Allocation", sublabel: "Deployment planning", module: "resources", section: "allocation" },
+      { icon: DollarSign, label: "Payroll", sublabel: "Wages and payouts", module: "resources", section: "payroll" },
+      { icon: Activity, label: "Performance", sublabel: "Scorecards and delays", module: "resources", section: "performance" },
+      { icon: FileText, label: "Compliance", sublabel: "Safety and documents", module: "resources", section: "compliance" },
     ],
     "hub-finance": [
       { icon: DollarSign, label: "Budgeting", sublabel: "Planned vs actual", module: "finance", section: "budgeting" },
@@ -116,6 +122,7 @@ export function Layout() {
     { icon: Wrench, label: "Facility Management", sublabel: "Project Management", path: "/facility-management" },
     { icon: MapPin, label: "Site Survey", sublabel: "Site Analysis", path: "/site-survey" },
     { icon: Box, label: "Digital Twin", sublabel: "BIM Modeling", path: "/digital-twin" },
+    { icon: Monitor, label: "3D Viewer", sublabel: "Premium BIM Viewer", path: "/viewer" },
   ];
 
   const isActive = (path: string) => location.pathname === path;
