@@ -28,7 +28,7 @@ import {
   Plus,
   Monitor
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSidebar } from "../context/SidebarContext";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
@@ -38,19 +38,17 @@ export function Layout() {
   const navigate = useNavigate();
   const { mode, setMode } = useSidebar();
 
-  const [customVendorSections, setCustomVendorSections] = useState<{label: string, section: string}[]>([]);
-  const [isAddVendorSectionOpen, setIsAddVendorSectionOpen] = useState(false);
-  const [newVendorSectionName, setNewVendorSectionName] = useState("");
-
-  const handleAddVendorSection = () => {
-    if (newVendorSectionName.trim()) {
-      const sectionId = newVendorSectionName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-      setCustomVendorSections([...customVendorSections, { label: newVendorSectionName, section: sectionId }]);
-      setIsAddVendorSectionOpen(false);
-      setNewVendorSectionName("");
-      handleModuleMenuClick("vendor", sectionId);
+  useEffect(() => {
+    const path = location.pathname;
+    if (
+      path.startsWith("/admin/material-suppliers") ||
+      path.startsWith("/manager/material-receiving") ||
+      path.startsWith("/vendor-portal/material-supplier")
+    ) {
+      setMode("hub-vendor");
     }
-  };
+  }, [location.pathname, setMode]);
+
 
   const mainMenuItems = [
     { icon: LayoutDashboard, label: "Hub", sublabel: "Workspace Modules", path: "/dashboard", sidebarMode: "main" },
@@ -61,7 +59,7 @@ export function Layout() {
     { icon: Database, label: "Data Explorer", sublabel: "Document & Data Hub", path: "/data-explorer", sidebarMode: "main" },
   ];
 
-  const moduleMenuItems = {
+  const moduleMenuItems: Record<string, Array<{ icon: any; label: string; sublabel: string; path?: string; module?: string; section?: string }>> = {
     "hub-data": [
       { icon: Database, label: "Data Home", sublabel: "Data launcher", module: "data", section: "home" },
       { icon: FolderKanban, label: "Drawings", sublabel: "Architecture & MEP", module: "data", section: "drawings" },
@@ -90,12 +88,9 @@ export function Layout() {
       { icon: Truck, label: "Equipment Procurement", sublabel: "Plant & machinery", module: "procurement", section: "equipment" },
     ],
     "hub-vendor": [
-      { icon: LayoutDashboard, label: "Vendor Home", sublabel: "Overview dashboard", module: "vendor", section: "home" },
-      { icon: Package, label: "Supplier", sublabel: "Material partners", module: "vendor", section: "supplier" },
-      { icon: Users, label: "Resource Vendor", sublabel: "Labour partners", module: "vendor", section: "resource" },
-      { icon: Truck, label: "Equipment Vendor", sublabel: "Plant & machinery", module: "vendor", section: "equipment" },
-      { icon: Wrench, label: "Special Service", sublabel: "Gardening, Security", module: "vendor", section: "special" },
-      { icon: CheckCircle, label: "Performance", sublabel: "Scorecards", module: "vendor", section: "performance" },
+      { icon: Package, label: "Material Suppliers", sublabel: "Registry & RFQs", path: "/admin/material-suppliers", module: "vendor", section: "supplier" },
+      { icon: Truck, label: "Site Receiving", sublabel: "Gate Entry & QC Checks", path: "/manager/material-receiving", module: "vendor", section: "receiving" },
+      { icon: UserCheck, label: "Vendor Portal", sublabel: "Simulate Bid & Dispatch", path: "/vendor-portal/material-supplier", module: "vendor", section: "portal" },
     ],
     "hub-resources": [
       { icon: LayoutDashboard, label: "Organization", sublabel: "Hierarchy & reporting", module: "resources", section: "organization" },
@@ -114,7 +109,7 @@ export function Layout() {
       { icon: Landmark, label: "Payments", sublabel: "Released & pending", module: "finance", section: "payments" },
       { icon: Calendar, label: "Forecast", sublabel: "Cash flow", module: "finance", section: "forecast" },
     ],
-  } as const;
+  };
 
   const phaseItems = [
     { icon: Sparkles, label: "Pre-Construction", sublabel: "Fast BIM Automation", path: "/pre-construction" },
@@ -222,13 +217,21 @@ export function Layout() {
                 {moduleItems.map((item) => {
                   const Icon = item.icon;
                   const isActiveSection =
-                    activeParams.get("module") === item.module &&
-                    activeParams.get("section") === item.section;
+                    item.path
+                      ? location.pathname === item.path
+                      : (activeParams.get("module") === item.module &&
+                         activeParams.get("section") === item.section);
                   return (
                     <Tooltip key={item.section}>
                       <TooltipTrigger asChild>
                         <button
-                          onClick={() => handleModuleMenuClick(item.module, item.section)}
+                          onClick={() => {
+                            if (item.path) {
+                              navigate(item.path);
+                            } else if (item.module && item.section) {
+                              handleModuleMenuClick(item.module, item.section);
+                            }
+                          }}
                           aria-label={item.label}
                           className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${
                             isActiveSection
@@ -244,44 +247,6 @@ export function Layout() {
                   );
                 })}
 
-                {mode === "hub-vendor" && customVendorSections.map((item) => {
-                  const isActiveSection =
-                    activeParams.get("module") === "vendor" &&
-                    activeParams.get("section") === item.section;
-                  return (
-                    <Tooltip key={item.section}>
-                      <TooltipTrigger asChild>
-                        <button
-                          onClick={() => handleModuleMenuClick("vendor", item.section)}
-                          aria-label={item.label}
-                          className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${
-                            isActiveSection
-                              ? "bg-gray-900 text-white"
-                              : "text-gray-600 hover:bg-gray-100"
-                          }`}
-                        >
-                          <Users className="w-5 h-5" />
-                        </button>
-                      </TooltipTrigger>
-                      {renderTooltip(item.label, "Custom Vendor Category")}
-                    </Tooltip>
-                  );
-                })}
-
-                {mode === "hub-vendor" && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        onClick={() => setIsAddVendorSectionOpen(true)}
-                        aria-label="Add Vendor Category"
-                        className="w-10 h-10 mt-1 rounded-lg border border-dashed border-gray-300 flex items-center justify-center transition-all text-gray-400 hover:text-gray-600 hover:border-gray-400 hover:bg-gray-50 bg-white"
-                      >
-                        <Plus className="w-5 h-5" />
-                      </button>
-                    </TooltipTrigger>
-                    {renderTooltip("Add Vendor Category", "Create uncategorized section")}
-                  </Tooltip>
-                )}
               </>
             )}
           </div>
@@ -336,33 +301,6 @@ export function Layout() {
       <main className="flex-1 overflow-auto">
         <Outlet />
       </main>
-
-      <Dialog open={isAddVendorSectionOpen} onOpenChange={setIsAddVendorSectionOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Add Custom Vendor Category</DialogTitle>
-            <DialogDescription>
-              Create a new uncategorized vendor section to manage specific vendor types.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <label className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 block">Category Name</label>
-            <input 
-              type="text" 
-              placeholder="e.g., Software Vendors, Consultants" 
-              value={newVendorSectionName}
-              onChange={(e) => setNewVendorSectionName(e.target.value)}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 font-medium" 
-            />
-          </div>
-          <DialogFooter>
-            <button onClick={() => setIsAddVendorSectionOpen(false)} className="px-4 py-2 border border-gray-200 rounded-lg text-xs font-bold text-gray-700 hover:bg-gray-50 uppercase tracking-wider transition-colors">Cancel</button>
-            <button onClick={handleAddVendorSection} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700 shadow-sm uppercase tracking-wider transition-colors">
-              Create Category
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

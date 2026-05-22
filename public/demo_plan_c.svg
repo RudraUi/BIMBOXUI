@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1000" viewBox="0 0 1000 1000">
+  <rect width="1000" height="1000" fill="#f8fafc"/>
+  <rect x="105" y="150" width="790" height="650" fill="#fff" stroke="#334155" stroke-width="9"/>
+  <g stroke="#64748b" stroke-width="5" fill="none">
+    <path d="M105 300h790M105 475h790M105 635h790"/>
+    <path d="M260 150v650M430 150v325M585 300v500M760 150v650"/>
+    <path d="M430 300h80v65M585 475h-85v75M760 635h-115v70"/>
+  </g>
+  <g stroke="#94a3b8" stroke-width="2" fill="none" opacity="0.8">
+    <path d="M135 195h95M135 225h95M295 195h110M295 225h110M620 195h110M620 225h110"/>
+    <path d="M135 520h95M135 550h95M620 520h110M620 550h110"/>
+    <circle cx="345" cy="385" r="42"/>
+    <circle cx="670" cy="385" r="42"/>
+    <rect x="300" y="675" width="90" height="72"/>
+    <rect x="625" y="675" width="90" height="72"/>
+  </g>
+  <g fill="#334155" font-family="Arial, sans-serif" font-size="23">
+    <text x="135" y="270">ENTRY</text>
+    <text x="295" y="270">LOUNGE</text>
+    <text x="620" y="270">OFFICES</text>
+    <text x="135" y="445">LAB</text>
+    <text x="295" y="445">CONFERENCE</text>
+    <text x="620" y="445">COLLAB</text>
+    <text x="135" y="605">DESKS</text>
+    <text x="620" y="605">SUPPORT</text>
+    <text x="110" y="900" font-size="34" font-weight="700">LEVEL 03 PLAN C</text>
+  </g>
+</svg>

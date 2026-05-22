@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1000" viewBox="0 0 1000 1000">
+  <rect width="1000" height="1000" fill="#f1f5f9"/>
+  <rect x="150" y="95" width="700" height="780" fill="#fff" stroke="#1e293b" stroke-width="9"/>
+  <g stroke="#64748b" stroke-width="5" fill="none">
+    <path d="M150 235h700M150 390h520M150 560h700M150 725h700"/>
+    <path d="M300 95v465M495 95v780M670 235v640"/>
+    <path d="M300 390h80v80M495 235h95v80M670 560h-110v90M300 725h120v70"/>
+  </g>
+  <g stroke="#94a3b8" stroke-width="2" fill="none">
+    <path d="M180 140h85M180 170h85M535 140h280M535 170h280"/>
+    <path d="M185 615h250M185 645h250M705 615h110M705 645h110"/>
+    <rect x="535" y="420" width="95" height="95"/>
+    <rect x="705" y="420" width="95" height="95"/>
+  </g>
+  <g fill="#334155" font-family="Arial, sans-serif" font-size="23">
+    <text x="180" y="210">RECEPTION</text>
+    <text x="335" y="210">ADMIN</text>
+    <text x="535" y="210">OPEN OFFICE</text>
+    <text x="180" y="355">TRAINING</text>
+    <text x="535" y="355">MEETING</text>
+    <text x="180" y="530">STUDIO</text>
+    <text x="535" y="530">UTILITIES</text>
+    <text x="180" y="695">BREAKOUT</text>
+    <text x="535" y="695">CORE</text>
+    <text x="150" y="935" font-size="34" font-weight="700">LEVEL 02 PLAN B</text>
+  </g>
+</svg>

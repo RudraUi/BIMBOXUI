@@ -19,6 +19,11 @@ import MaterialCatalog from "./MaterialCatalog";
 import EquipmentCatalog from "./EquipmentCatalog";
 import VendorCatalog from "./VendorCatalog";
 import StandardsCatalog from "./StandardsCatalog";
+import CustomCatalog from "./CustomCatalog";
+
+import { MaterialSupplierListPage } from "../../../modules/material-suppliers/pages/MaterialSupplierListPage";
+import { MaterialReceivingPage } from "../../../modules/material-suppliers/pages/MaterialReceivingPage";
+import { VendorPortalPage } from "../../../modules/material-suppliers/pages/VendorPortalPage";
 
 const insightsPieData = [
   { name: "Active", value: 42, color: "#3b82f6" },
@@ -453,6 +458,8 @@ export function Hub() {
   const [catalogDetailsTab, setCatalogDetailsTab] = useState("Overview");
   const [isCatalogFilterModalOpen, setCatalogFilterModalOpen] = useState(false);
   const [catalogFilters, setCatalogFilters] = useState<{category?: string, brand?: string, grade?: string}>({});
+  const [customCatalogs, setCustomCatalogs] = useState<Array<{ id: string; title: string; subtitle: string; template: string; createdAt: string }>>([]);
+  const [createCatalogDraft, setCreateCatalogDraft] = useState({ name: "", description: "", template: "Material Tracking" });
   const [projectDropdownTab, setProjectDropdownTab] = useState<"my" | "shared">("my");
   const [globalSelectedProject, setGlobalSelectedProject] = useState("Downtown Tower Complex");
   const [planningTemplate, setPlanningTemplate] = useState<PlanningTemplateKey>("construction");
@@ -1103,6 +1110,14 @@ export function Hub() {
     { id: "equipment", title: "Equipment Catalog", subtitle: "Plant, tools, machinery", count: "52 assets", icon: Truck, accent: "bg-emerald-50 text-emerald-600 border-emerald-100" },
     { id: "vendors", title: "Vendor Catalog", subtitle: "Mapped suppliers and trades", count: "48 vendors", icon: Users, accent: "bg-blue-50 text-blue-600 border-blue-100" },
     { id: "standards", title: "Standards", subtitle: "Templates, codes, references", count: "26 docs", icon: FileText, accent: "bg-violet-50 text-violet-600 border-violet-100" },
+    ...customCatalogs.map((catalog) => ({
+      id: catalog.id,
+      title: catalog.title,
+      subtitle: catalog.subtitle,
+      count: "0 items",
+      icon: FolderKanban,
+      accent: "bg-blue-50 text-blue-600 border-blue-100",
+    })),
   ];
 
   useEffect(() => {
@@ -1693,6 +1708,35 @@ export function Hub() {
     { id: 34, type: "standards", name: "BIM Execution Plan", spec: "BEP baseline template", supplier: "N/A", status: "Approved", updated: "2026-04-15", owner: "BIM Team", typeDoc: "Template", category: "BIM", image: "https://images.unsplash.com/photo-1503387762-592deb58ef4e?w=500&q=80" },
     { id: 35, type: "standards", name: "Concrete Pour Card", spec: "Pre-pour inspection checklist", supplier: "N/A", status: "Under Review", updated: "2026-04-10", owner: "Quality", typeDoc: "Checklist", category: "QA/QC", image: "https://images.unsplash.com/photo-1586282391129-76a6df230234?w=500&q=80" },
   ];
+  const customCatalogItemsData: typeof catalogItemsData = [];
+  const catalogLibraryItems = [...catalogItemsData, ...customCatalogItemsData];
+
+  const handleCreateCustomCatalog = () => {
+    const name = createCatalogDraft.name.trim();
+    const description = createCatalogDraft.description.trim();
+    if (!name) {
+      showFeedback("Catalog name is required");
+      return;
+    }
+    const baseSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "custom-catalog";
+    const id = `custom-${baseSlug}-${Date.now().toString(36)}`;
+    const createdAt = new Date().toISOString().slice(0, 10);
+    const nextCatalog = {
+      id,
+      title: name,
+      subtitle: description || `${createCatalogDraft.template} tracking library`,
+      template: createCatalogDraft.template,
+      createdAt,
+    };
+    setCustomCatalogs((current) => [nextCatalog, ...current]);
+    setCreateCatalogDraft({ name: "", description: "", template: "Material Tracking" });
+    setCatalogDetailsTab("Overview");
+    setCatalogFilters({});
+    setCatalogSearchQuery("");
+    setCreateCatalogModalOpen(false);
+    selectHubModule("catalog", id);
+    showFeedback("Custom catalog created successfully");
+  };
 
   const hubModules: Array<{
     id: HubModule;
@@ -3488,6 +3532,18 @@ export function Hub() {
               <VendorCatalog onBack={() => selectHubModule("catalog", "home")} />
             ) : activeCatalogSection === "standards" ? (
               <StandardsCatalog onBack={() => selectHubModule("catalog", "home")} />
+            ) : customCatalogs.some((catalog) => catalog.id === activeCatalogSection) ? (
+              (() => {
+                const customCatalog = customCatalogs.find((catalog) => catalog.id === activeCatalogSection);
+                return customCatalog ? (
+                  <CustomCatalog
+                    title={customCatalog.title}
+                    subtitle={customCatalog.subtitle}
+                    template={customCatalog.template}
+                    onBack={() => selectHubModule("catalog", "home")}
+                  />
+                ) : null;
+              })()
             ) : (
               <div className="space-y-4">
                 <div className="flex items-center justify-between border-b border-gray-100 pb-4">
@@ -3549,7 +3605,7 @@ export function Hub() {
                 <div className="flex flex-col gap-3 pb-2">
                   <div className="flex flex-wrap items-center gap-2">
                     {/* Primary Category Chips */}
-                    {["All", ...Array.from(new Set(catalogItemsData.filter(i => i.type === activeCatalogSection).map(i => i.category)))].map(cat => (
+                    {["All", ...Array.from(new Set(catalogLibraryItems.filter(i => i.type === activeCatalogSection).map(i => i.category)))].map(cat => (
                       <button
                         key={cat}
                         onClick={() => setCatalogFilters(cat === "All" ? {} : { category: cat })}
@@ -3568,7 +3624,7 @@ export function Hub() {
                   {catalogFilters.category && (
                     <div className="flex flex-wrap items-center gap-2 pl-2 border-l-2 border-gray-200">
                       <span className="text-xs text-gray-400 mr-1">Brands:</span>
-                      {["All Brands", ...Array.from(new Set(catalogItemsData.filter(i => i.type === activeCatalogSection && i.category === catalogFilters.category).map(i => i.supplier).filter(s => s && s !== "N/A")))].map(brand => (
+                      {["All Brands", ...Array.from(new Set(catalogLibraryItems.filter(i => i.type === activeCatalogSection && i.category === catalogFilters.category).map(i => i.supplier).filter(s => s && s !== "N/A")))].map(brand => (
                         <button
                           key={brand}
                           onClick={() => setCatalogFilters(prev => ({ ...prev, brand: brand === "All Brands" ? undefined : brand, grade: undefined }))}
@@ -3615,7 +3671,7 @@ export function Hub() {
                       <div>Owner</div>
                       <div></div>
                     </div>
-                    {catalogItemsData
+                    {catalogLibraryItems
                       .filter(item => item.type === activeCatalogSection)
                       .filter(item => !catalogFilters.category || item.category === catalogFilters.category)
                       .filter(item => !catalogFilters.brand || item.supplier === catalogFilters.brand)
@@ -3637,6 +3693,7 @@ export function Hub() {
                                 {activeCatalogSection === 'equipment' && <Truck className="h-5 w-5" />}
                                 {activeCatalogSection === 'vendors' && <Users className="h-5 w-5" />}
                                 {activeCatalogSection === 'standards' && <FileText className="h-5 w-5" />}
+                                {!['materials', 'equipment', 'vendors', 'standards'].includes(activeCatalogSection) && <FolderKanban className="h-5 w-5" />}
                               </div>
                             )}
                           </div>
@@ -3659,7 +3716,7 @@ export function Hub() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                    {catalogItemsData
+                    {catalogLibraryItems
                       .filter(item => item.type === activeCatalogSection)
                       .filter(item => !catalogFilters.category || item.category === catalogFilters.category)
                       .filter(item => !catalogFilters.brand || item.supplier === catalogFilters.brand)
@@ -3680,6 +3737,7 @@ export function Hub() {
                                 {activeCatalogSection === 'equipment' && <Truck className="h-10 w-10 opacity-50" />}
                                 {activeCatalogSection === 'vendors' && <Users className="h-10 w-10 opacity-50" />}
                                 {activeCatalogSection === 'standards' && <FileText className="h-10 w-10 opacity-50" />}
+                                {!['materials', 'equipment', 'vendors', 'standards'].includes(activeCatalogSection) && <FolderKanban className="h-10 w-10 opacity-50" />}
                               </div>
                             )}
                             <div className="absolute top-3 right-3">
@@ -3693,6 +3751,7 @@ export function Hub() {
                               {activeCatalogSection === 'equipment' && <Truck className="h-5 w-5" />}
                               {activeCatalogSection === 'vendors' && <Users className="h-5 w-5" />}
                               {activeCatalogSection === 'standards' && <FileText className="h-5 w-5" />}
+                              {!['materials', 'equipment', 'vendors', 'standards'].includes(activeCatalogSection) && <FolderKanban className="h-5 w-5" />}
                             </div>
                           </div>
                           
@@ -4214,85 +4273,12 @@ export function Hub() {
         {/* Vendor Section */}
         {activeSection === "vendor" && (
           <div className="flex h-full flex-col">
-            {activeVendorFlow === "home" ? (
-              <div className="flex-1 p-8 bg-slate-50 overflow-auto">
-                <div className="text-center mb-16 mt-8">
-                  <h1 className="text-4xl font-bold text-indigo-700 tracking-tight">Vendor Hub</h1>
-                  <p className="text-slate-500 mt-4 text-lg">One place to manage your suppliers, resources, and equipment partners.</p>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
-                  <div 
-                    onClick={() => { setActiveVendorFlow("supplier"); navigate("?module=vendor&section=supplier"); }}
-                    className="bg-white rounded-[24px] p-6 border border-slate-200 shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col min-h-[220px]"
-                  >
-                    <div className="h-14 w-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-6">
-                      <Package className="h-7 w-7" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-xl font-bold text-slate-900 group-hover:text-blue-600 transition-colors">Material Supplier</h3>
-                      <p className="text-sm text-slate-500 mt-2">Cement, steel, aggregates & consumables</p>
-                    </div>
-                    <div className="mt-6 pt-6 border-t border-slate-100 flex items-center justify-between">
-                      <span className="text-sm font-bold text-slate-400">Manage Pipeline</span>
-                      <ArrowRight className="h-5 w-5 text-slate-300 group-hover:text-blue-600 transition-colors" />
-                    </div>
-                  </div>
-
-                  <div 
-                    onClick={() => { setActiveVendorFlow("resource"); navigate("?module=vendor&section=resource"); }}
-                    className="bg-white rounded-[24px] p-6 border border-slate-200 shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col min-h-[220px]"
-                  >
-                    <div className="h-14 w-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-6">
-                      <Users className="h-7 w-7" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-xl font-bold text-slate-900 group-hover:text-emerald-600 transition-colors">Resource Vendor</h3>
-                      <p className="text-sm text-slate-500 mt-2">Skilled workforce, labour & manpower</p>
-                    </div>
-                    <div className="mt-6 pt-6 border-t border-slate-100 flex items-center justify-between">
-                      <span className="text-sm font-bold text-slate-400">Manage Pipeline</span>
-                      <ArrowRight className="h-5 w-5 text-slate-300 group-hover:text-emerald-600 transition-colors" />
-                    </div>
-                  </div>
-
-                  <div 
-                    onClick={() => { setActiveVendorFlow("equipment"); navigate("?module=vendor&section=equipment"); }}
-                    className="bg-white rounded-[24px] p-6 border border-slate-200 shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col min-h-[220px]"
-                  >
-                    <div className="h-14 w-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mb-6">
-                      <Truck className="h-7 w-7" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-xl font-bold text-slate-900 group-hover:text-amber-600 transition-colors">Equipment Vendor</h3>
-                      <p className="text-sm text-slate-500 mt-2">Cranes, excavators, machinery & tools</p>
-                    </div>
-                    <div className="mt-6 pt-6 border-t border-slate-100 flex items-center justify-between">
-                      <span className="text-sm font-bold text-slate-400">Manage Pipeline</span>
-                      <ArrowRight className="h-5 w-5 text-slate-300 group-hover:text-amber-600 transition-colors" />
-                    </div>
-                  </div>
-
-                  <div 
-                    onClick={() => { setActiveVendorFlow("performance"); navigate("?module=vendor&section=performance"); }}
-                    className="bg-white rounded-[24px] p-6 border border-slate-200 shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col min-h-[220px]"
-                  >
-                    <div className="h-14 w-14 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center mb-6">
-                      <Activity className="h-7 w-7" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-xl font-bold text-slate-900 group-hover:text-purple-600 transition-colors">Performance</h3>
-                      <p className="text-sm text-slate-500 mt-2">Vendor ratings, risk score & analytics</p>
-                    </div>
-                    <div className="mt-6 pt-6 border-t border-slate-100 flex items-center justify-between">
-                      <span className="text-sm font-bold text-slate-400">View Analytics</span>
-                      <ArrowRight className="h-5 w-5 text-slate-300 group-hover:text-purple-600 transition-colors" />
-                    </div>
-                  </div>
-                </div>
-              </div>
+            {activeVendorFlow === "receiving" ? (
+              <MaterialReceivingPage />
+            ) : activeVendorFlow === "portal" ? (
+              <VendorPortalPage />
             ) : (
-              <VendorTracker type={activeVendorFlow} />
+              <MaterialSupplierListPage />
             )}
           </div>
         )}
@@ -5108,6 +5094,7 @@ export function Hub() {
                           {selectedCatalogItem.type === 'equipment' && <Truck className="h-7 w-7" />}
                           {selectedCatalogItem.type === 'vendors' && <Users className="h-7 w-7" />}
                           {selectedCatalogItem.type === 'standards' && <FileText className="h-7 w-7" />}
+                          {!['materials', 'equipment', 'vendors', 'standards'].includes(selectedCatalogItem.type) && <FolderKanban className="h-7 w-7" />}
                         </div>
                         <div>
                           <DialogTitle className="text-2xl">{selectedCatalogItem.name}</DialogTitle>
@@ -5343,21 +5330,29 @@ export function Hub() {
                 <label className="text-xs font-medium text-gray-700 mb-1 block">Catalog Name</label>
                 <input
                   type="text"
+                  value={createCatalogDraft.name}
+                  onChange={(e) => setCreateCatalogDraft((draft) => ({ ...draft, name: e.target.value }))}
                   placeholder="e.g. Specialized Tools"
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 />
               </div>
               <div>
                 <label className="text-xs font-medium text-gray-700 mb-1 block">Description</label>
                 <textarea
+                  value={createCatalogDraft.description}
+                  onChange={(e) => setCreateCatalogDraft((draft) => ({ ...draft, description: e.target.value }))}
                   placeholder="What will this catalog track?"
                   rows={3}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 resize-none"
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 resize-none"
                 />
               </div>
               <div>
                 <label className="text-xs font-medium text-gray-700 mb-1 block">Tracking Template</label>
-                <select className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500">
+                <select
+                  value={createCatalogDraft.template}
+                  onChange={(e) => setCreateCatalogDraft((draft) => ({ ...draft, template: e.target.value }))}
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                >
                   <option>Material Tracking</option>
                   <option>Equipment/Asset Log</option>
                   <option>Vendor/Partner List</option>
@@ -5373,11 +5368,8 @@ export function Hub() {
                   Cancel
                 </button>
                 <button
-                  onClick={() => {
-                    setCreateCatalogModalOpen(false);
-                    showFeedback("Custom catalog created successfully");
-                  }}
-                  className="rounded-lg bg-amber-600 px-4 py-2 text-sm text-white hover:bg-amber-700 transition-colors"
+                  onClick={handleCreateCustomCatalog}
+                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white shadow-sm shadow-blue-600/20 hover:bg-blue-700 transition-colors"
                 >
                   Create Catalog
                 </button>

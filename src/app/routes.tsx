@@ -14,6 +14,13 @@ import { DigitalTwin } from "./components/pages/DigitalTwin";
 import { SiteSurvey } from "./components/pages/SiteSurvey";
 import BIMBOXVIWER from "./components/pages/BIMBOXVIWER";
 import BIMBOXVIWERExperiment from "./components/pages/BIMBOXVIWERExperiment";
+import TemporaryFlow from "./components/pages/TemporaryFlow";
+
+// Material Supplier Workspace imports
+import { MaterialSupplierListPage } from "../modules/material-suppliers/pages/MaterialSupplierListPage";
+import { MaterialSupplierDetailPage } from "../modules/material-suppliers/pages/MaterialSupplierDetailPage";
+import { MaterialReceivingPage } from "../modules/material-suppliers/pages/MaterialReceivingPage";
+import { VendorPortalPage } from "../modules/material-suppliers/pages/VendorPortalPage";
 
 export const router = createBrowserRouter([
   {
@@ -32,6 +39,12 @@ export const router = createBrowserRouter([
       { path: "facility-management", Component: FacilityManagement },
       { path: "digital-twin", Component: DigitalTwin },
       { path: "site-survey", Component: SiteSurvey },
+      
+      // Material Supplier Module Routes
+      { path: "admin/material-suppliers", Component: MaterialSupplierListPage },
+      { path: "admin/material-suppliers/:supplierId", Component: MaterialSupplierDetailPage },
+      { path: "manager/material-receiving", Component: MaterialReceivingPage },
+      { path: "vendor-portal/material-supplier", Component: VendorPortalPage },
     ],
   },
   {
@@ -41,5 +54,9 @@ export const router = createBrowserRouter([
   {
     path: "/viewer-experiment",
     Component: BIMBOXVIWERExperiment
+  },
+  {
+    path: "/temp-flow",
+    Component: TemporaryFlow
   }
 ]);

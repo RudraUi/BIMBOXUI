@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1000" viewBox="0 0 1000 1000">
+  <rect width="1000" height="1000" fill="#f8fafc"/>
+  <rect x="115" y="120" width="770" height="720" fill="#ffffff" stroke="#475569" stroke-width="10"/>
+  <g stroke="#64748b" stroke-width="5" fill="none">
+    <path d="M115 305h770M115 520h770M340 120v720M610 120v720"/>
+    <path d="M340 305h90v70M610 520h-95v80M610 305h110v95M340 520h-120v105"/>
+    <path d="M115 690h225M610 690h275"/>
+  </g>
+  <g stroke="#94a3b8" stroke-width="2" fill="none" opacity="0.75">
+    <path d="M150 170h145M150 205h145M660 170h180M660 205h180"/>
+    <path d="M380 565h95M380 600h95M665 565h155M665 600h155"/>
+    <circle cx="250" cy="410" r="38"/>
+    <circle cx="750" cy="410" r="38"/>
+    <circle cx="250" cy="755" r="38"/>
+    <circle cx="750" cy="755" r="38"/>
+  </g>
+  <g fill="#334155" font-family="Arial, sans-serif" font-size="24">
+    <text x="140" y="270">LOBBY</text>
+    <text x="380" y="270">OFFICE A</text>
+    <text x="650" y="270">OFFICE B</text>
+    <text x="140" y="485">MEETING</text>
+    <text x="380" y="485">CORE</text>
+    <text x="650" y="485">PANTRY</text>
+    <text x="140" y="655">WORK AREA</text>
+    <text x="650" y="655">SERVICES</text>
+    <text x="120" y="910" font-size="34" font-weight="700">LEVEL 01 PLAN A</text>
+  </g>
+</svg>
