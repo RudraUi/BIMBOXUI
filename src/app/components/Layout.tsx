@@ -26,7 +26,12 @@ import {
   Edit,
   Activity,
   Plus,
-  Monitor
+  Monitor,
+  Video,
+  MessageSquare,
+  Network,
+  HardHat,
+  Boxes
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useSidebar } from "../context/SidebarContext";
@@ -37,6 +42,7 @@ export function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { mode, setMode } = useSidebar();
+  const [modalType, setModalType] = useState<"video-call" | "chat" | null>(null);
 
   useEffect(() => {
     const path = location.pathname;
@@ -51,12 +57,13 @@ export function Layout() {
 
 
   const mainMenuItems = [
-    { icon: LayoutDashboard, label: "Hub", sublabel: "Workspace Modules", path: "/dashboard", sidebarMode: "main" },
-    { icon: FolderKanban, label: "All Projects", sublabel: "Project Overview", path: "/projects", sidebarMode: "main" },
-    { icon: ShoppingCart, label: "Procurement", sublabel: "Material & Vendor Management", path: "/procurement", sidebarMode: "main" },
-    { icon: Landmark, label: "Banking", sublabel: "Financial Management", path: "/banking", sidebarMode: "main" },
-    { icon: Brain, label: "AI Assistant", sublabel: "AI-Powered Insights", path: "/ai-hub", sidebarMode: "main" },
-    { icon: Database, label: "Data Explorer", sublabel: "Document & Data Hub", path: "/data-explorer", sidebarMode: "main" },
+    { icon: Network, label: "Hub", shortLabel: "HUB", sublabel: "Workspace Modules", path: "/dashboard", sidebarMode: "main" },
+    { icon: FolderKanban, label: "All Projects", shortLabel: "PROJECTS", sublabel: "Manage all workspaces", path: "/projects", sidebarMode: "main" },
+    { icon: Box, label: "Pre-Construction", shortLabel: "PRE-CON", sublabel: "Fast BIM Automation", path: "/pre-construction", sidebarMode: "main" },
+    { icon: HardHat, label: "Construction", shortLabel: "CONST", sublabel: "Construction Management", path: "/construction", sidebarMode: "main" },
+    { icon: Wrench, label: "Facility Management", shortLabel: "FACILITY", sublabel: "Project Management", path: "/facility-management", sidebarMode: "main" },
+    { icon: MapPin, label: "Site Survey", shortLabel: "SURVEY", sublabel: "Site Analysis", path: "/site-survey", sidebarMode: "main" },
+    { icon: Boxes, label: "Digital Twin", shortLabel: "TWIN", sublabel: "BIM Modeling", path: "/digital-twin", sidebarMode: "main" },
   ];
 
   const moduleMenuItems: Record<string, Array<{ icon: any; label: string; sublabel: string; path?: string; module?: string; section?: string }>> = {
@@ -111,18 +118,18 @@ export function Layout() {
     ],
   };
 
-  const phaseItems = [
-    { icon: Sparkles, label: "Pre-Construction", sublabel: "Fast BIM Automation", path: "/pre-construction" },
-    { icon: ConstructionIcon, label: "Construction", sublabel: "Construction Management", path: "/construction" },
-    { icon: Wrench, label: "Facility Management", sublabel: "Project Management", path: "/facility-management" },
-    { icon: MapPin, label: "Site Survey", sublabel: "Site Analysis", path: "/site-survey" },
-    { icon: Box, label: "Digital Twin", sublabel: "BIM Modeling", path: "/digital-twin" },
-    { icon: Monitor, label: "3D Viewer", sublabel: "Premium BIM Viewer", path: "/viewer" },
-  ];
-
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string) => {
+    if (path === "/dashboard" && location.pathname === "/") {
+      return true;
+    }
+    return location.pathname === path;
+  };
 
   const handleMainMenuClick = (item: typeof mainMenuItems[0]) => {
+    if (item.path === "/video-call" || item.path === "/chat") {
+      setModalType(item.path === "/video-call" ? "video-call" : "chat");
+      return;
+    }
     setMode("main");
     navigate(item.path);
   };
@@ -152,31 +159,30 @@ export function Layout() {
   return (
     <div className="flex h-screen bg-white">
       {/* Sidebar */}
-      <aside className="w-16 bg-white border-r border-gray-200 flex flex-col items-center py-4 gap-4 relative overflow-y-auto">
+      {/* Sidebar */}
+      <aside className="w-16 bg-[#eef2f6] border-r border-slate-200/50 flex flex-col items-center py-5 gap-4 relative overflow-y-auto select-none shrink-0">
         {/* Logo */}
         <Tooltip>
           <TooltipTrigger asChild>
-            <Link to="/" onClick={() => setMode("main")} aria-label="BIMBOX" className="mb-4">
-              <div className="w-10 h-10 bg-gray-900 rounded-xl flex items-center justify-center">
-                <Box className="w-6 h-6 text-white" />
-              </div>
+            <Link to="/" onClick={() => setMode("main")} aria-label="BIMBOX" className="mb-1.5 shrink-0">
+              <img src="/BIMBOXLOGO.png" alt="BIMBOX Logo" className="w-10 h-10 object-contain" />
             </Link>
           </TooltipTrigger>
           {renderTooltip("BIMBOX")}
         </Tooltip>
 
-        <div className="flex min-h-0 w-full flex-1 flex-col gap-4">
+        <div className="flex min-h-0 w-full flex-1 flex-col gap-3 items-center">
           {/* Back Button (when in a Hub module) */}
           {mode !== "main" && (
-            <div className="pb-4 border-b border-gray-200 w-full px-3">
+            <div className="pb-2 w-full flex justify-center">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
                     onClick={handleBackToMain}
                     aria-label="Back to Hub"
-                    className="w-10 h-10 rounded-lg flex items-center justify-center transition-all hover:bg-gray-100 text-gray-600"
+                    className="w-11 h-11 rounded-[14px] bg-white/40 hover:bg-white hover:shadow-xs text-slate-500 flex items-center justify-center transition-all duration-200"
                   >
-                    <ArrowLeft className="w-5 h-5" />
+                    <ArrowLeft className="w-4 h-4" />
                   </button>
                 </TooltipTrigger>
                 {renderTooltip("Back to Hub")}
@@ -185,29 +191,37 @@ export function Layout() {
           )}
 
           {/* Dynamic Menu Items */}
-          <div className="flex flex-col gap-2 pb-4 border-b border-gray-200 w-full px-3">
+          <div className="flex flex-col gap-2.5 w-full items-center">
             {mode === "main" ? (
               // Main Menu
               <>
                 {mainMenuItems.map((item) => {
                   const Icon = item.icon;
+                  const active = isActive(item.path);
                   return (
-                    <Tooltip key={item.path}>
-                      <TooltipTrigger asChild>
-                        <button
-                          onClick={() => handleMainMenuClick(item)}
-                          aria-label={item.label}
-                          className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${
-                            isActive(item.path)
-                              ? "bg-gray-900 text-white"
-                              : "text-gray-600 hover:bg-gray-100"
-                          }`}
-                        >
-                          <Icon className="w-5 h-5" />
-                        </button>
-                      </TooltipTrigger>
-                      {renderTooltip(item.label, item.sublabel)}
-                    </Tooltip>
+                    <div key={item.path} className="flex flex-col items-center w-full">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={() => handleMainMenuClick(item)}
+                            aria-label={item.label}
+                            className={`w-11 h-11 flex items-center justify-center transition-all duration-200 ${
+                              active
+                                ? "bg-white shadow-xs rounded-[14px] text-blue-600 border border-white"
+                                : "bg-white/40 hover:bg-white/80 hover:shadow-xs rounded-[14px] text-slate-400 hover:text-slate-650"
+                            }`}
+                          >
+                            <Icon className="w-[18px] h-[18px]" />
+                          </button>
+                        </TooltipTrigger>
+                        {renderTooltip(item.label, item.sublabel)}
+                      </Tooltip>
+                      {active && item.shortLabel && (
+                        <div className="text-[8px] text-slate-400 font-bold uppercase tracking-wider mt-1 text-center leading-none">
+                          {item.shortLabel}
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </>
@@ -233,63 +247,64 @@ export function Layout() {
                             }
                           }}
                           aria-label={item.label}
-                          className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${
+                          className={`w-11 h-11 flex items-center justify-center transition-all duration-200 ${
                             isActiveSection
-                              ? "bg-gray-900 text-white"
-                              : "text-gray-600 hover:bg-gray-100"
+                              ? "bg-white shadow-xs rounded-[14px] text-blue-600 border border-white"
+                              : "bg-white/40 hover:bg-white/80 hover:shadow-xs rounded-[14px] text-slate-400 hover:text-slate-650"
                           }`}
                         >
-                          <Icon className="w-5 h-5" />
+                          <Icon className="w-[18px] h-[18px]" />
                         </button>
                       </TooltipTrigger>
                       {renderTooltip(item.label, item.sublabel)}
                     </Tooltip>
                   );
                 })}
-
               </>
             )}
           </div>
-
-          {/* Phase Section (Only in Main Menu) */}
-          {mode === "main" && (
-            <div className="flex flex-col gap-2 w-full px-3">
-              {phaseItems.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Tooltip key={item.path}>
-                    <TooltipTrigger asChild>
-                      <Link
-                        to={item.path}
-                        onClick={() => setMode("main")}
-                        aria-label={item.label}
-                        className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${
-                          isActive(item.path)
-                            ? "bg-gray-900 text-white"
-                            : "text-gray-600 hover:bg-gray-100"
-                        }`}
-                      >
-                        <Icon className="w-5 h-5" />
-                      </Link>
-                    </TooltipTrigger>
-                    {renderTooltip(item.label, item.sublabel)}
-                  </Tooltip>
-                );
-              })}
-            </div>
-          )}
         </div>
 
-        {/* User Avatar at Bottom */}
-        <div className="mt-auto">
+        {/* Bottom Actions */}
+        <div className="mt-auto flex flex-col gap-2.5 items-center w-full shrink-0">
+          {/* Video Call */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => setModalType("video-call")}
+                aria-label="Video Call"
+                className="w-11 h-11 bg-white/40 hover:bg-white hover:shadow-xs rounded-[14px] text-slate-400 hover:text-slate-650 flex items-center justify-center transition-all duration-200 cursor-pointer"
+              >
+                <Video className="w-[18px] h-[18px]" />
+              </button>
+            </TooltipTrigger>
+            {renderTooltip("Video Call", "Start instant meeting")}
+          </Tooltip>
+
+          {/* Chat */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => setModalType("chat")}
+                aria-label="Chat"
+                className="w-11 h-11 bg-white/40 hover:bg-white hover:shadow-xs rounded-[14px] text-slate-400 hover:text-slate-650 flex items-center justify-center transition-all duration-200 cursor-pointer"
+              >
+                <MessageSquare className="w-[18px] h-[18px]" />
+              </button>
+            </TooltipTrigger>
+            {renderTooltip("Chat", "Team conversations")}
+          </Tooltip>
+
+          {/* User Profile Avatar */}
           <Tooltip>
             <TooltipTrigger asChild>
               <button
                 type="button"
+                onClick={() => navigate("/auth")}
                 aria-label="Samuel Rodriguez"
-                className="w-10 h-10 rounded-full bg-gray-900 flex items-center justify-center text-white text-sm cursor-pointer"
+                className="w-11 h-11 rounded-full overflow-hidden border-2 border-white shadow-xs cursor-pointer flex items-center justify-center hover:scale-105 transition-transform duration-200 mt-0.5"
               >
-                S
+                <img src="/avatar.jpg" alt="Samuel Rodriguez" className="w-full h-full object-cover" />
               </button>
             </TooltipTrigger>
             {renderTooltip("Samuel Rodriguez", "Project Manager")}
@@ -301,6 +316,43 @@ export function Layout() {
       <main className="flex-1 overflow-auto">
         <Outlet />
       </main>
+
+      {/* Dynamic Placeholder Modal for Video Call and Chat */}
+      <Dialog open={modalType !== null} onOpenChange={(open) => !open && setModalType(null)}>
+        <DialogContent className="sm:max-w-md bg-white rounded-2xl border border-slate-200 shadow-xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-slate-900">
+              {modalType === "video-call" ? "Video Call Workspace" : "Team Chat Channel"}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500 font-semibold mt-1">
+              {modalType === "video-call" 
+                ? "Connect instantly with onsite superintendents and BIM coordinators." 
+                : "Collaborate in real-time with team members on model issues."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col items-center justify-center py-6 text-center">
+            <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mb-3">
+              {modalType === "video-call" ? <Video className="w-6 h-6" /> : <MessageSquare className="w-6 h-6" />}
+            </div>
+            <p className="text-xs text-slate-650 font-bold">This feature is initializing in sandbox mode.</p>
+            <p className="text-[11px] text-slate-400 mt-1">Direct integration with WebRTC and Slack is active in staging.</p>
+          </div>
+          <DialogFooter className="sm:justify-end gap-2 flex flex-row">
+            <button
+              onClick={() => setModalType(null)}
+              className="px-4 py-2 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer flex-1"
+            >
+              Close
+            </button>
+            <button
+              onClick={() => setModalType(null)}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex-1"
+            >
+              Okay
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

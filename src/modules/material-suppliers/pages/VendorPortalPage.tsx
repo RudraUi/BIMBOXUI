@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
 import { useSuppliers } from '../context/SupplierContext';
-import { RoleSwitcher } from '../components/RoleSwitcher';
 import { RFQ, Quotation, PurchaseOrder, Delivery, Invoice } from '../types/supplier.types';
 import { 
   FileText, Send, CheckCircle2, ShoppingBag, Truck, FileCheck, 
@@ -74,12 +73,11 @@ export const VendorPortalPage: React.FC = () => {
 
   if (!currentVendor) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col font-sans p-8 items-center justify-center">
-        <RoleSwitcher />
-        <div className="bg-white border p-8 rounded-2xl shadow-sm mt-10">
-          <ShieldAlert className="w-12 h-12 text-rose-500 mx-auto" />
-          <h3 className="text-lg font-bold text-slate-800 mt-2">Active Vendor Not Configured</h3>
-          <p className="text-sm text-slate-500 mt-1">Please select a valid vendor inside prototyping control panel above.</p>
+      <div className="flex flex-1 flex-col p-6 items-center justify-center">
+        <div className="bg-white border p-6 rounded-2xl shadow-sm text-center max-w-sm">
+          <ShieldAlert className="w-10 h-10 text-rose-500 mx-auto mb-3" />
+          <h3 className="text-sm font-bold text-slate-800">Active Vendor Not Configured</h3>
+          <p className="text-xs text-slate-500 mt-1">Please select a valid vendor inside simulation control panel above.</p>
         </div>
       </div>
     );
@@ -198,8 +196,7 @@ export const VendorPortalPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
-      <RoleSwitcher />
+    <div className="flex flex-1 flex-col font-sans">
 
       {/* TOAST PANEL */}
       {toast && (
@@ -209,42 +206,39 @@ export const VendorPortalPage: React.FC = () => {
         </div>
       )}
 
-      {/* VENDOR PORTAL DASHBOARD BANNER */}
-      <div className="bg-emerald-900 text-white px-8 py-7 shadow-md">
-        <div className="max-w-7xl mx-auto w-full flex flex-col md:flex-row md:items-center md:justify-between gap-5">
+      {/* HEADER Summary */}
+      <div className="border-b border-slate-200 px-6 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-4 w-full">
           <div>
-            <div className="flex items-center gap-2 text-xs font-bold text-emerald-300 uppercase tracking-widest">
-              <Award className="w-4 h-4" />
-              Secure Vendor Collaboration Portal
-            </div>
-            <h1 className="text-2xl font-black tracking-tight mt-1.5 flex items-center gap-2">
+            <h1 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
+              <Award className="w-5 h-5 text-blue-600" />
               {currentVendor.name}
-              <span className="bg-emerald-800 text-emerald-100 text-[10px] font-bold border border-emerald-700 px-2 py-0.5 rounded-md">
+              <span className="bg-blue-50 text-blue-700 text-[10px] font-bold border border-blue-200 px-2 py-0.5 rounded-md">
                 Vendor Code: {currentVendor.id}
               </span>
             </h1>
-            <p className="text-xs text-emerald-150 mt-1">
+            <p className="text-xs text-slate-500 mt-0.5">
               Active projects, automated bidding pipelines, PO fulfillment, and digital invoicing matching.
             </p>
           </div>
 
-          <div className="flex items-center gap-4 bg-emerald-950 p-4 rounded-xl border border-emerald-800">
+          <div className="flex items-center gap-4 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
             <div>
-              <span className="text-[10px] text-emerald-400 font-bold block uppercase tracking-wider">Outstanding Outstanding</span>
-              <span className="text-lg font-black text-white">₹{currentVendor.outstandingAmount.toLocaleString('en-IN')}</span>
+              <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider font-semibold">Outstanding</span>
+              <span className="text-sm font-black text-slate-800 block">₹{currentVendor.outstandingAmount.toLocaleString('en-IN')}</span>
             </div>
-            <div className="h-6 w-px bg-emerald-800"></div>
+            <div className="h-6 w-px bg-slate-200"></div>
             <div>
-              <span className="text-[10px] text-emerald-400 font-bold block uppercase tracking-wider">Credit Limit Status</span>
-              <span className="text-xs font-bold text-emerald-200">₹{(currentVendor.bank.creditLimit - currentVendor.outstandingAmount).toLocaleString('en-IN')} Avail.</span>
+              <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider font-semibold">Avail. Credit</span>
+              <span className="text-xs font-bold text-slate-600 block mt-0.5">₹{(currentVendor.bank.creditLimit - currentVendor.outstandingAmount).toLocaleString('en-IN')}</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* TABS SELECT */}
-      <div className="bg-white border-b px-8 shadow-xs sticky top-12 z-20">
-        <div className="max-w-7xl mx-auto w-full flex items-center gap-2">
+      <div className="bg-white border-b px-6 shadow-xs">
+        <div className="flex items-center gap-2">
           {[
             { id: 'rfqs', label: 'RFQ Opportunities' },
             { id: 'pos', label: 'Purchase Orders' },
@@ -255,9 +249,9 @@ export const VendorPortalPage: React.FC = () => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`px-4 py-3.5 text-xs font-bold transition-all border-b-2 whitespace-nowrap cursor-pointer ${
+              className={`px-4 py-3 text-xs font-bold transition-all border-b-2 whitespace-nowrap cursor-pointer ${
                 activeTab === tab.id
-                  ? 'border-emerald-600 text-emerald-755'
+                  ? 'border-blue-600 text-blue-600'
                   : 'border-transparent text-slate-500 hover:text-slate-800'
               }`}
             >
@@ -268,7 +262,7 @@ export const VendorPortalPage: React.FC = () => {
       </div>
 
       {/* CONTENT REGION */}
-      <div className="p-8 max-w-7xl mx-auto w-full flex-1 flex flex-col gap-6">
+      <div className="p-6 flex-1 flex flex-col gap-6">
 
         {/* TAB 1: RFQ OPPORTUNITIES */}
         {activeTab === 'rfqs' && (
@@ -290,7 +284,7 @@ export const VendorPortalPage: React.FC = () => {
                   const alreadyQuoted = vendorQuotes.some(q => q.rfqId === rfq.id);
                   return (
                     <tr key={rfq.id} className="hover:bg-slate-50/50">
-                      <td className="px-4 py-3 text-sm font-bold text-emerald-750">{rfq.id}</td>
+                      <td className="px-4 py-3 text-sm font-bold text-blue-600">{rfq.id}</td>
                       <td className="px-4 py-3 text-sm text-slate-800">{rfq.project}</td>
                       <td className="px-4 py-3 text-xs text-slate-500">{rfq.dueDate}</td>
                       <td className="px-4 py-3 text-xs text-slate-650 font-semibold">
@@ -320,7 +314,7 @@ export const VendorPortalPage: React.FC = () => {
                               });
                               setSelectedRFQForQuote(rfq);
                             }}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm shadow-emerald-155"
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm shadow-blue-600/10"
                           >
                             Submit Quotation
                           </button>
@@ -354,7 +348,7 @@ export const VendorPortalPage: React.FC = () => {
               <tbody className="divide-y divide-slate-100">
                 {vendorPOs.map(po => (
                   <tr key={po.id} className="hover:bg-slate-50/50">
-                    <td className="px-4 py-3 text-sm font-bold text-emerald-750">{po.id}</td>
+                    <td className="px-4 py-3 text-sm font-bold text-blue-600">{po.id}</td>
                     <td className="px-4 py-3 text-sm text-slate-800">{po.project}</td>
                     <td className="px-4 py-3 text-xs text-slate-500">{po.createdDate}</td>
                     <td className="px-4 py-3 text-sm font-black text-slate-800 text-right">₹{po.grandTotal.toLocaleString('en-IN')}</td>
@@ -385,7 +379,7 @@ export const VendorPortalPage: React.FC = () => {
                             });
                             setSelectedPOForDispatch(po);
                           }}
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm shadow-blue-600/10"
                         >
                           Dispatch Delivery
                         </button>
@@ -461,7 +455,7 @@ export const VendorPortalPage: React.FC = () => {
 
               <button
                 onClick={() => setShowUploadInvoiceModal(true)}
-                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm shadow-blue-600/10"
               >
                 <Plus className="w-3.5 h-3.5" />
                 Upload Invoice
@@ -484,7 +478,7 @@ export const VendorPortalPage: React.FC = () => {
                 {vendorInvoices.map(inv => (
                   <tr key={inv.id} className="hover:bg-slate-50/50">
                     <td className="px-4 py-3 text-sm font-bold text-slate-800">{inv.invoiceNumber}</td>
-                    <td className="px-4 py-3 text-xs text-indigo-650 font-bold">{inv.poId}</td>
+                    <td className="px-4 py-3 text-xs text-blue-600 font-bold">{inv.poId}</td>
                     <td className="px-4 py-3 text-xs text-slate-500">{inv.invoiceDate}</td>
                     <td className="px-4 py-3 text-sm font-semibold text-slate-700 text-right">₹{inv.invoiceAmount.toLocaleString('en-IN')}</td>
                     <td className="px-4 py-3 text-xs text-rose-600 text-right">₹{inv.deductions.toLocaleString('en-IN')}</td>
@@ -640,7 +634,7 @@ export const VendorPortalPage: React.FC = () => {
                 <button type="button" onClick={() => setSelectedRFQForQuote(null)} className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 transition-all cursor-pointer">
                   Cancel
                 </button>
-                <button type="submit" className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition-all cursor-pointer">
+                <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-all cursor-pointer">
                   Submit Bid
                 </button>
               </div>
@@ -708,7 +702,7 @@ export const VendorPortalPage: React.FC = () => {
                 <button type="button" onClick={() => setSelectedPOForDispatch(null)} className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 transition-all cursor-pointer">
                   Cancel
                 </button>
-                <button type="submit" className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition-all cursor-pointer">
+                <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-all cursor-pointer">
                   Confirm Dispatch
                 </button>
               </div>
@@ -795,7 +789,7 @@ export const VendorPortalPage: React.FC = () => {
                 <button type="button" onClick={() => setShowUploadInvoiceModal(false)} className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 transition-all cursor-pointer">
                   Cancel
                 </button>
-                <button type="submit" className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition-all cursor-pointer">
+                <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-all cursor-pointer">
                   Submit Invoice
                 </button>
               </div>

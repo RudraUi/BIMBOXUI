@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { useSuppliers } from '../context/SupplierContext';
-import { RoleSwitcher } from '../components/RoleSwitcher';
 import { Supplier, SupplierStatus, ComplianceStatus, RiskLevel, MaterialItem } from '../types/supplier.types';
 import { 
   Search, Filter, Plus, FileSpreadsheet, ArrowUpDown, MoreVertical, 
@@ -411,8 +410,7 @@ export const MaterialSupplierListPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
-      <RoleSwitcher />
+    <div className="flex flex-1 flex-col font-sans">
 
       {/* TOAST SYSTEM */}
       {toast && (
@@ -429,24 +427,24 @@ export const MaterialSupplierListPage: React.FC = () => {
       )}
 
       {/* TOP HEADER SUMMARY BAR */}
-      <div className="bg-white border-b border-slate-200 px-8 py-5">
-        <div className="flex flex-wrap items-center justify-between gap-4 max-w-7xl mx-auto w-full">
+      <div className="border-b border-slate-200 px-6 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-4 w-full">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-              <ShieldCheck className="w-6 h-6 text-indigo-600" />
+            <h1 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-blue-600" />
               Material Supplier Registry
             </h1>
-            <p className="text-sm text-slate-500 mt-1">
-              Workflow-based directory of onboarded suppliers, active compliance auditing, and pipeline coordination.
+            <p className="text-xs text-slate-500 mt-0.5">
+              Workflow-based directory of onboarded suppliers, compliance auditing, and pipeline coordination.
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             <button
               onClick={handleExportCSV}
-              className="flex items-center gap-2 border border-slate-200 hover:bg-slate-50 bg-white text-slate-700 px-4 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer shadow-sm"
+              className="flex items-center gap-2 border border-slate-200 hover:bg-slate-50 bg-white text-slate-700 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm"
             >
-              <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-650" />
               Export Directory
             </button>
 
@@ -455,9 +453,9 @@ export const MaterialSupplierListPage: React.FC = () => {
                 resetForm();
                 setShowAddModal(true);
               }}
-              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer shadow-sm shadow-indigo-100"
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm shadow-blue-600/10"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3.5 h-3.5" />
               Onboard Supplier
             </button>
           </div>
@@ -465,7 +463,7 @@ export const MaterialSupplierListPage: React.FC = () => {
       </div>
 
       {/* MAIN LAYOUT */}
-      <div className="p-8 max-w-7xl mx-auto w-full flex-1 flex flex-col gap-6">
+      <div className="p-6 flex-1 flex flex-col gap-6">
         
         {/* DENSE FILTER PANEL */}
         <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col gap-4">

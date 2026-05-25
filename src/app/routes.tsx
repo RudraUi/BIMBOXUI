@@ -15,6 +15,7 @@ import { SiteSurvey } from "./components/pages/SiteSurvey";
 import BIMBOXVIWER from "./components/pages/BIMBOXVIWER";
 import BIMBOXVIWERExperiment from "./components/pages/BIMBOXVIWERExperiment";
 import TemporaryFlow from "./components/pages/TemporaryFlow";
+import AuthFlow from "./components/pages/AuthFlow";
 
 // Material Supplier Workspace imports
 import { MaterialSupplierListPage } from "../modules/material-suppliers/pages/MaterialSupplierListPage";
@@ -57,6 +58,14 @@ export const router = createBrowserRouter([
   },
   {
     path: "/temp-flow",
-    Component: TemporaryFlow
+    Component: AuthFlow
+  },
+  {
+    path: "/tempflow",
+    Component: AuthFlow
+  },
+  {
+    path: "/auth",
+    Component: AuthFlow
   }
 ]);

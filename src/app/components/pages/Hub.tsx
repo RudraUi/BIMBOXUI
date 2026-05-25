@@ -24,6 +24,7 @@ import CustomCatalog from "./CustomCatalog";
 import { MaterialSupplierListPage } from "../../../modules/material-suppliers/pages/MaterialSupplierListPage";
 import { MaterialReceivingPage } from "../../../modules/material-suppliers/pages/MaterialReceivingPage";
 import { VendorPortalPage } from "../../../modules/material-suppliers/pages/VendorPortalPage";
+import { VendorWorkspace } from "../../../modules/material-suppliers/pages/VendorWorkspace";
 
 const insightsPieData = [
   { name: "Active", value: 42, color: "#3b82f6" },
@@ -4272,15 +4273,17 @@ export function Hub() {
 
         {/* Vendor Section */}
         {activeSection === "vendor" && (
-          <div className="flex h-full flex-col">
-            {activeVendorFlow === "receiving" ? (
-              <MaterialReceivingPage />
-            ) : activeVendorFlow === "portal" ? (
-              <VendorPortalPage />
-            ) : (
-              <MaterialSupplierListPage />
-            )}
-          </div>
+          <VendorWorkspace
+            activeVendorFlow={activeVendorFlow}
+            onFlowChange={(flow) => {
+              setActiveVendorFlow(flow);
+              navigate(`/dashboard?module=vendor&section=${flow}`);
+            }}
+            selectedProject={globalSelectedProject}
+            onProjectChange={setGlobalSelectedProject}
+            myProjects={myDummyProjects}
+            sharedProjects={sharedDummyProjects}
+          />
         )}
 
         {/* Resources Section */}

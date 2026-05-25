@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { useSuppliers } from '../context/SupplierContext';
-import { RoleSwitcher } from '../components/RoleSwitcher';
 import { 
   Supplier, SupplierStatus, ComplianceStatus, RiskLevel, 
   MaterialItem, RFQ, Quotation, PurchaseOrder, Delivery, GRN, 
@@ -95,13 +94,12 @@ export const MaterialSupplierDetailPage: React.FC = () => {
 
   if (!supplier) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col font-sans p-8 items-center justify-center">
-        <RoleSwitcher />
-        <div className="bg-white border p-8 rounded-2xl shadow-sm text-center max-w-md mt-10">
-          <AlertCircle className="w-12 h-12 text-rose-500 mx-auto mb-4" />
-          <h3 className="text-lg font-bold text-slate-900">Supplier Not Found</h3>
-          <p className="text-sm text-slate-500 mt-2">The selected supplier ID does not exist in prototype database.</p>
-          <button onClick={() => navigate('/admin/material-suppliers')} className="mt-5 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-all">
+      <div className="flex flex-1 flex-col p-6 items-center justify-center">
+        <div className="bg-white border p-6 rounded-2xl shadow-sm text-center max-w-md">
+          <AlertCircle className="w-10 h-10 text-rose-500 mx-auto mb-3" />
+          <h3 className="text-sm font-bold text-slate-900">Supplier Not Found</h3>
+          <p className="text-xs text-slate-500 mt-2">The selected supplier ID does not exist in prototype database.</p>
+          <button onClick={() => navigate('/admin/material-suppliers')} className="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer">
             Go Back to List
           </button>
         </div>
@@ -324,8 +322,7 @@ export const MaterialSupplierDetailPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
-      <RoleSwitcher />
+    <div className="flex flex-1 flex-col font-sans">
 
       {/* TOAST SYSTEM */}
       {toast && (
@@ -338,8 +335,8 @@ export const MaterialSupplierDetailPage: React.FC = () => {
       )}
 
       {/* TOP HEADER PROFILE BLOCK */}
-      <div className="bg-white border-b border-slate-200 px-8 py-6">
-        <div className="max-w-7xl mx-auto w-full flex flex-col gap-4">
+      <div className="bg-white border-b border-slate-200 px-6 py-4">
+        <div className="w-full flex flex-col gap-4">
           <div className="flex items-center gap-2">
             <button
               onClick={() => navigate('/admin/material-suppliers')}
@@ -422,8 +419,8 @@ export const MaterialSupplierDetailPage: React.FC = () => {
       </div>
 
       {/* HORIZONTAL TAB MENU BAR (13 Interactive Tabs!) */}
-      <div className="bg-white border-b border-slate-200 px-8 sticky top-12 z-20 shadow-xs">
-        <div className="max-w-7xl mx-auto w-full overflow-x-auto flex items-center gap-1.5 scrollbar-none py-1">
+      <div className="bg-white border-b border-slate-200 px-6 sticky top-12 z-20 shadow-xs">
+        <div className="w-full overflow-x-auto flex items-center gap-1.5 scrollbar-none py-1">
           {[
             { id: 'Overview', label: 'Overview' },
             { id: 'Catalog', label: 'Material Catalog' },
@@ -444,7 +441,7 @@ export const MaterialSupplierDetailPage: React.FC = () => {
               onClick={() => setActiveTab(tab.id as TabName)}
               className={`px-4 py-3 text-xs font-bold transition-all border-b-2 whitespace-nowrap cursor-pointer ${
                 activeTab === tab.id
-                  ? 'border-indigo-600 text-indigo-600'
+                  ? 'border-blue-600 text-blue-600'
                   : 'border-transparent text-slate-500 hover:text-slate-800'
               }`}
             >
@@ -455,7 +452,7 @@ export const MaterialSupplierDetailPage: React.FC = () => {
       </div>
 
       {/* TABS CONTAINER */}
-      <div className="p-8 max-w-7xl mx-auto w-full flex-1 flex flex-col gap-6">
+      <div className="p-6 w-full flex-1 flex flex-col gap-6">
 
         {/* 1. OVERVIEW TAB */}
         {activeTab === 'Overview' && (

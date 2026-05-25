@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
 import { useSuppliers } from '../context/SupplierContext';
-import { RoleSwitcher } from '../components/RoleSwitcher';
 import { Delivery, PurchaseOrder, GRN, QualityCheck } from '../types/supplier.types';
 import { 
   ClipboardCheck, Truck, FileText, ChevronRight, CheckCircle2, 
@@ -160,8 +159,7 @@ export const MaterialReceivingPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
-      <RoleSwitcher />
+    <div className="flex flex-1 flex-col font-sans">
 
       {/* TOAST SYSTEM */}
       {toast && (
@@ -172,23 +170,23 @@ export const MaterialReceivingPage: React.FC = () => {
       )}
 
       {/* HEADER Summary */}
-      <div className="bg-white border-b border-slate-200 px-8 py-5">
-        <div className="max-w-7xl mx-auto w-full flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="border-b border-slate-200 px-6 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-4 w-full">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-              <ClipboardCheck className="w-6 h-6 text-amber-500" />
+            <h1 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
+              <ClipboardCheck className="w-5 h-5 text-blue-600" />
               Site Receiving & Quality (QA/QC)
             </h1>
-            <p className="text-sm text-slate-500 mt-1">
+            <p className="text-xs text-slate-500 mt-0.5">
               Verify incoming shipments, generate digitised Goods Receipt Notes (GRN), and log quality test results.
             </p>
           </div>
 
           <div className="flex items-center gap-2.5">
             <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Role Access:</span>
-            <span className={`px-3 py-1 rounded-full text-xs font-extrabold border ${
-              role === 'admin' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
-              role === 'manager' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+            <span className={`px-2.5 py-1 rounded-full text-xs font-extrabold border ${
+              role === 'admin' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+              role === 'manager' ? 'bg-blue-50 text-blue-700 border-blue-200' :
               'bg-rose-50 text-rose-700 border-rose-200 cursor-not-allowed'
             }`}>
               {role === 'admin' ? 'Admin Access' : role === 'manager' ? 'Manager Access' : 'Vendor Portal (Read Only)'}
@@ -198,7 +196,7 @@ export const MaterialReceivingPage: React.FC = () => {
       </div>
 
       {/* MAIN CONTAINER */}
-      <div className="p-8 max-w-7xl mx-auto w-full flex-1 flex flex-col gap-6">
+      <div className="p-6 flex-1 flex flex-col gap-6">
 
         {/* TAB CONTROLS */}
         <div className="flex border-b border-slate-200 bg-white p-1 rounded-xl shadow-xs border">
@@ -206,7 +204,7 @@ export const MaterialReceivingPage: React.FC = () => {
             onClick={() => setActiveTab('pending')}
             className={`flex-1 py-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'pending'
-                ? 'bg-amber-600 text-white shadow-sm'
+                ? 'bg-blue-600 text-white shadow-sm'
                 : 'text-slate-500 hover:text-slate-800'
             }`}
           >
@@ -220,7 +218,7 @@ export const MaterialReceivingPage: React.FC = () => {
             onClick={() => setActiveTab('grns')}
             className={`flex-1 py-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'grns'
-                ? 'bg-amber-600 text-white shadow-sm'
+                ? 'bg-blue-600 text-white shadow-sm'
                 : 'text-slate-500 hover:text-slate-800'
             }`}
           >
@@ -234,7 +232,7 @@ export const MaterialReceivingPage: React.FC = () => {
             onClick={() => setActiveTab('quality')}
             className={`flex-1 py-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'quality'
-                ? 'bg-amber-600 text-white shadow-sm'
+                ? 'bg-blue-600 text-white shadow-sm'
                 : 'text-slate-500 hover:text-slate-800'
             }`}
           >
@@ -253,7 +251,7 @@ export const MaterialReceivingPage: React.FC = () => {
             placeholder="Search by Challan, GRN, PO Number or Supplier Name..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-sm bg-slate-50/50 outline-none focus:ring-2 focus:ring-amber-100 focus:border-amber-400 transition-all"
+            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-sm bg-slate-50/50 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all"
           />
         </div>
 
@@ -305,7 +303,7 @@ export const MaterialReceivingPage: React.FC = () => {
                           {role !== 'vendor' ? (
                             <button
                               onClick={() => handleOpenGRN(d)}
-                              className="bg-amber-600 hover:bg-amber-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm shadow-amber-100"
+                              className="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm shadow-blue-100"
                             >
                               Generate GRN
                             </button>
@@ -453,7 +451,7 @@ export const MaterialReceivingPage: React.FC = () => {
                                   });
                                   setSelectedQCForRecord(q);
                                 }}
-                                className="bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs"
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs"
                               >
                                 Record Report
                               </button>
@@ -630,7 +628,7 @@ export const MaterialReceivingPage: React.FC = () => {
               <button
                 type="button"
                 onClick={handleGRNSubmit}
-                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-sm font-semibold transition-all cursor-pointer"
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-all cursor-pointer"
               >
                 Generate GRN
               </button>
@@ -693,7 +691,7 @@ export const MaterialReceivingPage: React.FC = () => {
                 <button type="button" onClick={() => setSelectedQCForRecord(null)} className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 transition-all cursor-pointer">
                   Cancel
                 </button>
-                <button type="submit" className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-sm font-semibold transition-all cursor-pointer">
+                <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-all cursor-pointer">
                   Submit QC Check
                 </button>
               </div>
