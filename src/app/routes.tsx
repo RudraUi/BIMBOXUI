@@ -15,7 +15,10 @@ import { SiteSurvey } from "./components/pages/SiteSurvey";
 import BIMBOXVIWER from "./components/pages/BIMBOXVIWER";
 import BIMBOXVIWERExperiment from "./components/pages/BIMBOXVIWERExperiment";
 import TemporaryFlow from "./components/pages/TemporaryFlow";
+import ViewerSetup from "./components/pages/viewer-setup/ViewerSetup";
+import ViewerMain from "./components/pages/viewer-main/ViewerMain";
 import AuthFlow from "./components/pages/AuthFlow";
+import { ChatPage } from "./components/pages/ChatPage";
 
 // Material Supplier Workspace imports
 import { MaterialSupplierListPage } from "../modules/material-suppliers/pages/MaterialSupplierListPage";
@@ -31,6 +34,7 @@ export const router = createBrowserRouter([
       { index: true, Component: Welcome },
       { path: "dashboard", Component: Hub },
       { path: "projects", Component: AllProjects },
+      { path: "chat", Component: ChatPage },
       { path: "procurement", Component: Procurement },
       { path: "banking", Component: Banking },
       { path: "ai-hub", Component: AIHub },
@@ -49,7 +53,15 @@ export const router = createBrowserRouter([
     ],
   },
   {
-    path: "/viewer",
+    path: "/viewer-setup",
+    Component: ViewerSetup
+  },
+  {
+    path: "/viewer-main",
+    Component: ViewerMain
+  },
+  {
+    path: "/old-viewer",
     Component: BIMBOXVIWER
   },
   {

@@ -14,8 +14,12 @@ import {
   FolderOpen,
   Sliders,
   Plus,
-  Navigation
+  Navigation,
+  LayoutGrid,
+  Eye,
+  Zap
 } from "lucide-react";
+import confetti from "canvas-confetti";
 
 interface Project {
   id: string;
@@ -111,13 +115,15 @@ export function Welcome() {
   const [step, setStep] = useState(1); // 1: Name, 2: Location, 3: Phases, 4: Loading Setup
   const [projectName, setProjectName] = useState("");
   const [projectLocation, setProjectLocation] = useState("");
-  const [selectedPhases, setSelectedPhases] = useState<string[]>([]);
-  const [loadingSteps, setLoadingSteps] = useState<{ label: string; done: boolean }[]>([
-    { label: "Creating project container...", done: false },
-    { label: "Setting up active phase modules...", done: false },
-    { label: "Attaching default catalogs and schemas...", done: false },
-    { label: "Finalizing workspace environment...", done: false },
+  const [selectedPhases, setSelectedPhases] = useState<string[]>(["Pre-Construction", "Construction"]);
+  const [loadingSteps, setLoadingSteps] = useState<any[]>([
+    { id: 1, label: "Setting up your HUB", sub: "Initializing workspace configuration...", icon: LayoutGrid, done: false, active: true },
+    { id: 2, label: "Building 3D environment", sub: "Mapping coordinate spaces and meshes...", icon: Box, done: false, active: false },
+    { id: 3, label: "Doing viewer setup", sub: "Attaching default catalogs and WebGL viewports...", icon: Eye, done: false, active: false },
+    { id: 4, label: "Finalizing workspace", sub: "Deploying secure runtime container...", icon: Zap, done: false, active: false },
   ]);
+  const [newProjectDetails, setNewProjectDetails] = useState<{ name: string; location: string } | null>(null);
+  const [countdown, setCountdown] = useState(4);
 
   // Cycle greeting name/roles
   useEffect(() => {
@@ -131,6 +137,23 @@ export function Welcome() {
 
     return () => clearInterval(roleInterval);
   }, []);
+
+  // Countdown timer for step 5 Success redirect
+  useEffect(() => {
+    if (step === 5) {
+      const timer = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            window.location.href = `/projects`;
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [step]);
 
   const MOCK_SUGGESTIONS = [
     "Austin, TX - Downtown Development Zone",
@@ -189,7 +212,7 @@ export function Welcome() {
       setStep(2);
     } else if (step === 2) {
       setProjectLocation(val);
-      setStep(3);
+      triggerLoadingSequence(projectName, val);
     }
   };
 
@@ -202,8 +225,8 @@ export function Welcome() {
   };
 
   const handleConfirmPhases = () => {
+    // Left for backward compatibility / step 3 fallback
     setStep(4);
-    
     let currentIdx = 0;
     const interval = setInterval(() => {
       setLoadingSteps(prev => {
@@ -214,18 +237,18 @@ export function Welcome() {
           return next;
         } else {
           clearInterval(interval);
-          finishProjectSetup();
+          finishProjectSetup(projectName, projectLocation);
           return prev;
         }
       });
     }, 900);
   };
 
-  const finishProjectSetup = () => {
+  const finishProjectSetup = (pName: string, pLoc: string) => {
     const projectToAdd: Project = {
       id: "p_" + Date.now(),
-      name: projectName,
-      location: projectLocation,
+      name: pName,
+      location: pLoc,
       type: "Commercial",
       targetDate: "TBD",
       status: "active",
@@ -239,14 +262,77 @@ export function Welcome() {
     localStorage.setItem("active_project", JSON.stringify(projectToAdd));
 
     setTimeout(() => {
-      window.location.href = `/projects?project=${projectToAdd.id}`;
+      window.location.href = `/projects`;
     }, 500);
+  };
+
+  const triggerLoadingSequence = (pName: string, pLoc: string) => {
+    setStep(4);
+    
+    // Reset steps state on start
+    setLoadingSteps([
+      { id: 1, label: "Setting up your HUB", sub: "Initializing workspace configuration...", icon: LayoutGrid, done: false, active: true },
+      { id: 2, label: "Building 3D environment", sub: "Mapping coordinate spaces and meshes...", icon: Box, done: false, active: false },
+      { id: 3, label: "Doing viewer setup", sub: "Attaching default catalogs and WebGL viewports...", icon: Eye, done: false, active: false },
+      { id: 4, label: "Finalizing workspace", sub: "Deploying secure runtime container...", icon: Zap, done: false, active: false },
+    ]);
+
+    let currentIdx = 0;
+    const interval = setInterval(() => {
+      setLoadingSteps(prev => {
+        const next = prev.map((s, idx) => {
+          if (idx === currentIdx) {
+            return { ...s, done: true, active: false };
+          }
+          if (idx === currentIdx + 1) {
+            return { ...s, active: true };
+          }
+          return s;
+        });
+
+        currentIdx++;
+        if (currentIdx >= prev.length) {
+          clearInterval(interval);
+          
+          setTimeout(() => {
+            setStep(5);
+            setCountdown(4);
+            confetti({
+              particleCount: 120,
+              spread: 80,
+              origin: { y: 0.6 }
+            });
+            
+            setNewProjectDetails({ name: pName, location: pLoc });
+            
+            const projectToAdd: Project = {
+              id: "p_" + Date.now(),
+              name: pName,
+              location: pLoc,
+              type: "Commercial",
+              targetDate: "TBD",
+              status: "active",
+              activePhases: selectedPhases.length > 0 ? selectedPhases : ["Pre-Construction"],
+              progress: 0,
+            };
+
+            const updated = [projectToAdd, ...projects];
+            setProjects(updated);
+            localStorage.setItem("bimbox_projects", JSON.stringify(updated));
+            localStorage.setItem("active_project", JSON.stringify(projectToAdd));
+          }, 800);
+        }
+        return next;
+      });
+    }, 1200);
   };
 
   const handleSelectRecent = (project: Project) => {
     localStorage.setItem("active_project", JSON.stringify(project));
     window.location.href = `/dashboard?project=${project.id}`;
   };
+
+  const activeStep = loadingSteps.find(s => s.active && !s.done) || loadingSteps[loadingSteps.length - 1];
 
   return (
     <div className="min-h-screen w-full bg-white flex items-center justify-center p-6 relative overflow-hidden select-none">
@@ -324,15 +410,15 @@ export function Welcome() {
 
       {!showChat ? (
         // 1. Greeting Screen (shifted up, reduced margins)
-        <div className="max-w-2xl w-full text-center relative z-10 flex flex-col items-center animate-in fade-in duration-350 transform -translate-y-24">
+        <div className="max-w-2xl w-full text-center relative z-10 flex flex-col items-center animate-in fade-in duration-350 transform -translate-y-8">
           
           {/* Node Circle Logo */}
-          <div className="mb-5 flex justify-center hover:scale-105 transition-transform duration-300">
+          <div className="mb-4 flex justify-center hover:scale-105 transition-transform duration-300">
             <NeuralNodeCircle />
           </div>
 
           {/* Hello Greeting Header */}
-          <h1 className="text-6xl font-bold tracking-tight mb-2.5 select-none">
+          <h1 className="text-5xl font-bold tracking-tight mb-2 select-none">
             <span className="text-slate-400/90 font-light">Hello, </span>
             <span className={`text-blue-600 font-extrabold inline-block transition-all duration-300 ${
               fadeRole ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2"
@@ -346,10 +432,49 @@ export function Welcome() {
             Initialize high-performance 3D BIM coordination, field scheduling trackers, and asset lifecycle containers.
           </p>
 
-          {/* Rounded Elevated AI button */}
+          {/* Premium Phase Module Selector */}
+          <div className="w-full max-w-xl bg-white border border-slate-200/60 rounded-2xl p-5 mb-6 text-left shadow-xs">
+            <h3 className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-4 px-1">
+              Select Operational Modules to Initialize
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {PHASE_OPTIONS.map((opt) => {
+                const isChecked = selectedPhases.includes(opt.label);
+                const Icon = opt.icon;
+                return (
+                  <div
+                    key={opt.id}
+                    onClick={() => handleTogglePhase(opt.label)}
+                    className={`flex gap-3.5 p-3 border rounded-xl cursor-pointer transition-all items-center select-none ${
+                      isChecked 
+                        ? "border-blue-500 bg-blue-50/5 text-slate-800" 
+                        : "border-slate-200 hover:border-slate-350 hover:bg-slate-50/30 bg-white"
+                    }`}
+                  >
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border transition-all ${
+                      isChecked ? "bg-blue-50 border-blue-100 text-blue-600" : "bg-slate-50 border-slate-100 text-slate-450"
+                    }`}>
+                      <Icon className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs font-bold text-slate-800 leading-snug">{opt.label}</div>
+                      <div className="text-[10px] text-slate-450 font-semibold mt-0.5 truncate">{opt.desc}</div>
+                    </div>
+                    <div className={`w-4.5 h-4.5 rounded-full border flex items-center justify-center shrink-0 ml-auto transition-all ${
+                      isChecked ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 bg-white"
+                    }`}>
+                      {isChecked && <Check className="w-2.5 h-2.5 stroke-[3.5] text-white" />}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Simple blue color and rounded AI button */}
           <button
             onClick={() => setShowChat(true)}
-            className="inline-flex items-center gap-2 px-10 py-3.5 bg-gradient-to-b from-[#4BA1FF] to-[#1B6CFB] border-t border-[#82C0FF]/50 text-white rounded-full text-sm font-semibold tracking-wide transition-all duration-250 shadow-md shadow-blue-500/20 hover:shadow-lg hover:shadow-blue-500/35 hover:from-[#61AEFF] hover:to-[#2B77FF] hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+            className="inline-flex items-center gap-2 px-10 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-full text-xs font-bold tracking-wide transition-all duration-250 shadow-md shadow-blue-500/10 hover:shadow-lg hover:shadow-blue-500/20 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
             <span>Create Project</span>
@@ -445,7 +570,7 @@ export function Welcome() {
                     <button
                       type="submit"
                       disabled={!inputValue.trim()}
-                      className="w-8 h-8 rounded-full bg-gradient-to-b from-[#4BA1FF] to-[#1B6CFB] border-t border-[#82C0FF]/40 disabled:opacity-40 text-white flex items-center justify-center shrink-0 cursor-pointer transition-all duration-200 shadow-md shadow-blue-500/15 hover:shadow-lg hover:shadow-blue-500/30 hover:from-[#61AEFF] hover:to-[#2B77FF] active:scale-[0.9] disabled:pointer-events-none"
+                      className="w-8 h-8 rounded-full bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white flex items-center justify-center shrink-0 cursor-pointer transition-all duration-200 shadow-md shadow-blue-500/10 hover:shadow-lg active:scale-[0.9] disabled:pointer-events-none"
                     >
                       <span className="text-base font-extrabold">↑</span>
                     </button>
@@ -515,7 +640,7 @@ export function Welcome() {
                       onClick={() => {
                         setInputValue(loc);
                         setProjectLocation(loc);
-                        setStep(3);
+                        triggerLoadingSequence(projectName, loc);
                       }}
                       className="w-full text-left px-3 py-2 hover:bg-slate-50 text-slate-650 hover:text-slate-900 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer"
                     >
@@ -531,7 +656,7 @@ export function Welcome() {
 
           {/* Phase Configuration List */}
           {step === 3 && (
-            <div className="w-full max-w-lg bg-white border border-blue-200/60 rounded-2xl p-5 flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-200 shadow-[0_15px_45px_-12px_rgba(59,130,246,0.16)]">
+            <div className="w-full max-w-lg bg-white border border-slate-200/60 rounded-2xl p-5 flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-200 shadow-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[300px] overflow-y-auto pr-1">
                 {PHASE_OPTIONS.map((opt) => {
                   const isChecked = selectedPhases.includes(opt.label);
@@ -540,25 +665,25 @@ export function Welcome() {
                     <div
                       key={opt.id}
                       onClick={() => handleTogglePhase(opt.label)}
-                      className={`flex gap-3 p-3 border rounded-xl cursor-pointer transition-all items-start select-none ${
+                      className={`flex gap-3.5 p-3 border rounded-xl cursor-pointer transition-all items-center select-none ${
                         isChecked 
-                          ? "border-blue-500 bg-blue-50/20 text-blue-900" 
-                          : "border-slate-200 hover:border-slate-300 bg-slate-50/50"
+                          ? "border-blue-500 bg-blue-50/5 text-slate-800" 
+                          : "border-slate-200 hover:border-slate-350 hover:bg-slate-50/30 bg-white"
                       }`}
                     >
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                        isChecked ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-550"
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border transition-all ${
+                        isChecked ? "bg-blue-50 border-blue-100 text-blue-600" : "bg-slate-50 border-slate-100 text-slate-450"
                       }`}>
                         <Icon className="w-4 h-4" />
                       </div>
-                      <div className="min-w-0 text-left">
+                      <div className="min-w-0 text-left flex-1">
                         <div className="text-xs font-bold text-slate-800">{opt.label}</div>
-                        <div className="text-[10px] text-slate-400 font-semibold mt-0.5 truncate">{opt.desc}</div>
+                        <div className="text-[10px] text-slate-450 font-semibold mt-0.5 truncate">{opt.desc}</div>
                       </div>
-                      <div className={`w-4 h-4 rounded-md border flex items-center justify-center shrink-0 ml-auto ${
-                        isChecked ? "border-blue-600 bg-blue-600 text-white" : "border-slate-350"
+                      <div className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ml-auto transition-all ${
+                        isChecked ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 bg-white"
                       }`}>
-                        {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
+                        {isChecked && <Check className="w-2.5 h-2.5 stroke-[3.5] text-white" />}
                       </div>
                     </div>
                   );
@@ -569,13 +694,13 @@ export function Welcome() {
                 <button
                   type="button"
                   onClick={() => setStep(2)}
-                  className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-650 hover:bg-slate-50 transition-all cursor-pointer"
+                  className="px-5 py-1.5 border border-slate-200 rounded-full text-xs font-bold text-slate-650 hover:bg-slate-50 transition-all cursor-pointer"
                 >
                   Back
                 </button>
                 <button
                   onClick={handleConfirmPhases}
-                  className="px-5 py-2 bg-gradient-to-b from-[#4BA1FF] to-[#1B6CFB] border-t border-[#82C0FF]/50 text-white font-semibold rounded-xl text-xs transition-all duration-200 cursor-pointer shadow-md shadow-blue-500/20 hover:shadow-lg hover:shadow-blue-500/35 hover:from-[#61AEFF] hover:to-[#2B77FF] hover:scale-[1.02] active:scale-[0.98]"
+                  className="px-5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-full text-xs transition-all duration-200 cursor-pointer shadow-md shadow-blue-500/10 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
                 >
                   Launch Container
                 </button>
@@ -585,21 +710,132 @@ export function Welcome() {
 
           {/* Setup Loading Logs Checklist */}
           {step === 4 && (
-            <div className="w-full max-w-sm bg-white border border-blue-200/60 rounded-2xl p-5 flex flex-col gap-3 text-left animate-in fade-in zoom-in-95 duration-200 shadow-[0_15px_45px_-12px_rgba(59,130,246,0.16)] animate-pulse">
-              {loadingSteps.map((s, idx) => (
-                <div key={idx} className="flex items-center gap-3">
-                  {s.done ? (
-                    <div className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0 animate-scale-in">
-                      <Check className="w-3 h-3 stroke-[3]" />
-                    </div>
-                  ) : (
-                    <Loader2 className="w-5 h-5 text-blue-600 animate-spin shrink-0" />
+            <div className="w-full max-w-md bg-white border border-slate-200/80 rounded-[32px] p-6 flex flex-col animate-in fade-in zoom-in-95 duration-250 shadow-[0_20px_50px_rgba(59,130,246,0.12)]">
+              
+              {/* Central Pulsing Ring Loader */}
+              <div className="relative w-24 h-24 mx-auto mb-6 flex items-center justify-center">
+                <div className="absolute inset-0 rounded-full border-2 border-blue-500/10 animate-ping" />
+                <div className="absolute inset-2 rounded-full border-2 border-blue-500/20 animate-pulse" />
+                <div className="relative w-16 h-16 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center shadow-xs">
+                  {activeStep && activeStep.icon && (
+                    <activeStep.icon className="w-8 h-8 text-blue-600 animate-pulse" />
                   )}
-                  <span className={`text-xs font-semibold ${s.done ? "text-slate-800" : "text-slate-400"}`}>
-                    {s.label}
+                </div>
+              </div>
+
+              <div className="text-center mb-6">
+                <h3 className="text-lg font-black text-slate-800 tracking-tight">
+                  Setting up your Workspace
+                </h3>
+                <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mt-1">
+                  Initializing secure runtime container...
+                </p>
+              </div>
+
+              {/* The Checklist Card */}
+              <div className="w-full bg-slate-50/50 border border-slate-200/40 rounded-2xl p-4 flex flex-col gap-3">
+                {loadingSteps.map((s) => {
+                  const Icon = s.icon;
+                  return (
+                    <div key={s.id} className="flex items-center gap-3.5 p-1">
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border transition-all ${
+                        s.done 
+                          ? "bg-emerald-500 border-emerald-500 text-white animate-scale-in" 
+                          : s.active 
+                            ? "bg-blue-600 border-blue-600 text-white animate-pulse" 
+                            : "bg-white border-slate-200 text-slate-400"
+                      }`}>
+                        {s.done ? (
+                          <Check className="w-4 h-4 stroke-[3]" />
+                        ) : (
+                          <Icon className="w-4.5 h-4.5" />
+                        )}
+                      </div>
+                      
+                      <div className="min-w-0 text-left flex-1">
+                        <div className={`text-xs font-bold transition-colors ${
+                          s.done 
+                            ? "text-slate-850 line-through opacity-70" 
+                            : s.active 
+                              ? "text-blue-605" 
+                              : "text-slate-400"
+                        }`}>
+                          {s.label}
+                        </div>
+                        <div className={`text-[10px] font-semibold mt-0.5 truncate transition-colors ${
+                          s.active ? "text-slate-500" : "text-slate-400/80"
+                        }`}>
+                          {s.sub}
+                        </div>
+                      </div>
+
+                      {s.active && !s.done && (
+                        <Loader2 className="w-4 h-4 text-blue-600 animate-spin shrink-0" />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Step 5: Success Feedback Screen */}
+          {step === 5 && (
+            <div className="w-full max-w-md bg-white border border-slate-200/80 rounded-[32px] p-8 flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-350 shadow-[0_20px_50px_rgba(59,130,246,0.12)]">
+              
+              {/* Confetti / Success Ring */}
+              <div className="relative w-20 h-20 mb-6 flex items-center justify-center">
+                <div className="absolute inset-0 rounded-full bg-emerald-50 border border-emerald-100 animate-pulse" />
+                <div className="w-14 h-14 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-500/20 animate-scale-in">
+                  <Check className="w-8 h-8 stroke-[3]" />
+                </div>
+              </div>
+
+              <h2 className="text-2xl font-black text-slate-800 tracking-tight mb-2">
+                Project Hub Initialized!
+              </h2>
+              
+              <p className="text-slate-500 text-xs font-semibold max-w-sm mb-6 leading-relaxed">
+                Your high-performance 3D workspace has been successfully constructed and is ready for collaboration.
+              </p>
+
+              {/* Project Card summary */}
+              <div className="w-full bg-slate-50/60 border border-slate-200/50 rounded-2xl p-4.5 text-left mb-6 flex flex-col gap-2.5">
+                <div className="flex justify-between items-center text-xs font-bold text-slate-700">
+                  <span className="text-slate-400">Project Name</span>
+                  <span>{newProjectDetails?.name}</span>
+                </div>
+                <div className="flex justify-between items-center text-xs font-bold text-slate-700 border-t border-slate-100 pt-2.5">
+                  <span className="text-slate-400">Location</span>
+                  <span className="flex items-center gap-1">
+                    <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                    {newProjectDetails?.location}
                   </span>
                 </div>
-              ))}
+                <div className="flex flex-col gap-1.5 border-t border-slate-100 pt-2.5">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Active Modules</span>
+                  <div className="flex flex-wrap gap-1 mt-0.5">
+                    {selectedPhases.map((phase) => (
+                      <span key={phase} className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-100 rounded-md text-[9px] font-bold">
+                        {phase}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Enter Workspace Button */}
+              <button
+                onClick={() => {
+                  window.location.href = `/projects`;
+                }}
+                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-full text-xs font-bold transition-all shadow-md shadow-blue-500/10 hover:shadow-lg active:scale-98 cursor-pointer flex items-center justify-center gap-2"
+              >
+                <span>Enter Workspace</span>
+                <span className="text-[10px] bg-blue-500/50 px-2 py-0.5 rounded-full font-medium">
+                  {countdown}s
+                </span>
+              </button>
             </div>
           )}
 
@@ -611,9 +847,9 @@ export function Welcome() {
                 setStep(1);
                 setProjectName("");
                 setProjectLocation("");
-                setSelectedPhases([]);
+                setSelectedPhases(["Pre-Construction", "Construction"]);
               }}
-              className="mt-6 text-xs text-slate-400 hover:text-slate-650 font-bold tracking-wide transition-colors cursor-pointer"
+              className="mt-6 text-xs text-slate-400 hover:text-blue-600 font-bold tracking-wide transition-colors cursor-pointer"
             >
               Cancel Setup
             </button>

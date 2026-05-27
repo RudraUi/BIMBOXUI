@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { Link, useNavigate } from "react-router";
 import {
   Plus,
@@ -19,11 +19,21 @@ import {
   Box,
   Wrench,
   Activity,
-  Layers
+  Layers,
+  ChevronDown,
+  Settings,
+  UserPlus
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Input } from "../ui/input";
 import { useSidebar } from "../../context/SidebarContext";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "../ui/dropdown-menu";
 
 interface Project {
   id: string;
@@ -37,74 +47,158 @@ interface Project {
   startDate: string;
   endDate: string;
   status: "On Track" | "Delayed" | "Completed" | "active" | string;
+  creator?: string;
+  code?: string;
+  role?: string;
+  type?: string;
+  createdOn?: string;
 }
 
 const initialProjects: Project[] = [
   {
     id: "p_1",
-    name: "Downtown Tower Complex",
+    name: "IITH",
     phase: "Construction",
     activePhases: ["Construction"],
-    location: "Downtown District",
+    location: "Hyderabad, India",
     progress: 75,
     budget: "$5.2M",
-    team: 45,
+    team: 1,
     startDate: "2025-10-15",
     endDate: "2026-08-15",
-    status: "On Track",
+    status: "active",
+    creator: "John Doe",
+    code: "BIMBOXF05DE2",
+    role: "member",
+    type: "Demo",
+    createdOn: "19 Feb 2026, 9:28 AM"
   },
   {
     id: "p_2",
-    name: "Riverside Residential",
+    name: "STALWART SKY CITY",
     phase: "Pre-Construction",
     activePhases: ["Pre-Construction"],
-    location: "Riverside Area",
+    location: "Austin, TX",
     progress: 45,
     budget: "$3.8M",
-    team: 28,
+    team: 1,
     startDate: "2026-01-20",
     endDate: "2026-06-30",
-    status: "On Track",
+    status: "active",
+    creator: "John Doe",
+    code: "BIMBOX3F6315",
+    role: "member",
+    type: "Demo",
+    createdOn: "17 Feb 2026, 5:35 PM"
   },
   {
     id: "p_3",
-    name: "Tech Park Phase 2",
+    name: "DTG",
     phase: "Construction",
     activePhases: ["Construction"],
-    location: "Tech District",
+    location: "Miami, FL",
     progress: 30,
     budget: "$8.5M",
-    team: 62,
+    team: 1,
     startDate: "2025-12-01",
     endDate: "2026-09-20",
-    status: "Delayed",
+    status: "active",
+    creator: "Snehasis Mohapatra",
+    code: "BIMBOX7491D0",
+    role: "Admin",
+    type: "Project Management",
+    createdOn: "21 May 2026, 10:48 AM"
   },
   {
     id: "p_4",
-    name: "Green Valley Homes",
+    name: "DFDF",
     phase: "Facility Management",
     activePhases: ["Facility Management"],
-    location: "Green Valley",
+    location: "New York, NY",
     progress: 100,
     budget: "$2.1M",
-    team: 12,
+    team: 1,
     startDate: "2025-06-10",
     endDate: "2026-04-10",
-    status: "Completed",
+    status: "active",
+    creator: "Snehasis Mohapatra",
+    code: "BIMBOX74DB48",
+    role: "Admin",
+    type: "Project Management",
+    createdOn: "20 May 2026, 10:57 AM"
   },
   {
     id: "p_5",
-    name: "Metro Mall Expansion",
+    name: "3RWE",
     phase: "Pre-Construction",
     activePhases: ["Pre-Construction"],
     location: "City Center",
     progress: 20,
     budget: "$12.3M",
-    team: 35,
+    team: 1,
     startDate: "2026-03-01",
     endDate: "2027-02-28",
-    status: "On Track",
+    status: "active",
+    creator: "Snehasis Mohapatra",
+    code: "BIMBOXD4E161",
+    role: "Admin",
+    type: "Project Management",
+    createdOn: "19 May 2026, 5:45 PM"
   },
+  {
+    id: "p_6",
+    name: "ERTHJ",
+    phase: "Facility Management",
+    activePhases: ["Facility Management"],
+    location: "Green Valley",
+    progress: 90,
+    budget: "$4.5M",
+    team: 1,
+    startDate: "2025-06-10",
+    endDate: "2026-04-10",
+    status: "active",
+    creator: "Snehasis Mohapatra",
+    code: "BIMBOX72B287",
+    role: "Admin",
+    type: "Project Management",
+    createdOn: "11 May 2026, 12:44 PM"
+  },
+  {
+    id: "p_7",
+    name: "FGVSD",
+    phase: "Construction",
+    activePhases: ["Construction"],
+    location: "Los Angeles, CA",
+    progress: 50,
+    budget: "$6.0M",
+    team: 1,
+    startDate: "2025-06-10",
+    endDate: "2026-04-10",
+    status: "active",
+    creator: "Snehasis Mohapatra",
+    code: "BIMBOXF6C351",
+    role: "Admin",
+    type: "Project Management",
+    createdOn: "20 Apr 2026, 12:53 PM"
+  },
+  {
+    id: "p_8",
+    name: "ASDASDF",
+    phase: "Pre-Construction",
+    activePhases: ["Pre-Construction"],
+    location: "Dallas, TX",
+    progress: 10,
+    budget: "$1.8M",
+    team: 1,
+    startDate: "2025-06-10",
+    endDate: "2026-04-10",
+    status: "active",
+    creator: "Snehasis Mohapatra",
+    code: "BIMBOXA4A89C",
+    role: "Admin",
+    type: "Project Management",
+    createdOn: "07 Apr 2026, 5:08 PM"
+  }
 ];
 
 const PHASE_OPTIONS = [
@@ -135,6 +229,78 @@ function getProjectPath(phaseName: string) {
   }
   return "/dashboard";
 }
+
+function ActionMenu({ onDelete, onLaunch }: { onDelete: (e: React.MouseEvent) => void; onLaunch: () => void }) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          onClick={(e) => e.stopPropagation()}
+          className="p-1 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer text-slate-400 hover:text-slate-750 flex items-center justify-center"
+        >
+          <MoreVertical className="w-4 h-4" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-48 z-50 font-sans">
+        <DropdownMenuItem
+          onClick={(e) => {
+            e.stopPropagation();
+            onLaunch();
+          }}
+          className="font-bold text-blue-600 focus:bg-blue-50 focus:text-blue-700 cursor-pointer"
+        >
+          <ExternalLink className="w-3.5 h-3.5" />
+          <span>Launch Hub</span>
+        </DropdownMenuItem>
+        
+        <DropdownMenuItem
+          onClick={(e) => {
+            e.stopPropagation();
+            alert("Project Settings opened");
+          }}
+          className="font-semibold text-slate-700 cursor-pointer"
+        >
+          <Settings className="w-3.5 h-3.5 text-slate-450" />
+          <span>Project Settings</span>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem
+          onClick={(e) => {
+            e.stopPropagation();
+            alert("Invite members flow triggered");
+          }}
+          className="font-semibold text-slate-700 cursor-pointer"
+        >
+          <UserPlus className="w-3.5 h-3.5 text-slate-450" />
+          <span>Invite Members</span>
+        </DropdownMenuItem>
+
+        <DropdownMenuSeparator />
+
+        <DropdownMenuItem
+          onClick={(e: any) => {
+            e.stopPropagation();
+            onDelete(e);
+          }}
+          className="font-bold text-red-650 focus:bg-red-50 focus:text-red-700 cursor-pointer"
+        >
+          <Trash2 className="w-3.5 h-3.5 text-red-500" />
+          <span>Delete Container</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+const getInitials = (name: string) => {
+  const clean = name.trim();
+  if (!clean) return "BB";
+  const parts = clean.split(" ");
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+  return clean.slice(0, 2).toUpperCase();
+};
 
 export function AllProjects() {
   const navigate = useNavigate();
@@ -168,10 +334,15 @@ export function AllProjects() {
             id: p.id ? String(p.id) : "p_" + Math.random(),
             phase: p.phase || (p.activePhases && p.activePhases[0]) || "Construction",
             budget: p.budget || "$2.5M",
-            team: p.team || 12,
+            team: p.team || 1,
             startDate: p.startDate || new Date().toISOString().split("T")[0],
             endDate: p.endDate || new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-            status: p.status === "active" ? "On Track" : (p.status || "On Track")
+            status: p.status || "active",
+            creator: p.creator || "Snehasis Mohapatra",
+            code: p.code || "BIMBOX" + Math.random().toString(36).substr(2, 6).toUpperCase(),
+            role: p.role || "Admin",
+            type: p.type || "Project Management",
+            createdOn: p.createdOn || "26 May 2026, 06:36 PM"
           }));
           setProjects(normalized);
         } else {
@@ -195,13 +366,15 @@ export function AllProjects() {
         (p.activePhases && p.activePhases.some(ap => ap.toLowerCase().includes(filterPhase.toLowerCase())));
 
       const matchedStatus = filterStatus === "All" || 
-        p.status.toLowerCase() === filterStatus.toLowerCase();
+        p.status.toLowerCase() === filterStatus.toLowerCase() ||
+        (filterStatus === "On Track" && p.status.toLowerCase() === "active");
 
       const query = searchQuery.trim().toLowerCase();
       const matchedSearch = query === "" ||
         p.name.toLowerCase().includes(query) ||
-        p.location.toLowerCase().includes(query) ||
-        p.phase.toLowerCase().includes(query);
+        (p.code && p.code.toLowerCase().includes(query)) ||
+        (p.type && p.type.toLowerCase().includes(query)) ||
+        (p.phase && p.phase.toLowerCase().includes(query));
 
       return matchedPhase && matchedStatus && matchedSearch;
     });
@@ -288,161 +461,202 @@ export function AllProjects() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50/50 p-6 lg:p-8 select-none">
+    <div className="min-h-screen bg-slate-50/50 p-4 lg:p-5 select-none">
       
-      {/* Top Banner Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Project Containers</h1>
-          <p className="text-sm text-slate-500 font-semibold mt-1">
-            Monitor, deploy, and configure active building workspaces
-          </p>
+      {/* Space-efficient Compact Header Row */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-baseline gap-2">
+          <h1 className="text-base font-extrabold text-slate-900 tracking-tight">All Projects</h1>
+          <span className="text-[10px] font-bold text-slate-400">({projects.length} projects)</span>
         </div>
         <button
-          onClick={() => setIsCreateOpen(true)}
-          className="px-5 py-2.5 bg-gradient-to-b from-[#1c64f7] to-[#135AF4] border-t border-[#6099ff]/30 hover:from-[#2872ff] hover:to-[#1c64f7] text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-[0_4px_12px_rgba(19,90,244,0.2)] hover:shadow-[0_6px_16px_rgba(19,90,244,0.3)] active:scale-95"
+          onClick={() => navigate("/")}
+          className="px-4.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm hover:shadow-md active:scale-95"
         >
-          <Plus className="w-4 h-4 stroke-[2.5]" />
-          Create Project
+          <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+          <span>Create a new project</span>
         </button>
       </div>
 
-      {/* Toolbar Controls */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* Minimal Inline Controls Row */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-3">
         
         {/* Search */}
-        <div className="relative flex-1 max-w-md">
-          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+        <div className="relative flex-1 max-w-xs">
+          <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            placeholder="Search projects by name, location or tags..."
+            placeholder="Search projects..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-slate-200 hover:border-slate-350 rounded-xl text-xs font-semibold text-slate-800 outline-hidden focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all bg-slate-50/30"
+            className="w-full pl-8.5 pr-3 py-1.5 border border-slate-200 hover:border-slate-350 rounded-lg text-xs font-semibold text-slate-800 outline-hidden focus:border-blue-500 transition-all bg-white"
           />
         </div>
 
         {/* Filters */}
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2">
+          <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400 shrink-0 mr-1" />
           
-          {/* Phase Filter Dropdown */}
-          <div className="flex items-center gap-1.5">
-            <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-            <select
-              value={filterPhase}
-              onChange={(e) => setFilterPhase(e.target.value)}
-              className="px-3 py-1.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-650 bg-white cursor-pointer outline-hidden hover:border-slate-300"
-            >
-              <option value="All">All Phases</option>
-              <option value="Pre-Construction">Pre-Construction</option>
-              <option value="Construction">Construction</option>
-              <option value="Site Survey">Site Survey</option>
-              <option value="Facility Management">Facility Management</option>
-              <option value="Digital Twin">Digital Twin</option>
-            </select>
-          </div>
+          {/* Custom Dropdown for Phase */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-1.5 px-2.5 py-1 border border-slate-200 rounded-lg text-[10px] font-extrabold text-slate-650 bg-white hover:border-slate-300 transition-colors cursor-pointer select-none">
+                <span>{filterPhase === "All" ? "All Phases" : filterPhase}</span>
+                <ChevronDown className="w-3 h-3 text-slate-450" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48 z-50 font-sans">
+              {[
+                { value: "All", label: "All Phases" },
+                { value: "Pre-Construction", label: "Pre-Construction" },
+                { value: "Construction", label: "Construction" },
+                { value: "Site Survey", label: "Site Survey" },
+                { value: "Facility Management", label: "Facility Management" },
+                { value: "Digital Twin", label: "Digital Twin" }
+              ].map((opt) => (
+                <DropdownMenuItem
+                  key={opt.value}
+                  onClick={() => setFilterPhase(opt.value)}
+                  className={`cursor-pointer ${filterPhase === opt.value ? "bg-slate-50 font-extrabold text-blue-600" : "font-semibold text-slate-700"}`}
+                >
+                  {opt.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-          {/* Status Filter */}
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-3 py-1.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-650 bg-white cursor-pointer outline-hidden hover:border-slate-300"
-          >
-            <option value="All">All Statuses</option>
-            <option value="On Track">On Track</option>
-            <option value="Delayed">Delayed</option>
-            <option value="Completed">Completed</option>
-          </select>
-
+          {/* Custom Dropdown for Status */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-1.5 px-2.5 py-1 border border-slate-200 rounded-lg text-[10px] font-extrabold text-slate-650 bg-white hover:border-slate-300 transition-colors cursor-pointer select-none">
+                <span>{filterStatus === "All" ? "All Statuses" : filterStatus}</span>
+                <ChevronDown className="w-3 h-3 text-slate-450" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-40 z-50 font-sans">
+              {[
+                { value: "All", label: "All Statuses" },
+                { value: "On Track", label: "On Track" },
+                { value: "Delayed", label: "Delayed" },
+                { value: "Completed", label: "Completed" }
+              ].map((opt) => (
+                <DropdownMenuItem
+                  key={opt.value}
+                  onClick={() => setFilterStatus(opt.value)}
+                  className={`cursor-pointer ${filterStatus === opt.value ? "bg-slate-50 font-extrabold text-blue-600" : "font-semibold text-slate-700"}`}
+                >
+                  {opt.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
       {/* List View Mode (Professional Data Table) */}
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <div className="overflow-hidden bg-white border border-slate-100 rounded-2xl shadow-xs">
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-left">
+          <table className="w-full border-collapse text-left text-slate-650">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-medium uppercase text-slate-500">
-                <th className="px-3 py-3">Workspace Container</th>
-                <th className="px-3 py-3">Primary Stage</th>
-                <th className="px-3 py-3">Progress</th>
-                <th className="px-3 py-3">Budget</th>
-                <th className="px-3 py-3">Manpower</th>
-                <th className="px-3 py-3">Timeline</th>
-                <th className="px-3 py-3">Status</th>
-                <th className="px-3 py-3 text-right">Actions</th>
+              <tr className="border-b border-slate-100 bg-white text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                <th className="px-6 py-4">Name</th>
+                <th className="px-6 py-4">
+                  <div className="flex items-center gap-1 cursor-pointer select-none hover:text-slate-600">
+                    <span>Project Type</span>
+                    <span className="text-[9px]">⇅</span>
+                  </div>
+                </th>
+                <th className="px-6 py-4">Project Code</th>
+                <th className="px-6 py-4">Status</th>
+                <th className="px-6 py-4">Role</th>
+                <th className="px-6 py-4">Total Members</th>
+                <th className="px-6 py-4">Created on</th>
+                <th className="px-6 py-4 text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
-              {filteredProjects.map((p) => (
-                <tr
-                  key={p.id}
-                  onClick={() => handleLaunchProject(p)}
-                  className="border-b border-slate-100 text-xs text-slate-700 hover:bg-slate-50 cursor-pointer transition-colors group"
-                >
-                  <td className="px-3 py-3">
-                    <div>
-                      <div className="font-medium text-slate-950 group-hover:text-blue-600 transition-colors">
-                        {p.name}
+              {filteredProjects.map((p) => {
+                const initials = getInitials(p.name);
+                const isDemo = p.type === "Demo";
+                return (
+                  <tr
+                    key={p.id}
+                    onClick={() => handleLaunchProject(p)}
+                    className="hover:bg-slate-50/50 cursor-pointer transition-colors"
+                  >
+                    {/* Name Column */}
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-xs shrink-0 select-none shadow-xs">
+                          {initials}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="font-extrabold text-[12px] text-slate-800 tracking-tight leading-snug uppercase">
+                            {p.name}
+                          </div>
+                          <div className="text-[10px] text-slate-400 font-semibold mt-0.5">
+                            Created by {p.creator || "Snehasis Mohapatra"}
+                          </div>
+                        </div>
                       </div>
-                      <div className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1">
-                        <MapPin className="w-3 h-3 text-slate-350" />
-                        {p.location}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-3 py-3">
-                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200/50">
-                      {p.phase}
-                    </span>
-                  </td>
-                  <td className="px-3 py-3 w-40">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-medium text-slate-600">{p.progress}%</span>
-                      <div className="w-20 bg-slate-200 rounded-full h-1.5">
-                        <div
-                          className={`h-1.5 rounded-full ${
-                            p.progress === 100 ? "bg-emerald-500" : "bg-blue-600"
-                          }`}
-                          style={{ width: `${p.progress}%` }}
+                    </td>
+
+                    {/* Project Type */}
+                    <td className="px-6 py-4">
+                      {isDemo ? (
+                        <span className="px-2 py-0.5 bg-amber-50 text-amber-600 border border-amber-100 rounded-full text-[9px] font-bold">
+                          Demo
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-0.5 bg-blue-50 text-blue-600 border border-blue-100 rounded-full text-[9px] font-bold">
+                          Project Management
+                        </span>
+                      )}
+                    </td>
+
+                    {/* Project Code */}
+                    <td className="px-6 py-4 font-mono text-[10px] text-slate-500 font-bold">
+                      {p.code || "BIMBOX" + p.id.toUpperCase().replace("P_", "")}
+                    </td>
+
+                    {/* Status */}
+                    <td className="px-6 py-4">
+                      <span className="text-emerald-500 font-bold">
+                        {p.status || "active"}
+                      </span>
+                    </td>
+
+                    {/* Role */}
+                    <td className="px-6 py-4 font-semibold text-slate-650">
+                      {p.role || "Admin"}
+                    </td>
+
+                    {/* Total Members */}
+                    <td className="px-6 py-4 font-semibold text-slate-650">
+                      {p.team || 1}
+                    </td>
+
+                    {/* Created On */}
+                    <td className="px-6 py-4 font-semibold text-slate-500">
+                      {p.createdOn || "19 Feb 2026, 9:28 AM"}
+                    </td>
+
+                    {/* Action menu */}
+                    <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-end">
+                        <ActionMenu 
+                          onDelete={(e) => handleDeleteProject(p.id, e)}
+                          onLaunch={() => handleLaunchProject(p)}
                         />
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-3 py-3 text-slate-950 font-medium">{p.budget}</td>
-                  <td className="px-3 py-3 text-slate-500">{p.team} members</td>
-                  <td className="px-3 py-3 text-[10px] text-slate-500">
-                    {p.startDate} to {p.endDate}
-                  </td>
-                  <td className="px-3 py-3">
-                    <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${getStatusStyle(p.status, p.progress)}`}>
-                      {getStatusLabel(p.status, p.progress)}
-                    </span>
-                  </td>
-                  <td className="px-3 py-3 text-right" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex items-center justify-end gap-1.5">
-                      <button
-                        onClick={(e) => handleDeleteProject(p.id, e)}
-                        className="p-1.5 text-slate-400 hover:text-red-650 hover:bg-red-50 rounded-lg transition-all cursor-pointer"
-                        title="Delete container"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => handleLaunchProject(p)}
-                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all cursor-pointer"
-                        title="Open workspace"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
-            </table>
-          </div>
+          </table>
         </div>
+      </div>
 
       {/* Empty State */}
       {filteredProjects.length === 0 && (
@@ -545,13 +759,13 @@ export function AllProjects() {
             <div className="flex justify-end gap-2 mt-4 pt-3 border-t border-slate-100">
               <button
                 onClick={() => setIsCreateOpen(false)}
-                className="px-4 py-2 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                className="px-5 py-2 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 rounded-full text-xs font-bold transition-all cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleCreateProject}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-md shadow-blue-600/10"
+                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full text-xs font-bold transition-all cursor-pointer shadow-md shadow-blue-600/10"
               >
                 Deploy
               </button>

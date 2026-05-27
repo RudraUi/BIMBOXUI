@@ -160,7 +160,7 @@ export default function BIMBOXVIWER() {
   };
 
   return (
-    <div className="w-full h-screen bg-[#ecf1f5] overflow-hidden text-slate-800 font-sans relative selection:bg-blue-200">
+    <div className="w-full h-full min-h-[600px] bg-[#ecf1f5] overflow-hidden text-slate-800 font-sans relative selection:bg-blue-200">
       
       {/* ------------------------------------------------------------------- */}
       {/* SINGLE / LEFT VIEWPORT */}

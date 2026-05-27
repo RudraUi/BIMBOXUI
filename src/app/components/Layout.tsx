@@ -31,7 +31,9 @@ import {
   MessageSquare,
   Network,
   HardHat,
-  Boxes
+  Boxes,
+  Sliders,
+  Settings
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useSidebar } from "../context/SidebarContext";
@@ -42,7 +44,7 @@ export function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { mode, setMode } = useSidebar();
-  const [modalType, setModalType] = useState<"video-call" | "chat" | null>(null);
+  const [modalType, setModalType] = useState<"video-call" | null>(null);
 
   useEffect(() => {
     const path = location.pathname;
@@ -64,6 +66,8 @@ export function Layout() {
     { icon: Wrench, label: "Facility Management", shortLabel: "FACILITY", sublabel: "Project Management", path: "/facility-management", sidebarMode: "main" },
     { icon: MapPin, label: "Site Survey", shortLabel: "SURVEY", sublabel: "Site Analysis", path: "/site-survey", sidebarMode: "main" },
     { icon: Boxes, label: "Digital Twin", shortLabel: "TWIN", sublabel: "BIM Modeling", path: "/digital-twin", sidebarMode: "main" },
+    { icon: Sliders, label: "Viewer Setup", shortLabel: "SETUP", sublabel: "BIM Map & Drawing Setup", path: "/viewer-setup", sidebarMode: "main" },
+    { icon: Sparkles, label: "Viewer Main", shortLabel: "VIEWER", sublabel: "BIM Map & Drawing Viewer", path: "/viewer-main", sidebarMode: "main" },
   ];
 
   const moduleMenuItems: Record<string, Array<{ icon: any; label: string; sublabel: string; path?: string; module?: string; section?: string }>> = {
@@ -126,10 +130,6 @@ export function Layout() {
   };
 
   const handleMainMenuClick = (item: typeof mainMenuItems[0]) => {
-    if (item.path === "/video-call" || item.path === "/chat") {
-      setModalType(item.path === "/video-call" ? "video-call" : "chat");
-      return;
-    }
     setMode("main");
     navigate(item.path);
   };
@@ -285,9 +285,16 @@ export function Layout() {
           <Tooltip>
             <TooltipTrigger asChild>
               <button
-                onClick={() => setModalType("chat")}
+                onClick={() => {
+                  setMode("main");
+                  navigate("/chat");
+                }}
                 aria-label="Chat"
-                className="w-11 h-11 bg-white/40 hover:bg-white hover:shadow-xs rounded-[14px] text-slate-400 hover:text-slate-650 flex items-center justify-center transition-all duration-200 cursor-pointer"
+                className={`w-11 h-11 flex items-center justify-center transition-all duration-200 cursor-pointer ${
+                  location.pathname === "/chat"
+                    ? "bg-white shadow-xs rounded-[14px] text-blue-600 border border-white"
+                    : "bg-white/40 hover:bg-white hover:shadow-xs rounded-[14px] text-slate-400 hover:text-slate-650"
+                }`}
               >
                 <MessageSquare className="w-[18px] h-[18px]" />
               </button>
@@ -317,25 +324,23 @@ export function Layout() {
         <Outlet />
       </main>
 
-      {/* Dynamic Placeholder Modal for Video Call and Chat */}
+      {/* Dynamic Placeholder Modal for Video Call */}
       <Dialog open={modalType !== null} onOpenChange={(open) => !open && setModalType(null)}>
         <DialogContent className="sm:max-w-md bg-white rounded-2xl border border-slate-200 shadow-xl p-6">
           <DialogHeader>
             <DialogTitle className="text-base font-bold text-slate-900">
-              {modalType === "video-call" ? "Video Call Workspace" : "Team Chat Channel"}
+              Video Call Workspace
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500 font-semibold mt-1">
-              {modalType === "video-call" 
-                ? "Connect instantly with onsite superintendents and BIM coordinators." 
-                : "Collaborate in real-time with team members on model issues."}
+              Connect instantly with onsite superintendents and BIM coordinators.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col items-center justify-center py-6 text-center">
             <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mb-3">
-              {modalType === "video-call" ? <Video className="w-6 h-6" /> : <MessageSquare className="w-6 h-6" />}
+              <Video className="w-6 h-6" />
             </div>
             <p className="text-xs text-slate-650 font-bold">This feature is initializing in sandbox mode.</p>
-            <p className="text-[11px] text-slate-400 mt-1">Direct integration with WebRTC and Slack is active in staging.</p>
+            <p className="text-[11px] text-slate-450 mt-1">Direct integration with WebRTC is active in staging.</p>
           </div>
           <DialogFooter className="sm:justify-end gap-2 flex flex-row">
             <button
