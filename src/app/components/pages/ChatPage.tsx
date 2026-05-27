@@ -1328,7 +1328,10 @@ export function ChatPage() {
     };
 
     return (
-      <div className="chat-glass-bubble rounded-2xl p-2 w-full max-w-[340px] text-left flex flex-col">
+      <div
+        className="chat-glass-bubble rounded-2xl p-2 w-full max-w-[340px] text-left flex flex-col"
+        style={!isSelf ? getSenderBubbleStyle(msg.sender) : undefined}
+      >
         {msg.replyTo && (
           <div className="mb-1.5 pl-2 border-l-2 border-[#1a73e8] text-slate-500 text-[10px] bg-slate-50/70 py-0.5 pr-2 rounded-r-md">
             <span className="font-semibold text-slate-705 block text-[9px]">{msg.replyTo.sender}</span>
@@ -2001,11 +2004,13 @@ export function ChatPage() {
                 }
 
                 const isMessageSelected = selectedMessageIds.includes(msg.id);
+                const senderTheme = getSenderTheme(msg.sender);
+                const senderBubbleStyle = getSenderBubbleStyle(msg.sender);
 
                 if (!msg.isSelf) {
                   return (
                     <div key={msg.id} className={`group relative flex flex-col items-start mr-auto max-w-[70%] text-left pb-1 animate-in fade-in slide-in-from-bottom-2 duration-200 ${activeMessageMenuId === msg.id ? "z-[80]" : "z-0"}`}>
-                      <span className="text-[9px] text-slate-400 font-semibold mb-0.5 ml-1">{msg.sender}</span>
+                      <span className="text-[9px] font-bold mb-0.5 ml-1" style={{ color: senderTheme.color }}>{msg.sender}</span>
                       {msg.forwardedFrom && (
                         <span className="text-[9px] text-slate-400 font-semibold mb-1 ml-1 flex items-center gap-1">
                           <Forward className="w-2.5 h-2.5" />
@@ -2030,7 +2035,7 @@ export function ChatPage() {
                         {msg.attachments?.length ? (
                           renderAttachmentGrid(msg, false)
                         ) : msg.attachment?.type === "image" ? (
-                          <div className="chat-glass-bubble rounded-2xl p-2 w-full max-w-[280px] text-left flex flex-col">
+                          <div className="chat-glass-bubble rounded-2xl p-2 w-full max-w-[280px] text-left flex flex-col" style={senderBubbleStyle}>
                             {msg.replyTo && (
                               <div className="mb-1.5 pl-2 border-l-2 border-[#1a73e8] text-slate-500 text-[10px] bg-slate-50/70 py-0.5 pr-2 rounded-r-md">
                                 <span className="font-semibold text-slate-705 block text-[9px]">{msg.replyTo.sender}</span>
@@ -2052,6 +2057,7 @@ export function ChatPage() {
                           <div
                             onClick={() => setAttachmentPreviewMessage(msg)}
                             className="chat-glass-bubble rounded-2xl p-3 w-full max-w-[280px] text-left flex flex-col gap-1.5 cursor-pointer hover:-translate-y-0.5 transition-all"
+                            style={senderBubbleStyle}
                           >
                             {msg.replyTo && (
                               <div className="mb-1 pl-2 border-l-2 border-[#1a73e8] text-slate-500 text-[10px] bg-slate-50/70 py-0.5 pr-2 rounded-r-md">
@@ -2070,7 +2076,7 @@ export function ChatPage() {
                             </div>
                           </div>
                         ) : msg.attachment?.type === "meeting" ? (
-                          <div className="chat-glass-bubble rounded-2xl p-3 w-full max-w-[280px] text-left">
+                          <div className="chat-glass-bubble rounded-2xl p-3 w-full max-w-[280px] text-left" style={senderBubbleStyle}>
                             {msg.replyTo && (
                               <div className="mb-1.5 pl-2 border-l-2 border-[#1a73e8] text-slate-500 text-[10px] bg-slate-50/70 py-0.5 pr-2 rounded-r-md">
                                 <span className="font-semibold text-slate-705 block text-[9px]">{msg.replyTo.sender}</span>
@@ -2102,7 +2108,7 @@ export function ChatPage() {
                             </button>
                           </div>
                         ) : msg.attachment?.type === "audio" ? (
-                          <div className="chat-glass-bubble rounded-2xl p-3 w-full max-w-[280px] text-left flex flex-col gap-2">
+                          <div className="chat-glass-bubble rounded-2xl p-3 w-full max-w-[280px] text-left flex flex-col gap-2" style={senderBubbleStyle}>
                             {msg.replyTo && (
                               <div className="mb-1 pl-2 border-l-2 border-[#1a73e8] text-slate-500 text-[10px] bg-slate-50/70 py-0.5 pr-2 rounded-r-md">
                                 <span className="font-semibold text-slate-705 block text-[9px]">{msg.replyTo.sender}</span>
@@ -2144,7 +2150,7 @@ export function ChatPage() {
                             )}
                           </div>
                         ) : msg.attachment?.type === "video" ? (
-                          <div className="chat-glass-bubble rounded-2xl p-2 w-full max-w-[280px] text-left flex flex-col">
+                          <div className="chat-glass-bubble rounded-2xl p-2 w-full max-w-[280px] text-left flex flex-col" style={senderBubbleStyle}>
                             {msg.replyTo && (
                               <div className="mb-1.5 pl-2 border-l-2 border-[#1a73e8] text-slate-500 text-[10px] bg-slate-50/70 py-0.5 pr-2 rounded-r-md">
                                 <span className="font-semibold text-slate-705 block text-[9px]">{msg.replyTo.sender}</span>
@@ -2184,7 +2190,7 @@ export function ChatPage() {
                             </div>
                           </div>
                         ) : msg.attachment?.type === "contact" ? (
-                          <div className="chat-glass-bubble rounded-2xl p-3.5 w-full max-w-[280px] text-left flex flex-col gap-3">
+                          <div className="chat-glass-bubble rounded-2xl p-3.5 w-full max-w-[280px] text-left flex flex-col gap-3" style={senderBubbleStyle}>
                             {msg.replyTo && (
                               <div className="mb-1.5 pl-2 border-l-2 border-[#1a73e8] text-slate-500 text-[10px] bg-slate-50/70 py-0.5 pr-2 rounded-r-md">
                                 <span className="font-semibold text-slate-705 block text-[9px]">{msg.replyTo.sender}</span>
@@ -2210,7 +2216,7 @@ export function ChatPage() {
                             </button>
                           </div>
                         ) : (
-                          <div className="chat-glass-bubble text-[#0f2942] text-xs px-4 py-2.5 rounded-2xl rounded-tl-[4px] leading-relaxed whitespace-pre-wrap relative">
+                          <div className="chat-glass-bubble text-[#0f2942] text-xs px-4 py-2.5 rounded-2xl rounded-tl-[4px] leading-relaxed whitespace-pre-wrap relative" style={senderBubbleStyle}>
                             {msg.replyTo && (
                               <div className="mb-1.5 pl-2 border-l-2 border-[#1a73e8] text-slate-500 text-[10px] bg-slate-50/70 py-0.5 pr-2 rounded-r-md">
                                 <span className="font-semibold text-slate-700 block">{msg.replyTo.sender}</span>
@@ -2587,7 +2593,7 @@ export function ChatPage() {
 
               {/* Emoji Selector Popover */}
               {emojiPickerOpen && (
-                <div className="absolute bottom-[76px] left-6 bg-white border border-slate-150 rounded-2xl shadow-lg p-3 z-50 animate-in fade-in slide-in-from-bottom-2 duration-150 w-80 max-h-[360px] overflow-y-auto text-left select-none">
+                <div ref={emojiPopoverRef} className="absolute bottom-[76px] left-6 bg-white border border-slate-150 rounded-2xl shadow-lg p-3 z-50 animate-in fade-in slide-in-from-bottom-2 duration-150 w-80 max-h-[360px] overflow-y-auto text-left select-none">
                   <div className="flex justify-between items-center mb-2 pb-1.5 border-b border-slate-100 sticky top-0 bg-white z-10">
                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Emoji</span>
                     <button onClick={() => setEmojiPickerOpen(false)} className="p-0.5 hover:bg-slate-50 rounded-full text-slate-400">
@@ -2619,6 +2625,7 @@ export function ChatPage() {
 
               <div className="flex items-center bg-white/92 rounded-[26px] px-3.5 py-2 select-none border border-white/80 shadow-[0_8px_24px_rgba(15,23,42,0.055),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-md transition-all hover:border-slate-200/80 hover:shadow-[0_10px_28px_rgba(15,23,42,0.075),inset_0_1px_0_rgba(255,255,255,0.95)] focus-within:border-[#1a73e8]/25 focus-within:ring-4 focus-within:ring-[#1a73e8]/5">
                 <button 
+                  ref={emojiButtonRef}
                   onClick={() => setEmojiPickerOpen(!emojiPickerOpen)}
                   className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer shrink-0 active:scale-95 ${
                     emojiPickerOpen
