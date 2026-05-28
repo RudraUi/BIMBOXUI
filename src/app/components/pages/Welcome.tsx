@@ -115,7 +115,7 @@ export function Welcome() {
   const [step, setStep] = useState(1); // 1: Name, 2: Location, 3: Phases, 4: Loading Setup
   const [projectName, setProjectName] = useState("");
   const [projectLocation, setProjectLocation] = useState("");
-  const [selectedPhases, setSelectedPhases] = useState<string[]>(["Pre-Construction", "Construction"]);
+  const [selectedPhases, setSelectedPhases] = useState<string[]>(["Pre-Construction"]);
   const [loadingSteps, setLoadingSteps] = useState<any[]>([
     { id: 1, label: "Setting up your HUB", sub: "Initializing workspace configuration...", icon: LayoutGrid, done: false, active: true },
     { id: 2, label: "Building 3D environment", sub: "Mapping coordinate spaces and meshes...", icon: Box, done: false, active: false },
@@ -203,7 +203,7 @@ export function Welcome() {
   const handleSendPrompt = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const val = inputValue.trim();
-    if (!val) return;
+    if (step === 1 && !val) return;
 
     setInputValue("");
     
@@ -211,17 +211,14 @@ export function Welcome() {
       setProjectName(val);
       setStep(2);
     } else if (step === 2) {
-      setProjectLocation(val);
-      triggerLoadingSequence(projectName, val);
+      const nextLocation = val || "Location not specified";
+      setProjectLocation(nextLocation);
+      triggerLoadingSequence(projectName, nextLocation);
     }
   };
 
   const handleTogglePhase = (phaseLabel: string) => {
-    setSelectedPhases(prev => 
-      prev.includes(phaseLabel) 
-        ? prev.filter(p => p !== phaseLabel) 
-        : [...prev, phaseLabel]
-    );
+    setSelectedPhases([phaseLabel]);
   };
 
   const handleConfirmPhases = () => {
@@ -432,12 +429,12 @@ export function Welcome() {
             Initialize high-performance 3D BIM coordination, field scheduling trackers, and asset lifecycle containers.
           </p>
 
-          {/* Premium Phase Module Selector */}
-          <div className="w-full max-w-xl bg-white border border-slate-200/60 rounded-2xl p-5 mb-6 text-left shadow-xs">
-            <h3 className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-4 px-1">
-              Select Operational Modules to Initialize
+          {/* Phase Module Selector */}
+          <div className="w-full max-w-xl bg-white/80 rounded-2xl p-4 mb-6 text-left shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
+            <h3 className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-3 px-1">
+              Select one module
             </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {PHASE_OPTIONS.map((opt) => {
                 const isChecked = selectedPhases.includes(opt.label);
                 const Icon = opt.icon;
@@ -445,14 +442,14 @@ export function Welcome() {
                   <div
                     key={opt.id}
                     onClick={() => handleTogglePhase(opt.label)}
-                    className={`flex gap-3.5 p-3 border rounded-xl cursor-pointer transition-all items-center select-none ${
+                    className={`flex gap-3 p-3 rounded-xl cursor-pointer transition-all items-center select-none ${
                       isChecked 
-                        ? "border-blue-500 bg-blue-50/5 text-slate-800" 
-                        : "border-slate-200 hover:border-slate-350 hover:bg-slate-50/30 bg-white"
+                        ? "bg-blue-50 text-slate-900 ring-1 ring-blue-500/70" 
+                        : "bg-slate-50/70 hover:bg-slate-100/70 text-slate-700"
                     }`}
                   >
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border transition-all ${
-                      isChecked ? "bg-blue-50 border-blue-100 text-blue-600" : "bg-slate-50 border-slate-100 text-slate-450"
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-all ${
+                      isChecked ? "bg-white text-blue-600" : "bg-white/80 text-slate-500"
                     }`}>
                       <Icon className="w-4 h-4" />
                     </div>
@@ -460,8 +457,8 @@ export function Welcome() {
                       <div className="text-xs font-bold text-slate-800 leading-snug">{opt.label}</div>
                       <div className="text-[10px] text-slate-450 font-semibold mt-0.5 truncate">{opt.desc}</div>
                     </div>
-                    <div className={`w-4.5 h-4.5 rounded-full border flex items-center justify-center shrink-0 ml-auto transition-all ${
-                      isChecked ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 bg-white"
+                    <div className={`w-4.5 h-4.5 rounded-full flex items-center justify-center shrink-0 ml-auto transition-all ${
+                      isChecked ? "bg-blue-600 text-white" : "bg-white ring-1 ring-slate-200"
                     }`}>
                       {isChecked && <Check className="w-2.5 h-2.5 stroke-[3.5] text-white" />}
                     </div>
@@ -561,7 +558,7 @@ export function Welcome() {
                     <input
                       type="text"
                       autoFocus
-                      placeholder={step === 1 ? "Enter name" : "Enter location (e.g. Austin, TX)"}
+                      placeholder={step === 1 ? "Enter name" : "Enter location (optional)"}
                       value={inputValue}
                       onChange={(e) => setInputValue(e.target.value)}
                       className="flex-1 bg-transparent text-sm font-semibold text-slate-800 placeholder-slate-400 outline-hidden border-none p-0"
@@ -569,8 +566,9 @@ export function Welcome() {
                     
                     <button
                       type="submit"
-                      disabled={!inputValue.trim()}
+                      disabled={step === 1 && !inputValue.trim()}
                       className="w-8 h-8 rounded-full bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white flex items-center justify-center shrink-0 cursor-pointer transition-all duration-200 shadow-md shadow-blue-500/10 hover:shadow-lg active:scale-[0.9] disabled:pointer-events-none"
+                      title={step === 2 && !inputValue.trim() ? "Skip location" : "Continue"}
                     >
                       <span className="text-base font-extrabold">↑</span>
                     </button>
@@ -602,6 +600,18 @@ export function Welcome() {
                           className="text-[10px] text-slate-450 hover:text-blue-600 font-bold ml-auto transition-colors cursor-pointer flex items-center gap-1"
                         >
                           <span>← Edit Name</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const skippedLocation = "Location not specified";
+                            setInputValue("");
+                            setProjectLocation(skippedLocation);
+                            triggerLoadingSequence(projectName, skippedLocation);
+                          }}
+                          className="text-[10px] text-slate-450 hover:text-blue-600 font-bold transition-colors cursor-pointer flex items-center gap-1"
+                        >
+                          <span>Skip Location</span>
                         </button>
                       </>
                     )}
@@ -847,7 +857,7 @@ export function Welcome() {
                 setStep(1);
                 setProjectName("");
                 setProjectLocation("");
-                setSelectedPhases(["Pre-Construction", "Construction"]);
+                setSelectedPhases(["Pre-Construction"]);
               }}
               className="mt-6 text-xs text-slate-400 hover:text-blue-600 font-bold tracking-wide transition-colors cursor-pointer"
             >

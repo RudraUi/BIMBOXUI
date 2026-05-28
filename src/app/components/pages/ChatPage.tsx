@@ -39,6 +39,8 @@ import {
   Maximize2,
   Sparkles,
   Star,
+  ChevronLeft,
+  ChevronRight,
   Forward
 } from "lucide-react";
 import { useSidebar } from "../../context/SidebarContext";
@@ -82,6 +84,8 @@ interface Message {
   }[];
   attachment?: MessageAttachment;
   attachments?: MessageAttachment[];
+  deleted?: boolean;
+  deletedLabel?: string;
 }
 
 interface Channel {
@@ -164,6 +168,26 @@ export function ChatPage() {
       members: ["Liam", "Sophia", "Alex", "Rudra"]
     },
     {
+      id: "dm_liam_henderson",
+      name: "Liam Henderson",
+      lastMessage: "Can you review the RFI note?",
+      time: "3:05 PM",
+      metric: "3:05",
+      avatarColor: "bg-blue-600",
+      avatarUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80",
+      members: ["Liam Henderson", "Rudra"]
+    },
+    {
+      id: "dm_olivia_smith",
+      name: "Olivia Smith",
+      lastMessage: "The site team is aligned.",
+      time: "2:45 PM",
+      metric: "2:45",
+      avatarColor: "bg-rose-600",
+      avatarUrl: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80",
+      members: ["Olivia Smith", "Rudra"]
+    },
+    {
       id: "ch_design",
       name: "Design consultants",
       lastMessage: "Reviewing blueprints",
@@ -227,6 +251,8 @@ export function ChatPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [channelFilter, setChannelFilter] = useState<ConversationFilter>("all");
   const [channelFilterOpen, setChannelFilterOpen] = useState(false);
+  const [directComposeOpen, setDirectComposeOpen] = useState(false);
+  const [directComposeSearch, setDirectComposeSearch] = useState("");
 
   // Messages dictionary
   const [conversations, setConversations] = useState<Record<string, Message[]>>({
@@ -260,6 +286,12 @@ export function ChatPage() {
     ch_arch: [
       { id: "arch_1", sender: "Sophia", text: "Hi team, we uploaded the latest CAD drawing for the ground floor plan.", time: "3:10 PM", isSelf: false },
       { id: "arch_2", sender: "Liam", text: "Sharing the layout", time: "3:15 PM", isSelf: false }
+    ],
+    dm_liam_henderson: [
+      { id: "dm_liam_1", sender: "Liam Henderson", text: "Can you review the RFI note?", time: "3:05 PM", isSelf: false }
+    ],
+    dm_olivia_smith: [
+      { id: "dm_olivia_1", sender: "Olivia Smith", text: "The site team is aligned.", time: "2:45 PM", isSelf: false }
     ],
     ch_design: [
       { id: "des_1", sender: "Daniel", text: "Are the mechanical shaft coordinates verified?", time: "1:55 PM", isSelf: false },
@@ -320,8 +352,16 @@ export function ChatPage() {
   const [forwardModalOpen, setForwardModalOpen] = useState(false);
   const [selectedForwardChannelIds, setSelectedForwardChannelIds] = useState<string[]>([]);
   const [activeMessageMenuId, setActiveMessageMenuId] = useState<string | null>(null);
+  const [activeMemberMenuName, setActiveMemberMenuName] = useState<string | null>(null);
   const [attachmentPreviewMessage, setAttachmentPreviewMessage] = useState<Message | null>(null);
+  const [attachmentPreviewIndex, setAttachmentPreviewIndex] = useState(0);
   const [chatFeedbackToast, setChatFeedbackToast] = useState<ChatFeedbackToast | null>(null);
+  const [deleteConfirmAction, setDeleteConfirmAction] = useState<{
+    title: string;
+    description: string;
+    confirmLabel: string;
+    run: () => void;
+  } | null>(null);
   const toastTimerRef = useRef<number | null>(null);
 
   // Multi-recipient state (landing screen photo/file/meeting send to up to 5 channels)
@@ -428,6 +468,7 @@ export function ChatPage() {
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
       const target = event.target as Node;
+      const elementTarget = event.target as HTMLElement;
       if (workspaceDropdownOpen && workspaceMenuRef.current && !workspaceMenuRef.current.contains(target)) {
         setWorkspaceDropdownOpen(false);
       }
@@ -439,6 +480,15 @@ export function ChatPage() {
         !emojiButtonRef.current.contains(target)
       ) {
         setEmojiPickerOpen(false);
+      }
+      if (!elementTarget.closest(".chat-menu-surface") && !elementTarget.closest("[data-chat-popover-trigger='true']")) {
+        setImageMenuOpen(false);
+        setLinkMenuOpen(false);
+        setChannelFilterOpen(false);
+        setDirectComposeOpen(false);
+        setChatOptionsOpen(false);
+        setActiveMessageMenuId(null);
+        setActiveMemberMenuName(null);
       }
     };
 
@@ -454,7 +504,9 @@ export function ChatPage() {
     setForwardModalOpen(false);
     setSelectedForwardChannelIds([]);
     setChatOptionsOpen(false);
+    setDirectComposeOpen(false);
     setActiveMessageMenuId(null);
+    setActiveMemberMenuName(null);
     
     // Clear unread count
     setChannels(prev => 
@@ -476,6 +528,7 @@ export function ChatPage() {
 
   const getMessagePreview = (msg?: Message) => {
     if (!msg) return "No messages yet";
+    if (msg.deleted) return msg.deletedLabel || "Message deleted";
     if (msg.attachments?.length) {
       const mediaCount = msg.attachments.filter(item => ["image", "video"].includes(item.type)).length;
       const fileCount = msg.attachments.length - mediaCount;
@@ -495,12 +548,13 @@ export function ChatPage() {
   };
 
   const getAttachmentTitle = (msg?: Message | null) => {
-    if (!msg?.attachment) return "Attachment";
-    if (msg.attachment.fileName) return msg.attachment.fileName;
-    if (msg.attachment.type === "image") return msg.text || "Photo";
-    if (msg.attachment.type === "video") return msg.text || "Video";
-    if (msg.attachment.type === "audio") return msg.text || "Audio";
-    if (msg.attachment.type === "file") return "Document";
+    const attachment = msg?.attachments?.[attachmentPreviewIndex] || msg?.attachment;
+    if (!attachment) return "Attachment";
+    if (attachment.fileName) return attachment.fileName;
+    if (attachment.type === "image") return msg?.text || "Photo";
+    if (attachment.type === "video") return msg?.text || "Video";
+    if (attachment.type === "audio") return msg?.text || "Audio";
+    if (attachment.type === "file") return "Document";
     return getMessagePreview(msg);
   };
 
@@ -849,7 +903,7 @@ export function ChatPage() {
   const handleSelectAllMessages = () => {
     if (!activeChannelId) return;
     const ids = (conversations[activeChannelId] || [])
-      .filter(m => m.sender !== "System")
+      .filter(m => m.sender !== "System" && !m.deleted)
       .map(m => m.id);
     setSelectionMode(true);
     setSelectedMessageIds(ids);
@@ -857,19 +911,27 @@ export function ChatPage() {
 
   const handleBulkDelete = () => {
     if (!activeChannelId || selectedMessageIds.length === 0) return;
-    const selectedSet = new Set(selectedMessageIds);
-    setConversations(prev => {
-      const filtered = (prev[activeChannelId] || []).filter(m => !selectedSet.has(m.id));
-      setTimeout(() => {
-        const lastMsg = filtered[filtered.length - 1];
-        setChannels(prevChannels => prevChannels.map(c => c.id === activeChannelId
-          ? { ...c, lastMessage: getMessagePreview(lastMsg), time: lastMsg?.time || getFormattedTime() }
-          : c
-        ));
-      }, 50);
-      return { ...prev, [activeChannelId]: filtered };
+    setDeleteConfirmAction({
+      title: "Delete selected messages?",
+      description: `${selectedMessageIds.length} selected message${selectedMessageIds.length === 1 ? "" : "s"} will be removed from this chat view.`,
+      confirmLabel: "Delete",
+      run: () => {
+        if (!activeChannelId) return;
+        const selectedSet = new Set(selectedMessageIds);
+        setConversations(prev => {
+          const filtered = (prev[activeChannelId] || []).filter(m => !selectedSet.has(m.id));
+          setTimeout(() => {
+            const lastMsg = filtered[filtered.length - 1];
+            setChannels(prevChannels => prevChannels.map(c => c.id === activeChannelId
+              ? { ...c, lastMessage: getMessagePreview(lastMsg), time: lastMsg?.time || getFormattedTime() }
+              : c
+            ));
+          }, 50);
+          return { ...prev, [activeChannelId]: filtered };
+        });
+        handleCancelSelection();
+      }
     });
-    handleCancelSelection();
   };
 
   const handleForwardSelectedMessages = () => {
@@ -912,47 +974,63 @@ export function ChatPage() {
   // Delete message locally for current user
   const handleDeleteForMe = (msgId: string) => {
     if (!activeChannelId) return;
-    setActiveMessageMenuId(null);
-    setSelectedMessageIds(prev => prev.filter(id => id !== msgId));
-    setConversations(prev => {
-      const msgs = prev[activeChannelId] || [];
-      return {
-        ...prev,
-        [activeChannelId]: msgs.filter(m => m.id !== msgId)
-      };
+    setDeleteConfirmAction({
+      title: "Delete this message?",
+      description: "This removes the message only from your current chat view.",
+      confirmLabel: "Delete for me",
+      run: () => {
+        if (!activeChannelId) return;
+        setActiveMessageMenuId(null);
+        setSelectedMessageIds(prev => prev.filter(id => id !== msgId));
+        setConversations(prev => {
+          const msgs = prev[activeChannelId] || [];
+          return {
+            ...prev,
+            [activeChannelId]: msgs.filter(m => m.id !== msgId)
+          };
+        });
+      }
     });
   };
 
   // Unsend message completely
   const handleUnsend = (msgId: string) => {
     if (!activeChannelId) return;
-    setActiveMessageMenuId(null);
-    setSelectedMessageIds(prev => prev.filter(id => id !== msgId));
-    setConversations(prev => {
-      const msgs = prev[activeChannelId] || [];
-      const filtered = msgs.filter(m => m.id !== msgId);
-      
-      // Update last message in sidebar channel
-      setTimeout(() => {
-        setChannels(prevChannels => 
-          prevChannels.map(c => {
-            if (c.id !== activeChannelId) return c;
-            const lastMsg = filtered[filtered.length - 1];
-            return {
-              ...c,
-              lastMessage: lastMsg 
-                ? (lastMsg.attachment ? `Attachment: ${lastMsg.attachment.type}` : lastMsg.text) 
-                : "No messages yet",
-              time: lastMsg ? lastMsg.time : getFormattedTime()
-            };
-          })
-        );
-      }, 50);
+    setDeleteConfirmAction({
+      title: "Unsend this message?",
+      description: "The original content will be replaced with a deleted-message stamp.",
+      confirmLabel: "Unsend",
+      run: () => {
+        if (!activeChannelId) return;
+        setActiveMessageMenuId(null);
+        setSelectedMessageIds(prev => prev.filter(id => id !== msgId));
+        setConversations(prev => {
+          const msgs = prev[activeChannelId] || [];
+          const updated = msgs.map(m => m.id === msgId ? {
+            ...m,
+            text: "",
+            attachment: undefined,
+            attachments: undefined,
+            reactions: undefined,
+            replyTo: undefined,
+            deleted: true,
+            deletedLabel: "You unsent this message"
+          } : m);
+          
+          setTimeout(() => {
+            const lastMsg = updated[updated.length - 1];
+            setChannels(prevChannels => prevChannels.map(c => c.id === activeChannelId
+              ? { ...c, lastMessage: getMessagePreview(lastMsg), time: lastMsg?.time || getFormattedTime() }
+              : c
+            ));
+          }, 50);
 
-      return {
-        ...prev,
-        [activeChannelId]: filtered
-      };
+          return {
+            ...prev,
+            [activeChannelId]: updated
+          };
+        });
+      }
     });
   };
 
@@ -1142,15 +1220,25 @@ export function ChatPage() {
     w.name.toLowerCase().includes(workspaceSearch.toLowerCase())
   );
 
-  const directRecipients = Array.from(new Set(channels.flatMap(c => c.members)))
+  const getDirectChannelId = (memberName: string) => `dm_${memberName.toLowerCase().replace(/[^a-z0-9]+/g, "_")}`;
+  const workspacePeople = Array.from(new Set(channels.flatMap(c => c.members)))
     .filter(member => member !== "Rudra" && member !== "Joy")
+    .map(member => {
+      const existingDirect = channels.find(c => c.id === getDirectChannelId(member) || (c.members.length <= 2 && c.members.includes(member)));
+      const sourceChannel = existingDirect || channels.find(c => c.members.includes(member));
+      return {
+        id: `member:${member}`,
+        name: member,
+        subtitle: existingDirect ? "Direct chat" : `${activeWorkspace.name} workspace`,
+        type: "person" as const,
+        avatarUrl: sourceChannel?.avatarUrl
+      };
+    });
+  const filteredWorkspacePeople = workspacePeople.filter(person =>
+    person.name.toLowerCase().includes(directComposeSearch.toLowerCase())
+  );
+  const directRecipients = workspacePeople
     .slice(0, 10)
-    .map(member => ({
-      id: `member:${member}`,
-      name: member,
-      subtitle: "Direct message",
-      type: "person" as const
-    }));
   const landingRecipientOptions = [
     ...channels.map(chan => ({
       id: chan.id,
@@ -1162,7 +1250,54 @@ export function ChatPage() {
     })),
     ...directRecipients
   ];
-  const getDirectChannelId = (memberName: string) => `dm_${memberName.toLowerCase().replace(/[^a-z0-9]+/g, "_")}`;
+  const openDirectChat = (memberName?: string, avatarUrl?: string) => {
+    const cleanName = memberName?.trim();
+    if (!cleanName) return;
+    const directChannelId = getDirectChannelId(cleanName);
+    setChannels(prev => {
+      if (prev.some(c => c.id === directChannelId)) return prev;
+      return [
+        {
+          id: directChannelId,
+          name: cleanName,
+          lastMessage: "No messages yet",
+          time: getFormattedTime(),
+          metric: getFormattedTime(),
+          avatarColor: "bg-slate-600",
+          avatarUrl,
+          members: [cleanName, "Rudra"]
+        },
+        ...prev
+      ];
+    });
+    setConversations(prev => ({
+      ...prev,
+      [directChannelId]: prev[directChannelId] || []
+    }));
+    handleSelectChannel(directChannelId);
+  };
+  const removeMemberFromActiveTeam = (memberName: string) => {
+    if (!activeChannelId) return;
+    setChannels(prev => prev.map(c => {
+      if (c.id !== activeChannelId) return c;
+      return { ...c, members: c.members.filter(m => m !== memberName) };
+    }));
+    setActiveMemberMenuName(null);
+  };
+  const handleExitActiveTeam = () => {
+    if (!activeChannelId) return;
+    setChannels(prev => prev.map(c => {
+      if (c.id !== activeChannelId) return c;
+      return { ...c, members: c.members.filter(m => m !== "Rudra" && m !== "Joy") };
+    }));
+    setSharedMediaModalOpen(false);
+    setActiveChannelId(null);
+  };
+  const handleCollapseActiveTeam = () => {
+    setSharedMediaModalOpen(false);
+    setChatOptionsOpen(false);
+    setActiveMessageMenuId(null);
+  };
   const activeMessages = activeChannel ? (conversations[activeChannel.id] || []) : [];
   const selectedMessages = activeMessages.filter(m => selectedMessageIds.includes(m.id));
   const sharedMediaMessages = activeMessages.filter(m => ["image", "video", "audio"].includes(m.attachment?.type || "") || m.attachments?.some(item => ["image", "video", "audio"].includes(item.type)));
@@ -1234,6 +1369,7 @@ export function ChatPage() {
     <div className="relative">
       <button
         type="button"
+        data-chat-popover-trigger="true"
         onClick={() => setActiveMessageMenuId(activeMessageMenuId === msg.id ? null : msg.id)}
         className="p-1 hover:bg-slate-100 rounded-full text-slate-400 hover:text-[#1a73e8] transition-colors cursor-pointer"
         title="Message options"
@@ -1276,7 +1412,8 @@ export function ChatPage() {
             <button
               type="button"
               onClick={() => {
-                setAttachmentPreviewMessage(msg.attachments?.length ? { ...msg, attachment: msg.attachments[0], attachments: undefined } : msg);
+                setAttachmentPreviewIndex(0);
+                setAttachmentPreviewMessage(msg);
                 setActiveMessageMenuId(null);
               }}
               className="chat-menu-item w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-[11px] font-semibold text-slate-700 cursor-pointer"
@@ -1318,12 +1455,13 @@ export function ChatPage() {
         ? "grid-cols-2"
         : "grid-cols-2";
 
-    const openAttachment = (attachment: MessageAttachment) => {
+    const openAttachment = (attachment: MessageAttachment, index: number) => {
+      setAttachmentPreviewIndex(index);
       setAttachmentPreviewMessage({
         ...msg,
         text: attachment.fileName || msg.text,
         attachment,
-        attachments: undefined
+        attachments
       });
     };
 
@@ -1347,7 +1485,7 @@ export function ChatPage() {
               <button
                 key={`${attachment.fileName || attachment.type}-${index}`}
                 type="button"
-                onClick={() => openAttachment(attachment)}
+                onClick={() => openAttachment(attachment, index)}
                 className={`group/media relative overflow-hidden bg-slate-100 border border-white/70 rounded-xl cursor-pointer text-left min-h-[96px] ${
                   isWideFirst ? "col-span-2 h-36" : attachments.length === 1 ? "h-48" : "h-28"
                 }`}
@@ -1494,6 +1632,16 @@ export function ChatPage() {
     setSelectedFileSize("");
     setShareFilesModalOpen(false);
   };
+
+  const previewAttachments = attachmentPreviewMessage
+    ? (attachmentPreviewMessage.attachments?.length
+      ? attachmentPreviewMessage.attachments
+      : attachmentPreviewMessage.attachment
+        ? [attachmentPreviewMessage.attachment]
+        : [])
+    : [];
+  const activePreviewIndex = Math.min(attachmentPreviewIndex, Math.max(0, previewAttachments.length - 1));
+  const activePreviewAttachment = previewAttachments[activePreviewIndex];
 
   return (
     <div className="flex h-full w-full bg-zinc-50 overflow-hidden font-sans text-slate-800 select-none">
@@ -1703,19 +1851,87 @@ export function ChatPage() {
 
         {/* Search bar inside Channels list */}
         <div className="p-3 border-b border-zinc-100 flex gap-2">
-          <div className="relative flex-1">
-            <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-            <input 
+	          <div className="relative flex-1">
+	            <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+	            <input 
               type="text"
               placeholder="Search conversations"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-8 pr-2.5 py-1.5 bg-zinc-50 border border-zinc-100 rounded-lg text-xs text-zinc-800 placeholder-zinc-400 focus:outline-hidden focus:bg-white focus:border-zinc-300 transition-all font-normal"
-            />
-          </div>
-          <div className="relative">
-            <button
+	              className="w-full pl-8 pr-2.5 py-1.5 bg-zinc-50 border border-zinc-100 rounded-lg text-xs text-zinc-800 placeholder-zinc-400 focus:outline-hidden focus:bg-white focus:border-zinc-300 transition-all font-normal"
+	            />
+	          </div>
+	          <div className="relative">
+	            <button
+	              type="button"
+	              data-chat-popover-trigger="true"
+	              onClick={() => {
+	                setDirectComposeOpen(prev => !prev);
+	                setChannelFilterOpen(false);
+	              }}
+	              className={`chat-icon-button p-1.5 border rounded-lg cursor-pointer relative ${
+	                directComposeOpen
+	                  ? "border-[#1a73e8]/30 bg-[#e8f0fe] text-[#1a73e8]"
+	                  : "border-zinc-100 bg-zinc-50 text-zinc-400 hover:bg-white hover:text-[#1a73e8]"
+	              }`}
+	              title="Start one-to-one chat"
+	            >
+	              <MessageSquarePlus className="w-3.5 h-3.5" />
+	            </button>
+	            {directComposeOpen && (
+	              <div className="chat-menu-surface absolute right-0 top-9 z-50 w-64 rounded-2xl p-2 animate-in fade-in slide-in-from-top-1 duration-150">
+	                <div className="px-1.5 pb-2">
+	                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Start personal chat</div>
+	                  <div className="relative mt-2">
+	                    <Search className="absolute left-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-slate-400" />
+	                    <input
+	                      type="text"
+	                      value={directComposeSearch}
+	                      onChange={(e) => setDirectComposeSearch(e.target.value)}
+	                      placeholder="Search people"
+	                      className="w-full rounded-xl border border-slate-100 bg-slate-50 py-1.5 pl-7 pr-2 text-xs font-medium text-slate-700 outline-hidden focus:border-[#1a73e8]/30 focus:bg-white"
+	                    />
+	                  </div>
+	                </div>
+	                <div className="max-h-64 overflow-y-auto space-y-1">
+	                  {filteredWorkspacePeople.length > 0 ? (
+	                    filteredWorkspacePeople.map((person) => (
+	                      <button
+	                        key={person.id}
+	                        type="button"
+	                        onClick={() => {
+	                          openDirectChat(person.name, person.avatarUrl);
+	                          setDirectComposeOpen(false);
+	                          setDirectComposeSearch("");
+	                        }}
+	                        className="chat-menu-item flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left hover:bg-slate-50 cursor-pointer border-none bg-transparent"
+	                      >
+	                        {person.avatarUrl ? (
+	                          <img src={person.avatarUrl} alt={person.name} className="h-8 w-8 rounded-full object-cover" />
+	                        ) : (
+	                          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-600">
+	                            {person.name.charAt(0)}
+	                          </span>
+	                        )}
+	                        <span className="min-w-0 flex-1">
+	                          <span className="block truncate text-xs font-semibold text-slate-800">{person.name}</span>
+	                          <span className="block truncate text-[9px] font-medium text-slate-400">{person.subtitle}</span>
+	                        </span>
+	                      </button>
+	                    ))
+	                  ) : (
+	                    <div className="px-3 py-5 text-center text-[11px] font-semibold text-slate-400">
+	                      No people found
+	                    </div>
+	                  )}
+	                </div>
+	              </div>
+	            )}
+	          </div>
+	          <div className="relative">
+	            <button
               type="button"
+              data-chat-popover-trigger="true"
               onClick={() => setChannelFilterOpen(prev => !prev)}
               className={`chat-icon-button p-1.5 border rounded-lg cursor-pointer relative ${
                 channelFilter !== "all"
@@ -1863,7 +2079,7 @@ export function ChatPage() {
                 >
                   <div className="text-sm font-semibold text-slate-800 leading-tight">{activeChannel.name}</div>
                   <div className="text-[10px] text-slate-400 font-normal truncate max-w-[280px] sm:max-w-md mt-0.5">
-                    {activeChannel.members.join(", ")}
+                    {(activeChannel.members.length <= 2 || activeChannel.id.startsWith("dm_")) ? "Direct chat" : `${activeChannel.members.length} member team chat`} · {activeChannel.members.join(", ")}
                   </div>
                 </div>
               </div>
@@ -1882,6 +2098,7 @@ export function ChatPage() {
                 </button>
                 <div className="relative">
                   <button 
+                    data-chat-popover-trigger="true"
                     onClick={() => setChatOptionsOpen(prev => !prev)}
                     className={`chat-icon-button w-9 h-9 flex items-center justify-center cursor-pointer rounded-full ${chatOptionsOpen ? "bg-slate-100 text-slate-800" : "text-[#64748b] hover:text-[#475569] hover:bg-slate-50"}`}
                     title="Chat options"
@@ -1998,6 +2215,17 @@ export function ChatPage() {
                       <div className="bg-white border border-slate-100 text-slate-455 text-[10px] font-normal px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-xs">
                         <Info className="w-3 h-3 text-slate-350" />
                         <span>{msg.text}</span>
+                      </div>
+                    </div>
+                  );
+                }
+
+                if (msg.deleted) {
+                  return (
+                    <div key={msg.id} className={`flex ${msg.isSelf ? "justify-end" : "justify-start"} my-2`}>
+                      <div className="max-w-[70%] rounded-2xl border border-dashed border-slate-200 bg-white/62 px-3.5 py-2 text-left text-[11px] italic text-slate-500 shadow-xs">
+                        <span>{msg.deletedLabel || "This message was deleted"}</span>
+                        <span className="ml-2 text-[9px] not-italic text-slate-400">{msg.time}</span>
                       </div>
                     </div>
                   );
@@ -2209,7 +2437,7 @@ export function ChatPage() {
                               </div>
                             </div>
                             <button 
-                              onClick={() => alert(`Starting direct chat with ${msg.attachment.contactName}...`)}
+                              onClick={() => openDirectChat(msg.attachment.contactName, msg.attachment.contactAvatar)}
                               className="w-full py-1.5 bg-[#e8f0fe] hover:bg-[#d2e3fc] text-[#1a73e8] rounded-xl text-[10px] font-bold transition-all cursor-pointer text-center"
                             >
                               Message Contact
@@ -2488,7 +2716,7 @@ export function ChatPage() {
                             </div>
                           </div>
                           <button 
-                            onClick={() => alert(`Starting direct chat with ${msg.attachment.contactName}...`)}
+                            onClick={() => openDirectChat(msg.attachment.contactName, msg.attachment.contactAvatar)}
                             className="w-full py-1.5 bg-[#e8f0fe] hover:bg-[#d2e3fc] text-[#1a73e8] rounded-xl text-[10px] font-bold transition-all cursor-pointer text-center"
                           >
                             Message Contact
@@ -2626,6 +2854,7 @@ export function ChatPage() {
               <div className="flex items-center bg-white/92 rounded-[26px] px-3.5 py-2 select-none border border-white/80 shadow-[0_8px_24px_rgba(15,23,42,0.055),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-md transition-all hover:border-slate-200/80 hover:shadow-[0_10px_28px_rgba(15,23,42,0.075),inset_0_1px_0_rgba(255,255,255,0.95)] focus-within:border-[#1a73e8]/25 focus-within:ring-4 focus-within:ring-[#1a73e8]/5">
                 <button 
                   ref={emojiButtonRef}
+                  data-chat-popover-trigger="true"
                   onClick={() => setEmojiPickerOpen(!emojiPickerOpen)}
                   className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer shrink-0 active:scale-95 ${
                     emojiPickerOpen
@@ -2700,6 +2929,7 @@ export function ChatPage() {
                   {/* 1. IMAGE MENU & TOOLTIP POPOVER */}
                   <div className="relative">
                     <button 
+                      data-chat-popover-trigger="true"
                       onClick={() => {
                         setImageMenuOpen(!imageMenuOpen);
                         setLinkMenuOpen(false);
@@ -2762,6 +2992,7 @@ export function ChatPage() {
                   {/* 2. LINK MENU & TOOLTIP POPOVER */}
                   <div className="relative">
                     <button 
+                      data-chat-popover-trigger="true"
                       onClick={() => {
                         setLinkMenuOpen(!linkMenuOpen);
                         setImageMenuOpen(false);
@@ -2778,19 +3009,6 @@ export function ChatPage() {
                     
                     {linkMenuOpen && (
                       <div className="chat-menu-surface absolute bottom-11 right-[-20px] sm:right-0 w-44 rounded-2xl p-1.5 flex flex-col gap-0.5 z-50 animate-in fade-in slide-in-from-bottom-2 duration-150">
-                        <button
-                          onClick={() => {
-                            document.getElementById("system-any-picker")?.click();
-                            setLinkMenuOpen(false);
-                          }}
-                          className="chat-menu-item flex items-center gap-2.5 px-3 py-2 text-xs text-[#0f2942] hover:bg-slate-50 rounded-xl cursor-pointer text-left w-full border-none bg-transparent"
-                        >
-                          <Paperclip className="w-4 h-4 text-violet-500" />
-                          <div className="flex flex-col">
-                            <span className="font-semibold">Multiple Files</span>
-                            <span className="text-[9px] text-slate-400 font-normal">Photos, videos, docs</span>
-                          </div>
-                        </button>
                         <button 
                           onClick={() => {
                             document.getElementById("system-doc-picker")?.click();
@@ -2946,8 +3164,8 @@ export function ChatPage() {
 
       {/* 1. Modal: New Team */}
       {newTeamModalOpen && (
-        <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-[999] p-4 select-none animate-in fade-in duration-100">
-          <div className="bg-white border border-zinc-200 rounded-xl shadow-lg w-full max-w-sm p-5 animate-in zoom-in-98 duration-100">
+        <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-[999] p-4 select-none animate-in fade-in duration-100" onClick={() => setNewTeamModalOpen(false)}>
+          <div className="bg-white border border-zinc-200 rounded-xl shadow-lg w-full max-w-sm p-5 animate-in zoom-in-98 duration-100" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-3">
               <h3 className="text-sm font-semibold text-zinc-900">Create new team</h3>
               <button 
@@ -3004,8 +3222,8 @@ export function ChatPage() {
 
       {/* 3. Modal: Schedule Meeting */}
       {scheduleMeetingModalOpen && (
-        <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-[999] p-4 select-none animate-in fade-in duration-100">
-          <div className="bg-white border border-zinc-200 rounded-xl shadow-lg w-full max-w-sm p-5 animate-in zoom-in-98 duration-100">
+        <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-[999] p-4 select-none animate-in fade-in duration-100" onClick={() => setScheduleMeetingModalOpen(false)}>
+          <div className="bg-white border border-zinc-200 rounded-xl shadow-lg w-full max-w-sm p-5 animate-in zoom-in-98 duration-100" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-3">
               <h3 className="text-sm font-semibold text-zinc-900">Schedule meeting</h3>
               <button 
@@ -3082,8 +3300,8 @@ export function ChatPage() {
 
       {/* 4. Modal: Share Files */}
       {shareFilesModalOpen && (
-        <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-[999] p-4 select-none animate-in fade-in duration-100">
-          <div className="bg-white border border-zinc-200 rounded-xl shadow-lg w-full max-w-sm p-5 animate-in zoom-in-98 duration-100">
+        <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-[999] p-4 select-none animate-in fade-in duration-100" onClick={() => setShareFilesModalOpen(false)}>
+          <div className="bg-white border border-zinc-200 rounded-xl shadow-lg w-full max-w-sm p-5 animate-in zoom-in-98 duration-100" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-3">
               <h3 className="text-sm font-semibold text-zinc-900">Share Project File</h3>
               <button 
@@ -3181,8 +3399,8 @@ export function ChatPage() {
 
       {/* 6. Modal: Channel Members */}
       {membersModalOpen && activeChannel && (
-        <div className="fixed inset-0 bg-[#0f172a]/20 backdrop-blur-[1px] flex items-center justify-center z-[999] p-4 select-none animate-in fade-in duration-100">
-          <div className="bg-white border border-slate-100 rounded-2xl shadow-xl w-full max-w-sm p-5 animate-in zoom-in-98 duration-100">
+        <div className="fixed inset-0 bg-[#0f172a]/20 backdrop-blur-[1px] flex items-center justify-center z-[999] p-4 select-none animate-in fade-in duration-100" onClick={() => setMembersModalOpen(false)}>
+          <div className="bg-white border border-slate-100 rounded-2xl shadow-xl w-full max-w-sm p-5 animate-in zoom-in-98 duration-100" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-3">
               <div className="text-left">
                 <h3 className="text-sm font-semibold text-slate-800">{activeChannel.name} Members</h3>
@@ -3285,8 +3503,8 @@ export function ChatPage() {
 
       {/* 7. Modal: Channel Profile, Shared Media and Starred Messages */}
       {sharedMediaModalOpen && activeChannel && (
-        <div className="fixed inset-0 bg-[#0f172a]/20 backdrop-blur-[1px] flex items-center justify-center z-[999] p-4 select-none animate-in fade-in duration-100">
-          <div className="bg-white/95 backdrop-blur-xl border border-white/80 rounded-2xl shadow-[0_20px_60px_rgba(15,23,42,0.16)] w-full max-w-xl p-5 animate-in zoom-in-98 duration-100">
+        <div className="fixed inset-0 bg-[#0f172a]/20 backdrop-blur-[1px] flex items-center justify-center z-[999] p-4 select-none animate-in fade-in duration-100" onClick={() => setSharedMediaModalOpen(false)}>
+          <div className="bg-white/95 backdrop-blur-xl border border-white/80 rounded-2xl shadow-[0_20px_60px_rgba(15,23,42,0.16)] w-full max-w-xl p-5 animate-in zoom-in-98 duration-100" onClick={(e) => e.stopPropagation()}>
             <div className="relative mb-4 overflow-hidden rounded-2xl border border-slate-100 bg-gradient-to-br from-slate-50 via-white to-blue-50/70 p-4">
               <div className="absolute -right-16 -top-20 h-44 w-44 rounded-full bg-sky-200/60 blur-3xl" />
               <div className="absolute -bottom-20 left-10 h-40 w-40 rounded-full bg-violet-200/50 blur-3xl" />
@@ -3318,13 +3536,13 @@ export function ChatPage() {
                       <span className="rounded-full bg-white/75 border border-white px-2 py-1 text-[9px] font-bold text-emerald-600">{profileFileItems.length} files</span>
                       <span className="rounded-full bg-white/75 border border-white px-2 py-1 text-[9px] font-bold text-amber-600">{profileStarredItems.length} starred</span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => document.getElementById("group-dp-picker")?.click()}
-                      className="mt-2 text-[10px] font-bold text-[#1a73e8] hover:text-[#1557b0] transition-colors bg-transparent border-none p-0 cursor-pointer"
-                    >
-                      Change group DP
-                    </button>
+	                    <button
+	                      type="button"
+	                      onClick={() => document.getElementById("group-dp-picker")?.click()}
+	                      className="mt-2 text-[10px] font-bold text-[#1a73e8] hover:text-[#1557b0] transition-colors bg-transparent border-none p-0 cursor-pointer"
+	                    >
+	                      Change team DP
+	                    </button>
                   </div>
                 </div>
                 <button 
@@ -3336,8 +3554,96 @@ export function ChatPage() {
               </div>
             </div>
 
-            {/* Tab Selector */}
-            <div className="flex rounded-xl bg-slate-100/70 p-1 mb-3.5">
+	            {/* Team Members */}
+	            <div className="mb-3.5 rounded-2xl border border-slate-100 bg-white/80 p-3 text-left">
+	              <div className="mb-2 flex items-center justify-between">
+	                <div>
+	                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Team members</div>
+	                  <div className="text-[9px] font-medium text-slate-400">{activeChannel.members.length} people in this team</div>
+	                </div>
+	                <button
+	                  type="button"
+	                  onClick={() => setMembersModalOpen(true)}
+	                  className="rounded-lg bg-[#e8f0fe] px-2.5 py-1.5 text-[10px] font-bold text-[#1a73e8] hover:bg-[#d2e3fc] transition-colors cursor-pointer border-none"
+	                >
+	                  Add
+	                </button>
+	              </div>
+	              <div className="max-h-56 overflow-y-auto space-y-1.5 pr-1">
+	                {activeChannel.members.map((member) => {
+	                  const isSelf = member === "Rudra" || member === "Joy";
+	                  const memberAvatar = channels.find(c => c.members.includes(member) && c.avatarUrl)?.avatarUrl;
+	                  return (
+	                    <div key={member} className="flex items-center gap-2 rounded-xl bg-slate-50/80 px-2.5 py-2">
+	                      {memberAvatar ? (
+	                        <img src={memberAvatar} alt={member} className="h-8 w-8 rounded-full object-cover" />
+	                      ) : (
+	                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-xs font-bold text-slate-600 ring-1 ring-slate-100">
+	                          {member.charAt(0)}
+	                        </span>
+	                      )}
+	                      <div className="min-w-0 flex-1">
+	                        <div className="truncate text-xs font-semibold text-slate-800">
+	                          {member} {isSelf && <span className="font-medium text-[#1a73e8]">(You)</span>}
+	                        </div>
+	                        <div className="text-[9px] font-medium text-slate-400">{member === "Rudra" ? "Project Admin" : "Team member"}</div>
+	                      </div>
+	                      <div className="flex items-center gap-1">
+	                        {!isSelf && (
+	                          <button
+	                            type="button"
+	                            onClick={() => {
+	                              openDirectChat(member, memberAvatar);
+	                              setSharedMediaModalOpen(false);
+	                            }}
+	                            className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-slate-500 hover:bg-[#e8f0fe] hover:text-[#1a73e8] transition-colors cursor-pointer border-none"
+	                            title={`Chat with ${member}`}
+	                          >
+	                            <MessageCircle className="h-3.5 w-3.5" />
+	                          </button>
+	                        )}
+	                        <button
+	                          type="button"
+	                          onClick={() => showChatFeedback("Video call", `Starting video call with ${member}.`, "info")}
+	                          className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-slate-500 hover:bg-emerald-50 hover:text-emerald-600 transition-colors cursor-pointer border-none"
+	                          title={`Video call ${member}`}
+	                        >
+	                          <Video className="h-3.5 w-3.5" />
+	                        </button>
+	                        {!isSelf && (
+	                          <div className="relative">
+	                            <button
+	                              type="button"
+	                              data-chat-popover-trigger="true"
+	                              onClick={() => setActiveMemberMenuName(activeMemberMenuName === member ? null : member)}
+	                              className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors cursor-pointer border-none"
+	                              title="Member options"
+	                            >
+	                              <MoreVertical className="h-3.5 w-3.5" />
+	                            </button>
+	                            {activeMemberMenuName === member && (
+	                              <div className="chat-menu-surface absolute right-0 top-8 z-[1001] w-36 rounded-xl p-1">
+	                                <button
+	                                  type="button"
+	                                  onClick={() => removeMemberFromActiveTeam(member)}
+	                                  className="chat-menu-item flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[11px] font-semibold text-rose-600 hover:bg-rose-50 cursor-pointer border-none bg-transparent"
+	                                >
+	                                  <Trash2 className="h-3.5 w-3.5" />
+	                                  <span>Remove member</span>
+	                                </button>
+	                              </div>
+	                            )}
+	                          </div>
+	                        )}
+	                      </div>
+	                    </div>
+	                  );
+	                })}
+	              </div>
+	            </div>
+
+	            {/* Tab Selector */}
+	            <div className="flex rounded-xl bg-slate-100/70 p-1 mb-3.5">
               {[
                 { id: "media", label: "Media", count: profileMediaItems.length },
                 { id: "files", label: "Files", count: profileFileItems.length },
@@ -3466,8 +3772,25 @@ export function ChatPage() {
                           <span>{item.time}</span>
                           <span>•</span>
                           <span>{item.owner}</span>
-                        </div>
-                        </div>
+	            </div>
+
+	            <div className="mt-4 flex gap-2 border-t border-slate-100 pt-3">
+	              <button
+	                type="button"
+	                onClick={handleCollapseActiveTeam}
+	                className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
+	              >
+	                Collapse team
+	              </button>
+	              <button
+	                type="button"
+	                onClick={handleExitActiveTeam}
+	                className="flex-1 rounded-xl bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-100 transition-colors cursor-pointer border-none"
+	              >
+	                Exit team
+	              </button>
+	            </div>
+	          </div>
                       </div>
                     ))}
                   {profileMeetingItems.length === 0 && (
@@ -3482,8 +3805,8 @@ export function ChatPage() {
 
       {/* 8. Modal: Forward Selected Messages */}
       {forwardModalOpen && activeChannel && (
-        <div className="fixed inset-0 bg-[#0f172a]/20 backdrop-blur-[1px] flex items-center justify-center z-[999] p-4 select-none animate-in fade-in duration-100">
-          <div className="bg-white border border-slate-100 rounded-2xl shadow-xl w-full max-w-md p-5 animate-in zoom-in-98 duration-100">
+        <div className="fixed inset-0 bg-[#0f172a]/20 backdrop-blur-[1px] flex items-center justify-center z-[999] p-4 select-none animate-in fade-in duration-100" onClick={() => setForwardModalOpen(false)}>
+          <div className="bg-white border border-slate-100 rounded-2xl shadow-xl w-full max-w-md p-5 animate-in zoom-in-98 duration-100" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-3">
               <div className="text-left">
                 <h3 className="text-sm font-semibold text-slate-800">Forward messages</h3>
@@ -3580,8 +3903,8 @@ export function ChatPage() {
 
       {/* 9. Modal: Multi-Select Channels (Landing Screen checklist) */}
       {multiSelectModalOpen && (
-        <div className="fixed inset-0 bg-[#0f172a]/20 backdrop-blur-[1px] flex items-center justify-center z-[999] p-4 select-none animate-in fade-in duration-100">
-          <div className="bg-white border border-slate-100 rounded-2xl shadow-xl w-full max-w-sm p-5 animate-in zoom-in-98 duration-100">
+        <div className="fixed inset-0 bg-[#0f172a]/20 backdrop-blur-[1px] flex items-center justify-center z-[999] p-4 select-none animate-in fade-in duration-100" onClick={() => setMultiSelectModalOpen(false)}>
+          <div className="bg-white border border-slate-100 rounded-2xl shadow-xl w-full max-w-sm p-5 animate-in zoom-in-98 duration-100" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-3">
               <div className="text-left">
                 <h3 className="text-sm font-semibold text-slate-800">Select Recipients</h3>
@@ -3683,8 +4006,8 @@ export function ChatPage() {
       )}
       {/* 9. Modal: GIFs & Stickers Picker */}
       {gifPickerOpen && (
-        <div className="fixed inset-0 bg-[#0f172a]/20 backdrop-blur-[1px] flex items-center justify-center z-[999] p-4 select-none animate-in fade-in duration-100">
-          <div className="bg-white border border-slate-100 rounded-2xl shadow-xl w-full max-w-sm p-5 animate-in zoom-in-98 duration-100">
+        <div className="fixed inset-0 bg-[#0f172a]/20 backdrop-blur-[1px] flex items-center justify-center z-[999] p-4 select-none animate-in fade-in duration-100" onClick={() => setGifPickerOpen(false)}>
+          <div className="bg-white border border-slate-100 rounded-2xl shadow-xl w-full max-w-sm p-5 animate-in zoom-in-98 duration-100" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-3">
               <div className="text-left">
                 <h3 className="text-sm font-semibold text-slate-800">GIFs & Stickers</h3>
@@ -3723,8 +4046,8 @@ export function ChatPage() {
 
       {/* 10. Modal: Live Camera Simulation */}
       {cameraModalOpen && (
-        <div className="fixed inset-0 bg-[#0f172a]/20 backdrop-blur-[1px] flex items-center justify-center z-[999] p-4 select-none animate-in fade-in duration-100">
-          <div className="bg-white border border-slate-100 rounded-2xl shadow-xl w-full max-w-md p-5 animate-in zoom-in-98 duration-100">
+        <div className="fixed inset-0 bg-[#0f172a]/20 backdrop-blur-[1px] flex items-center justify-center z-[999] p-4 select-none animate-in fade-in duration-100" onClick={() => setCameraModalOpen(false)}>
+          <div className="bg-white border border-slate-100 rounded-2xl shadow-xl w-full max-w-md p-5 animate-in zoom-in-98 duration-100" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-3">
               <div className="text-left">
                 <h3 className="text-sm font-semibold text-slate-800 text-left">Live Site Camera</h3>
@@ -3787,8 +4110,8 @@ export function ChatPage() {
 
       {/* 11. Modal: Share Contact Card */}
       {contactCardModalOpen && activeChannel && (
-        <div className="fixed inset-0 bg-[#0f172a]/20 backdrop-blur-[1px] flex items-center justify-center z-[999] p-4 select-none animate-in fade-in duration-100">
-          <div className="bg-white border border-slate-100 rounded-2xl shadow-xl w-full max-w-sm p-5 animate-in zoom-in-98 duration-100">
+        <div className="fixed inset-0 bg-[#0f172a]/20 backdrop-blur-[1px] flex items-center justify-center z-[999] p-4 select-none animate-in fade-in duration-100" onClick={() => setContactCardModalOpen(false)}>
+          <div className="bg-white border border-slate-100 rounded-2xl shadow-xl w-full max-w-sm p-5 animate-in zoom-in-98 duration-100" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-3">
               <div className="text-left">
                 <h3 className="text-sm font-semibold text-slate-800">Share Contact Card</h3>
@@ -3834,11 +4157,54 @@ export function ChatPage() {
         </div>
       )}
 
-      {/* 12. Modal: Rich Attachment Preview */}
-      {attachmentPreviewMessage?.attachment && (
+      {/* 12. Modal: Delete Confirmation */}
+      {deleteConfirmAction && (
+        <div
+          className="fixed inset-0 bg-[#0f172a]/24 backdrop-blur-[1px] flex items-center justify-center z-[1000] p-4 select-none animate-in fade-in duration-100"
+          onClick={() => setDeleteConfirmAction(null)}
+        >
+          <div
+            className="bg-white border border-slate-100 rounded-2xl shadow-xl w-full max-w-sm p-5 animate-in zoom-in-98 duration-100"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3 text-left">
+              <div className="w-9 h-9 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+                <Trash2 className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold text-slate-900">{deleteConfirmAction.title}</h3>
+                <p className="mt-1 text-[11px] leading-5 text-slate-500">{deleteConfirmAction.description}</p>
+              </div>
+            </div>
+            <div className="mt-5 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmAction(null)}
+                className="flex-1 py-2 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-semibold transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const action = deleteConfirmAction;
+                  setDeleteConfirmAction(null);
+                  action.run();
+                }}
+                className="flex-1 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold transition-all cursor-pointer border-none"
+              >
+                {deleteConfirmAction.confirmLabel}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 13. Modal: Rich Attachment Preview */}
+      {attachmentPreviewMessage && activePreviewAttachment && (
         <div
           className={`fixed inset-0 flex items-center justify-center z-[1000] p-2.5 select-none animate-in fade-in duration-150 ${
-            attachmentPreviewMessage.attachment.type === "video"
+            activePreviewAttachment.type === "video"
               ? "bg-[radial-gradient(circle_at_center,rgba(15,23,42,0.52)_0%,rgba(15,23,42,0.74)_58%,rgba(2,6,23,0.92)_100%)] backdrop-blur-[2px]"
               : "bg-slate-950/45 backdrop-blur-sm"
           }`}
@@ -3856,10 +4222,15 @@ export function ChatPage() {
                 </div>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
-                {attachmentPreviewMessage.attachment.url && attachmentPreviewMessage.attachment.url !== "#" && (
+                {previewAttachments.length > 1 && (
+                  <span className="px-2 py-1 rounded-full bg-slate-100 text-[10px] font-semibold text-slate-500">
+                    {activePreviewIndex + 1} / {previewAttachments.length}
+                  </span>
+                )}
+                {activePreviewAttachment.url && activePreviewAttachment.url !== "#" && (
                   <a
-                    href={attachmentPreviewMessage.attachment.url}
-                    download={attachmentPreviewMessage.attachment.fileName || getAttachmentTitle(attachmentPreviewMessage)}
+                    href={activePreviewAttachment.url}
+                    download={activePreviewAttachment.fileName || getAttachmentTitle(attachmentPreviewMessage)}
                     className="w-7.5 h-7.5 rounded-full border border-slate-100 bg-white text-slate-500 hover:text-[#1a73e8] hover:border-[#1a73e8]/30 flex items-center justify-center transition-colors"
                     title="Download"
                   >
@@ -3877,23 +4248,43 @@ export function ChatPage() {
               </div>
             </div>
 
-            <div className={`${attachmentPreviewMessage.attachment.type === "video" ? "p-2.5 bg-slate-950" : "p-3 bg-slate-50/70"} max-h-[calc(92vh-50px)] overflow-auto`}>
-              {attachmentPreviewMessage.attachment.type === "image" && (
+            <div className={`${activePreviewAttachment.type === "video" ? "p-2.5 bg-slate-950" : "p-3 bg-slate-50/70"} max-h-[calc(92vh-50px)] overflow-auto relative`}>
+              {previewAttachments.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setAttachmentPreviewIndex(prev => (prev - 1 + previewAttachments.length) % previewAttachments.length)}
+                    className="absolute left-5 top-1/2 z-20 h-10 w-10 -translate-y-1/2 rounded-full bg-white/92 text-slate-700 shadow-lg hover:bg-white flex items-center justify-center transition-all cursor-pointer"
+                    title="Previous"
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAttachmentPreviewIndex(prev => (prev + 1) % previewAttachments.length)}
+                    className="absolute right-5 top-1/2 z-20 h-10 w-10 -translate-y-1/2 rounded-full bg-white/92 text-slate-700 shadow-lg hover:bg-white flex items-center justify-center transition-all cursor-pointer"
+                    title="Next"
+                  >
+                    <ChevronRight className="h-5 w-5" />
+                  </button>
+                </>
+              )}
+              {activePreviewAttachment.type === "image" && (
                 <div className="flex items-center justify-center min-h-[360px]">
                   <img
-                    src={attachmentPreviewMessage.attachment.url?.startsWith("blob:") || attachmentPreviewMessage.attachment.url?.startsWith("http") ? attachmentPreviewMessage.attachment.url : "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=1200&auto=format&fit=crop&q=90"}
+                    src={activePreviewAttachment.url?.startsWith("blob:") || activePreviewAttachment.url?.startsWith("http") ? activePreviewAttachment.url : "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=1200&auto=format&fit=crop&q=90"}
                     alt={getAttachmentTitle(attachmentPreviewMessage)}
                     className="max-w-full max-h-[74vh] rounded-xl object-contain shadow-lg bg-white"
                   />
                 </div>
               )}
 
-              {attachmentPreviewMessage.attachment.type === "video" && (
+              {activePreviewAttachment.type === "video" && (
                 <div className="relative bg-slate-950 rounded-xl overflow-hidden shadow-[0_16px_42px_rgba(0,0,0,0.38)]">
                   <div className="pointer-events-none absolute inset-0 z-10 bg-[radial-gradient(circle_at_center,transparent_52%,rgba(0,0,0,0.34)_100%)]" />
-                  {attachmentPreviewMessage.attachment.url ? (
+                  {activePreviewAttachment.url ? (
                     <video
-                      src={attachmentPreviewMessage.attachment.url}
+                      src={activePreviewAttachment.url}
                       controls
                       autoPlay
                       className="relative z-0 w-full max-h-[78vh] bg-slate-950"
@@ -3907,7 +4298,7 @@ export function ChatPage() {
                 </div>
               )}
 
-              {attachmentPreviewMessage.attachment.type === "audio" && (
+              {activePreviewAttachment.type === "audio" && (
                 <div className="max-w-2xl mx-auto bg-white border border-slate-100 rounded-2xl p-5 shadow-sm text-left">
                   <div className="flex items-center gap-3 mb-4">
                     <div className="w-11 h-11 rounded-xl bg-[#e8f0fe] text-[#1a73e8] flex items-center justify-center">
@@ -3915,11 +4306,11 @@ export function ChatPage() {
                     </div>
                     <div className="min-w-0">
                       <div className="text-sm font-semibold text-slate-900 truncate">{getAttachmentTitle(attachmentPreviewMessage)}</div>
-                      <div className="text-[10px] text-slate-400">{attachmentPreviewMessage.attachment.duration || "Audio file"}</div>
+                      <div className="text-[10px] text-slate-400">{activePreviewAttachment.duration || "Audio file"}</div>
                     </div>
                   </div>
-                  {attachmentPreviewMessage.attachment.url && attachmentPreviewMessage.attachment.url !== "#" ? (
-                    <audio src={attachmentPreviewMessage.attachment.url} controls autoPlay className="w-full" />
+                  {activePreviewAttachment.url && activePreviewAttachment.url !== "#" ? (
+                    <audio src={activePreviewAttachment.url} controls autoPlay className="w-full" />
                   ) : (
                     <div className="rounded-xl bg-slate-50 border border-dashed border-slate-200 p-5 text-center text-xs text-slate-500">
                       Audio player preview unavailable for this sample.
@@ -3928,11 +4319,11 @@ export function ChatPage() {
                 </div>
               )}
 
-              {attachmentPreviewMessage.attachment.type === "file" && (
+              {activePreviewAttachment.type === "file" && (
                 <div className="max-w-4xl mx-auto bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-sm">
-                  {attachmentPreviewMessage.attachment.url && attachmentPreviewMessage.attachment.url !== "#" && attachmentPreviewMessage.attachment.fileName?.toLowerCase().endsWith(".pdf") ? (
+                  {activePreviewAttachment.url && activePreviewAttachment.url !== "#" && activePreviewAttachment.fileName?.toLowerCase().endsWith(".pdf") ? (
                     <iframe
-                      src={attachmentPreviewMessage.attachment.url}
+                      src={activePreviewAttachment.url}
                       title={getAttachmentTitle(attachmentPreviewMessage)}
                       className="w-full h-[72vh] bg-white"
                     />
@@ -3944,7 +4335,7 @@ export function ChatPage() {
                         </div>
                         <div className="min-w-0">
                           <div className="text-sm font-semibold text-slate-900 truncate">{getAttachmentTitle(attachmentPreviewMessage)}</div>
-                          <div className="text-[10px] text-slate-400">{attachmentPreviewMessage.attachment.fileSize || "Document preview"}</div>
+                          <div className="text-[10px] text-slate-400">{activePreviewAttachment.fileSize || "Document preview"}</div>
                         </div>
                       </div>
                       <div className="mt-5 rounded-xl border border-slate-100 bg-slate-50 p-5 min-h-[360px]">
