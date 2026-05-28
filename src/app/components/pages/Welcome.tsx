@@ -17,7 +17,8 @@ import {
   Navigation,
   LayoutGrid,
   Eye,
-  Zap
+  Zap,
+  Users
 } from "lucide-react";
 import confetti from "canvas-confetti";
 
@@ -30,6 +31,7 @@ interface Project {
   status: "planning" | "active" | "completed";
   activePhases: string[];
   progress: number;
+  teamStructure?: string[];
 }
 
 type MapPinSelection = {
@@ -48,6 +50,8 @@ const PHASE_OPTIONS = [
   { id: "interior", label: "Interior Design", desc: "Spatial material specifications", icon: Box, route: "/dashboard" },
   { id: "fac-mgmt", label: "Facility Management", desc: "Operations & maintenance", icon: Wrench, route: "/facility-management" },
 ];
+
+const TEAM_TEMPLATE = ["Architecture", "Structure", "MEP"];
 
 // Custom Neural Nodes SVG Component
 function NeuralNodeCircle() {
@@ -120,9 +124,10 @@ export function Welcome() {
   const [fadeRole, setFadeRole] = useState(true);
 
   // Conversational steps state
-  const [step, setStep] = useState(1); // 1: Name, 2: Location, 3: Phases, 4: Loading Setup
+  const [step, setStep] = useState(1); // 1: Name, 2: Location, 3: Team template, 4: Loading Setup
   const [projectName, setProjectName] = useState("");
   const [projectLocation, setProjectLocation] = useState("");
+  const [projectTeamStructure, setProjectTeamStructure] = useState<string[]>([]);
   const [mapPickerOpen, setMapPickerOpen] = useState(false);
   const [mapPickerQuery, setMapPickerQuery] = useState("");
   const [mapPinSelection, setMapPinSelection] = useState<MapPinSelection>({
@@ -139,7 +144,7 @@ export function Welcome() {
     { id: 3, label: "Doing viewer setup", sub: "Attaching default catalogs and WebGL viewports...", icon: Eye, done: false, active: false },
     { id: 4, label: "Finalizing workspace", sub: "Deploying secure runtime container...", icon: Zap, done: false, active: false },
   ]);
-  const [newProjectDetails, setNewProjectDetails] = useState<{ name: string; location: string } | null>(null);
+  const [newProjectDetails, setNewProjectDetails] = useState<{ name: string; location: string; teams?: string[] } | null>(null);
   const [countdown, setCountdown] = useState(4);
   const getPostSetupRoute = (phases = selectedPhases) =>
     phases.includes("Pre-Construction") ? "/pre-construction/workspace?tab=home" : "/projects";
@@ -215,7 +220,7 @@ export function Welcome() {
     setInputValue(locationLabel);
     setProjectLocation(locationLabel);
     setMapPickerOpen(false);
-    triggerLoadingSequence(projectName, locationLabel);
+    setStep(3);
   };
 
   const handleUseCurrentLocation = () => {
@@ -271,9 +276,15 @@ export function Welcome() {
         openMapPicker(nextLocation);
       } else {
         setProjectLocation(nextLocation);
-        triggerLoadingSequence(projectName, nextLocation);
+        setStep(3);
       }
     }
+  };
+
+  const handleTeamTemplateChoice = (useTemplate: boolean) => {
+    const teams = useTemplate ? TEAM_TEMPLATE : [];
+    setProjectTeamStructure(teams);
+    triggerLoadingSequence(projectName, projectLocation || "Location not specified", teams);
   };
 
   const handleTogglePhase = (phaseLabel: string) => {
@@ -300,7 +311,7 @@ export function Welcome() {
     }, 900);
   };
 
-  const finishProjectSetup = (pName: string, pLoc: string) => {
+  const finishProjectSetup = (pName: string, pLoc: string, teams = projectTeamStructure) => {
     const projectToAdd: Project = {
       id: "p_" + Date.now(),
       name: pName,
@@ -310,6 +321,7 @@ export function Welcome() {
       status: "active",
       activePhases: selectedPhases.length > 0 ? selectedPhases : ["Pre-Construction"],
       progress: 0,
+      teamStructure: teams,
     };
 
     const updated = [projectToAdd, ...(projects || [])];
@@ -322,7 +334,7 @@ export function Welcome() {
     }, 500);
   };
 
-  const triggerLoadingSequence = (pName: string, pLoc: string) => {
+  const triggerLoadingSequence = (pName: string, pLoc: string, teams = projectTeamStructure) => {
     setStep(4);
     
     // Reset steps state on start
@@ -359,7 +371,7 @@ export function Welcome() {
               origin: { y: 0.6 }
             });
             
-            setNewProjectDetails({ name: pName, location: pLoc });
+            setNewProjectDetails({ name: pName, location: pLoc, teams });
             
             const projectToAdd: Project = {
               id: "p_" + Date.now(),
@@ -370,6 +382,7 @@ export function Welcome() {
               status: "active",
               activePhases: selectedPhases.length > 0 ? selectedPhases : ["Pre-Construction"],
               progress: 0,
+              teamStructure: teams,
             };
 
             const updated = [projectToAdd, ...projects];
@@ -532,7 +545,14 @@ export function Welcome() {
 
           {/* Simple blue color and rounded AI button */}
           <button
-            onClick={() => setShowChat(true)}
+            onClick={() => {
+              setStep(1);
+              setInputValue("");
+              setProjectName("");
+              setProjectLocation("");
+              setProjectTeamStructure([]);
+              setShowChat(true);
+            }}
             className="inline-flex items-center gap-2 px-10 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-full text-xs font-bold tracking-wide transition-all duration-250 shadow-md shadow-blue-500/10 hover:shadow-lg hover:shadow-blue-500/20 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
@@ -577,7 +597,7 @@ export function Welcome() {
           <h2 className="text-xl font-bold text-blue-650 mb-6 tracking-wide select-none animate-in fade-in duration-200">
             {step === 1 && "Configure new project container"}
             {step === 2 && `Got it! Where is "${projectName}" located?`}
-            {step === 3 && "Choose operational phase modules to initialize"}
+            {step === 3 && "Create a team structure template?"}
             {step === 4 && "Initializing project workspace container..."}
           </h2>
 
@@ -669,7 +689,7 @@ export function Welcome() {
                             const skippedLocation = "Location not specified";
                             setInputValue("");
                             setProjectLocation(skippedLocation);
-                            triggerLoadingSequence(projectName, skippedLocation);
+                            setStep(3);
                           }}
                           className="text-[10px] text-slate-450 hover:text-blue-600 font-bold transition-colors cursor-pointer flex items-center gap-1"
                         >
@@ -726,43 +746,33 @@ export function Welcome() {
             </div>
           )}
 
-          {/* Phase Configuration List */}
+          {/* Team Structure Template */}
           {step === 3 && (
             <div className="w-full max-w-lg bg-white border border-slate-200/60 rounded-2xl p-5 flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-200 shadow-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[300px] overflow-y-auto pr-1">
-                {PHASE_OPTIONS.map((opt) => {
-                  const isChecked = selectedPhases.includes(opt.label);
-                  const Icon = opt.icon;
-                  return (
-                    <div
-                      key={opt.id}
-                      onClick={() => handleTogglePhase(opt.label)}
-                      className={`flex gap-3.5 p-3 border rounded-xl cursor-pointer transition-all items-center select-none ${
-                        isChecked 
-                          ? "border-blue-500 bg-blue-50/5 text-slate-800" 
-                          : "border-slate-200 hover:border-slate-350 hover:bg-slate-50/30 bg-white"
-                      }`}
-                    >
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border transition-all ${
-                        isChecked ? "bg-blue-50 border-blue-100 text-blue-600" : "bg-slate-50 border-slate-100 text-slate-450"
-                      }`}>
-                        <Icon className="w-4 h-4" />
-                      </div>
-                      <div className="min-w-0 text-left flex-1">
-                        <div className="text-xs font-bold text-slate-800">{opt.label}</div>
-                        <div className="text-[10px] text-slate-450 font-semibold mt-0.5 truncate">{opt.desc}</div>
-                      </div>
-                      <div className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ml-auto transition-all ${
-                        isChecked ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 bg-white"
-                      }`}>
-                        {isChecked && <Check className="w-2.5 h-2.5 stroke-[3.5] text-white" />}
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="flex items-start gap-3 text-left">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                  <Users className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-sm font-bold text-slate-800">Recommended coordination teams</div>
+                  <p className="text-[11px] text-slate-450 font-semibold leading-5 mt-1">
+                    Create standard project teams now, or skip and add teams later.
+                  </p>
+                </div>
               </div>
 
-              <div className="flex gap-3 justify-end mt-2 pt-3 border-t border-slate-100">
+              <div className="grid grid-cols-3 gap-2">
+                {TEAM_TEMPLATE.map((team) => (
+                  <div key={team} className="rounded-xl border border-blue-100 bg-blue-50/40 px-3 py-3 text-center">
+                    <div className="mx-auto mb-1.5 flex h-7 w-7 items-center justify-center rounded-lg bg-white text-blue-600 shadow-xs">
+                      <Check className="h-3.5 w-3.5 stroke-[3]" />
+                    </div>
+                    <div className="text-[10px] font-extrabold text-slate-700">{team}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex gap-3 justify-end mt-1 pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setStep(2)}
@@ -771,10 +781,17 @@ export function Welcome() {
                   Back
                 </button>
                 <button
-                  onClick={handleConfirmPhases}
+                  type="button"
+                  onClick={() => handleTeamTemplateChoice(false)}
+                  className="px-5 py-1.5 border border-slate-200 rounded-full text-xs font-bold text-slate-650 hover:bg-slate-50 transition-all cursor-pointer"
+                >
+                  Skip
+                </button>
+                <button
+                  onClick={() => handleTeamTemplateChoice(true)}
                   className="px-5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-full text-xs transition-all duration-200 cursor-pointer shadow-md shadow-blue-500/10 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
                 >
-                  Launch Container
+                  Create Teams
                 </button>
               </div>
             </div>
@@ -899,6 +916,18 @@ export function Welcome() {
                     ))}
                   </div>
                 </div>
+                {newProjectDetails?.teams && newProjectDetails.teams.length > 0 && (
+                  <div className="flex flex-col gap-1.5 border-t border-slate-100 pt-2.5">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Team Template</span>
+                    <div className="flex flex-wrap gap-1 mt-0.5">
+                      {newProjectDetails.teams.map((team) => (
+                        <span key={team} className="px-2 py-0.5 bg-slate-100 text-slate-600 border border-slate-200 rounded-md text-[9px] font-bold">
+                          {team}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Enter Workspace Button */}
@@ -924,6 +953,7 @@ export function Welcome() {
                 setStep(1);
                 setProjectName("");
                 setProjectLocation("");
+                setProjectTeamStructure([]);
                 setSelectedPhases(["Pre-Construction"]);
               }}
               className="mt-6 text-xs text-slate-400 hover:text-blue-600 font-bold tracking-wide transition-colors cursor-pointer"

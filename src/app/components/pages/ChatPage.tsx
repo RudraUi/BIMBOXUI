@@ -59,6 +59,7 @@ import {
   Sun
 } from "lucide-react";
 import { useSidebar } from "../../context/SidebarContext";
+import { useLocation } from "react-router";
 
 // Define TypeScript interfaces
 type MessageAttachment = {
@@ -135,6 +136,7 @@ type ChatFeedbackToast = {
 
 export function ChatPage() {
   const { setMode } = useSidebar();
+  const location = useLocation();
 
   const getGreeting = () => {
     const hrs = new Date().getHours();
@@ -147,6 +149,14 @@ export function ChatPage() {
   useEffect(() => {
     setMode("main");
   }, [setMode]);
+
+  // Open meet scheduler modal when url parameter ?meet=true is present
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get("meet") === "true") {
+      setScheduleMeetingModalOpen(true);
+    }
+  }, [location.search]);
 
   // Workspace state
   const workspaces: Workspace[] = [

@@ -284,7 +284,10 @@ export function Layout() {
           <Tooltip>
             <TooltipTrigger asChild>
               <button
-                onClick={() => setModalType("video-call")}
+                onClick={() => {
+                  setMode("main");
+                  navigate("/chat?meet=true");
+                }}
                 aria-label="Video Call"
                 className="w-9 h-9 bg-white/40 hover:bg-white hover:shadow-xs rounded-xl text-slate-400 hover:text-slate-650 flex items-center justify-center transition-all duration-200 cursor-pointer"
               >
