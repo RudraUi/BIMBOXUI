@@ -2339,8 +2339,7 @@ export function ChatPage() {
               <div className="flex items-center gap-2 text-slate-400 select-none">
                 <button 
                   onClick={() => {
-                    setActiveMeetTitle("Direct Video Call");
-                    setOutgoingCallOpen(true);
+                    setScheduleMeetingModalOpen(true);
                   }}
                   className="chat-icon-button w-9 h-9 rounded-full bg-[#e8f0fe] hover:bg-[#d2e3fc] flex items-center justify-center text-[#1a73e8] cursor-pointer" 
                   title="Start video call"
