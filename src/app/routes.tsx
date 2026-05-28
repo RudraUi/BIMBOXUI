@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router";
+import { createBrowserRouter, Navigate } from "react-router";
 import { Layout } from "./components/Layout";
 import { Welcome } from "./components/pages/Welcome";
 import { Hub } from "./components/pages/Hub";
@@ -7,7 +7,7 @@ import { Procurement } from "./components/pages/Procurement";
 import { Banking } from "./components/pages/Banking";
 import { AIHub } from "./components/pages/AIHub";
 import { DataExplorer } from "./components/pages/DataExplorer";
-import { PreConstruction } from "./components/pages/PreConstruction";
+import { PreConstructionWorkspace } from "./components/pages/PreConstructionWorkspace";
 import { Construction } from "./components/pages/Construction";
 import { FacilityManagement } from "./components/pages/FacilityManagement";
 import { DigitalTwin } from "./components/pages/DigitalTwin";
@@ -39,7 +39,8 @@ export const router = createBrowserRouter([
       { path: "banking", Component: Banking },
       { path: "ai-hub", Component: AIHub },
       { path: "data-explorer", Component: DataExplorer },
-      { path: "pre-construction", Component: PreConstruction },
+      { path: "pre-construction", element: <Navigate to="/pre-construction/workspace?tab=home" replace /> },
+      { path: "pre-construction/workspace", Component: PreConstructionWorkspace },
       { path: "construction", Component: Construction },
       { path: "facility-management", Component: FacilityManagement },
       { path: "digital-twin", Component: DigitalTwin },

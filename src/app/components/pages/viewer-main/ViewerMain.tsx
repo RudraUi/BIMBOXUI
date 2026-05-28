@@ -381,9 +381,49 @@ const findLayerInTree = (layers: DrawingLayer[], layerId: string | null): Drawin
 const countLayerTree = (layers: DrawingLayer[]): number =>
   layers.reduce((total, layer) => total + 1 + countLayerTree(layer.children), 0);
 
+type ViewerTab = "map" | "drawing" | "drone" | "3d" | "coordination" | "split" | "quickCompare";
+
+const VIEWER_DEFAULT_TAB_KEY = "bimbox.preconstruction.defaultViewerTab";
+const VIEWER_TABS: ViewerTab[] = ["map", "drawing", "drone", "3d", "coordination", "split", "quickCompare"];
+const VIEWER_TAB_LABELS: Record<ViewerTab, string> = {
+  map: "Map setup",
+  drawing: "Drawing setup",
+  drone: "Drone setup",
+  "3d": "3D setup",
+  coordination: "BIM Coordination",
+  split: "Split Screen",
+  quickCompare: "Quick Compare"
+};
+
+const DEFAULT_VIEW_OPTIONS: Array<{ id: ViewerTab; label: string; description: string; icon: React.ElementType }> = [
+  { id: "map", label: "Map setup", description: "Open with site boundary and map tools", icon: Globe },
+  { id: "drawing", label: "Drawing setup", description: "Open with drawings, zones and levels", icon: Layers },
+  { id: "drone", label: "Drone setup", description: "Open with drone capture overlays", icon: Camera },
+  { id: "3d", label: "3D setup", description: "Open with BIM model setup", icon: Cpu },
+  { id: "coordination", label: "BIM Coordination", description: "Open with coordination workspace", icon: Sparkles },
+  { id: "split", label: "Split Screen", description: "Open with comparison workspace", icon: Columns }
+];
+
+const getInitialViewerTab = (): ViewerTab => {
+  if (typeof window === "undefined") return "map";
+  const savedTab = window.localStorage.getItem(getViewerDefaultTabKey());
+  return VIEWER_TABS.includes(savedTab as ViewerTab) ? (savedTab as ViewerTab) : "map";
+};
+
+const getViewerDefaultTabKey = () => {
+  if (typeof window === "undefined") return VIEWER_DEFAULT_TAB_KEY;
+  try {
+    const activeProject = JSON.parse(window.localStorage.getItem("active_project") || "{}");
+    return activeProject?.id ? `${VIEWER_DEFAULT_TAB_KEY}.${activeProject.id}` : VIEWER_DEFAULT_TAB_KEY;
+  } catch {
+    return VIEWER_DEFAULT_TAB_KEY;
+  }
+};
+
 export default function ViewerMain() {
   // Tabs: 'map' | 'drawing' | 'drone' | 'coordination' | 'split' | 'quickCompare'
-  const [activeTab, setActiveTab] = useState<"map" | "drawing" | "drone" | "3d" | "coordination" | "split" | "quickCompare">("map");
+  const [activeTab, setActiveTab] = useState<ViewerTab>(() => getInitialViewerTab());
+  const [defaultViewerTab, setDefaultViewerTab] = useState<ViewerTab>(() => getInitialViewerTab());
 
   // --- QUICK COMPARE A VS B STATE ---
   const [quickCompareLeftFile, setQuickCompareLeftFile] = useState<string | null>(null);
@@ -670,6 +710,8 @@ export default function ViewerMain() {
   const [isDrawingDropdownOpen, setIsDrawingDropdownOpen] = useState(false);
   const splitDropdownRef = useRef<HTMLDivElement>(null);
   const [isSplitDropdownOpen, setIsSplitDropdownOpen] = useState(false);
+  const [isDefaultViewModalOpen, setIsDefaultViewModalOpen] = useState(false);
+  const drawingCanvasContentRef = useRef<HTMLDivElement>(null);
 
   // --- MAP STATE ---
   const [searchQuery, setSearchQuery] = useState("668X, Patia, Bhubaneswar");
@@ -751,10 +793,7 @@ export default function ViewerMain() {
 
   // --- FIGMA-STYLE RULER AND GUIDELINES STATE ---
   const [showRulers, setShowRulers] = useState(true);
-  const [guidelines, setGuidelines] = useState<Array<{ id: string; type: "h" | "v"; coord: number }>>([
-    { id: "guide-1", type: "v", coord: 24850 },
-    { id: "guide-2", type: "h", coord: 25150 }
-  ]);
+  const [guidelines, setGuidelines] = useState<Array<{ id: string; type: "h" | "v"; coord: number }>>([]);
   const [draggingGuide, setDraggingGuide] = useState<{ id: string; type: "h" | "v"; isNew: boolean } | null>(null);
   const [hoveredCanvasPos, setHoveredCanvasPos] = useState<{ x: number; y: number } | null>(null);
   const drawingViewportRef = useRef<HTMLDivElement>(null);
@@ -892,6 +931,67 @@ export default function ViewerMain() {
     const found = siteAreas.find((area) => area.id === selectedDrawingAreaId);
     return found || siteAreas[0];
   }, [markups, selectedDrawingAreaId]);
+
+  const ensureDrawingSetupAreaFromFile = (file: UploadedDrawingFile, replaceExistingOverlay = false) => {
+    const existingArea =
+      (selectedDrawingAreaId ? markups.find((m) => m.type === "area" && m.id === selectedDrawingAreaId) : null) ||
+      markups.find((m) => m.type === "area") ||
+      null;
+    const targetId = existingArea?.id || `drawing-workspace-${Date.now()}`;
+    const overlay = makeDrawingOverlay(file.url);
+
+    setMarkups((prev) => {
+      const selectedExisting =
+        (selectedDrawingAreaId ? prev.find((m) => m.type === "area" && m.id === selectedDrawingAreaId) : null) ||
+        prev.find((m) => m.type === "area") ||
+        null;
+
+      if (selectedExisting) {
+        return prev.map((markup) =>
+          markup.id === selectedExisting.id
+            ? {
+                ...markup,
+                label: markup.label || "Drawing Workspace",
+                drawingOverlay: replaceExistingOverlay || !markup.drawingOverlay ? overlay : markup.drawingOverlay,
+                childLayers: markup.childLayers || []
+              }
+            : markup
+        );
+      }
+
+      const drawingArea: Markup = {
+        id: targetId,
+        type: "area",
+        label: "Drawing Workspace",
+        color: "#2563eb",
+        points: [
+          { x: 520, y: 260 },
+          { x: 1220, y: 260 },
+          { x: 1220, y: 900 },
+          { x: 520, y: 900 }
+        ],
+        drawingOverlay: overlay,
+        childLayers: []
+      };
+
+      return [...prev, drawingArea];
+    });
+
+    const selectedId = existingArea?.id || targetId;
+    setSelectedDrawingAreaId(selectedId);
+    setSelectedMarkupId(selectedId);
+    setSelectedNestedLayerId(null);
+    setActiveEyeDrawing(null);
+    setActiveDrawingId(null);
+    setActiveDrawingUrl(null);
+    setActiveDrawingLabel("");
+    setUploadedDrawing(file.url);
+    setHasLoadedDrawings(true);
+    setDrawingSetupSubTab("configure");
+    setIsDrawingLeftSetupOpen(true);
+    setIsDrawingRightLayersOpen(true);
+  };
+
   const activeAreaZoneCount = activeArea?.childLayers?.length || 0;
   const shouldShowCreateZonesGuide = activeTab === "map" && activeTool === "pan" && Boolean(activeArea?.drawingOverlay) && activeAreaZoneCount === 0;
   const shouldShowDrawingSetupGuide = activeTab === "map" && activeTool === "pan" && Boolean(activeArea?.drawingOverlay) && activeAreaZoneCount > 0;
@@ -914,7 +1014,7 @@ export default function ViewerMain() {
         }
       }
     }
-    return activeArea?.drawingOverlay?.url || null;
+    return activeArea?.drawingOverlay?.url || uploadedDrawingFiles[0]?.url || null;
   }, [activeTab, activeEyeDrawing, zoneDrawingConfigs, uploadedDrawingFiles, activeArea]);
 
   const currentDrawingLabel = useMemo(() => {
@@ -932,7 +1032,8 @@ export default function ViewerMain() {
         }
       }
     }
-    return activeArea ? `${activeArea.label} - Base Plan` : "";
+    if (activeArea) return `${activeArea.label} - Base Plan`;
+    return uploadedDrawingFiles[0]?.name || "";
   }, [activeTab, activeEyeDrawing, zoneDrawingConfigs, uploadedDrawingFiles, activeArea]);
 
   useEffect(() => {
@@ -943,7 +1044,7 @@ export default function ViewerMain() {
   }, [markups, selectedDrawingAreaId]);
 
   // Tooltips & Notifications
-  const [toastMessage, setToastMessage] = useState<string | null>("Welcome! Load drawing or click Map Setup tools to start.");
+  const [toastMessage, setToastMessage] = useState<string | null>("Welcome! Upload a drawing or choose a setup view to start.");
 
   useEffect(() => {
     if (toastMessage) {
@@ -1000,6 +1101,15 @@ export default function ViewerMain() {
 
   const triggerToast = (msg: string) => {
     setToastMessage(msg);
+  };
+
+  const handleSetDefaultViewerTab = (tab: ViewerTab) => {
+    setDefaultViewerTab(tab);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(getViewerDefaultTabKey(), tab);
+    }
+    setIsDefaultViewModalOpen(false);
+    triggerToast(`${VIEWER_TAB_LABELS[tab]} set as the default project view.`);
   };
 
   const exportViewToPdf = () => {
@@ -1473,7 +1583,16 @@ startxref
 	  };
 
 	  const applyBlueprintOverlayToSelectedArea = (file: UploadedDrawingFile) => {
-	    if (!selectedMarkupId) return;
+	    if (!selectedMarkupId) {
+	      setUploadedDrawingFiles((prev) =>
+	        prev.some((drawing) => drawing.id === file.id) ? prev : [...prev, { ...file, id: `hub-base-${Date.now()}` }]
+	      );
+	      ensureDrawingSetupAreaFromFile(file, true);
+	      setIsBlueprintSourceModalOpen(false);
+	      setBlueprintSourceMode("source");
+	      triggerToast(`Floor plan "${file.name}" added. Create zones directly on the drawing.`, "success");
+	      return;
+	    }
 	    const overlay = makeDrawingOverlay(file.url);
 
 	    setMarkups((prev) =>
@@ -1583,12 +1702,27 @@ startxref
 
 	  const handleCreateZoneFromDrawingSetup = () => {
     if (!activeArea) {
-      triggerToast("Select a site boundary before creating a zone.", "warning");
+      const baseDrawing = uploadedDrawingFiles[0];
+      if (baseDrawing) {
+        ensureDrawingSetupAreaFromFile(baseDrawing);
+        window.setTimeout(() => {
+          setActiveTool("nestedPolygon");
+        }, 0);
+        triggerToast("Zone tool active. Click on the drawing to place zone corners.", "success");
+      } else {
+        triggerToast("Upload or choose a base drawing before creating zones.", "warning");
+      }
       return;
     }
 
     if (!activeArea.drawingOverlay) {
-      triggerToast("This site boundary needs a blueprint overlay before creating zones.", "warning");
+      const baseDrawing = uploadedDrawingFiles[0];
+      if (baseDrawing) {
+        ensureDrawingSetupAreaFromFile(baseDrawing, true);
+        triggerToast("Base drawing linked. Click Create Zone again to start markup.", "success");
+      } else {
+        triggerToast("Upload or choose a base drawing before creating zones.", "warning");
+      }
       return;
     }
 
@@ -1596,12 +1730,13 @@ startxref
     setSelectedMarkupId(activeArea.id);
     setSelectedNestedLayerId(null);
     setActiveEyeDrawing(null);
-    setReturnToDrawingAfterZone(true);
-    setActiveTab("map");
+    setReturnToDrawingAfterZone(false);
+    setIsDrawingStackedView(false);
+    setIsDrawingLeftSetupOpen(true);
+    if (activeTab === "3d") {
+      setActiveTab("drawing");
+    }
     startChildDrawingLayer(activeArea.id);
-    window.setTimeout(() => {
-      focusMapOnMarkup(activeArea);
-	    }, 80);
 	  };
 
 	  const openDrawingSetupFromMapGuide = () => {
@@ -1673,7 +1808,7 @@ startxref
         );
       }
     }
-	    triggerToast("Zone created. Add another zone if needed, or continue to Drawing Setup when zoning is complete.", "success");
+	    triggerToast("Zone created. Create levels in the setup panel, or add another zone on the drawing.", "success");
 	  };
 
   const handleUndoNestedPoint = () => {
@@ -1821,7 +1956,7 @@ startxref
       reader.onload = (event) => {
         if (event.target?.result) {
           setUploadedDrawing(event.target.result as string);
-          triggerToast("Drawing uploaded successfully! Switch to Map Setup to place it.");
+          triggerToast("Drawing uploaded successfully.");
         }
       };
       reader.readAsDataURL(file);
@@ -2396,9 +2531,9 @@ startxref
       return (
         <div className="py-6 text-center text-slate-400 text-xs">
           <Layers className="w-6 h-6 text-slate-300 mx-auto mb-1.5" />
-          <p className="font-bold uppercase tracking-wider text-[10px]">No areas defined</p>
+          <p className="font-bold uppercase tracking-wider text-[10px]">No drawing zones yet</p>
           <p className="text-[9px] mt-1 leading-normal max-w-[200px] mx-auto">
-            Draw site boundaries on the map to define setup areas.
+            Upload a base drawing, then use Create Zone to define areas directly on the sheet.
           </p>
         </div>
       );
@@ -2579,9 +2714,9 @@ startxref
       return (
         <div className="py-6 text-center text-slate-400 text-xs">
           <Layers className="w-6 h-6 text-slate-300 mx-auto mb-1.5" />
-          <p className="font-bold uppercase tracking-wider text-[10px]">No areas defined</p>
+          <p className="font-bold uppercase tracking-wider text-[10px]">No zones defined</p>
           <p className="text-[9px] mt-1 leading-normal max-w-[200px] mx-auto">
-            Draw site boundaries on the map to define setup areas.
+            Create zones from Drawing Setup, then assign levels and models.
           </p>
         </div>
       );
@@ -2732,9 +2867,9 @@ startxref
       return (
         <div className="py-6 text-center text-slate-400 text-xs">
           <Layers className="w-6 h-6 text-slate-300 mx-auto mb-1.5" />
-          <p className="font-bold uppercase tracking-wider text-[10px]">No areas defined</p>
+          <p className="font-bold uppercase tracking-wider text-[10px]">No zones defined</p>
           <p className="text-[9px] mt-1 leading-normal max-w-[200px] mx-auto">
-            Draw site boundaries on the map to define setup areas.
+            Create zones from Drawing Setup, then link drone captures.
           </p>
         </div>
       );
@@ -2912,11 +3047,43 @@ startxref
   };
 
   const handleDrawingViewerMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (activeTool === "nestedPolygon") {
+      e.preventDefault();
+      return;
+    }
     setIsDrawingPanning(true);
     setDrawingPanStart({
       x: e.clientX - drawingAdjustments.panX,
       y: e.clientY - drawingAdjustments.panY
     });
+  };
+
+  const handleDrawingViewerZoneClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (activeTool !== "nestedPolygon" || !activeArea || isDrawingStackedView) return;
+    const canvasRect = drawingCanvasContentRef.current?.getBoundingClientRect();
+    if (!canvasRect) return;
+
+    const normalizedPoint = {
+      x: Math.round(Math.max(0, Math.min(100, ((e.clientX - canvasRect.left) / canvasRect.width) * 100))),
+      y: Math.round(Math.max(0, Math.min(100, ((e.clientY - canvasRect.top) / canvasRect.height) * 100)))
+    };
+
+    const updatedPoints = [...nestedDrawingPoints, normalizedPoint];
+    let shouldClose = false;
+    if (nestedDrawingPoints.length >= 2) {
+      const firstPoint = nestedDrawingPoints[0];
+      const dx = firstPoint.x - normalizedPoint.x;
+      const dy = firstPoint.y - normalizedPoint.y;
+      shouldClose = Math.sqrt(dx * dx + dy * dy) < 3.5;
+    }
+
+    if (shouldClose) {
+      completeNestedLayerDrawing(nestedDrawingPoints);
+      setNestedRedoPoints([]);
+    } else {
+      setNestedDrawingPoints(updatedPoints);
+      setNestedRedoPoints([]);
+    }
   };
 
   const handleDrawingViewerMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -3005,7 +3172,10 @@ startxref
     } else {
       setUploadedDrawingFiles((prev) => [...prev, ...nextFiles]);
       setHasLoadedDrawings(true);
-      triggerToast(`Uploaded ${nextFiles.length} drawing${nextFiles.length > 1 ? "s" : ""}`);
+      if (nextFiles[0]) {
+        ensureDrawingSetupAreaFromFile(nextFiles[0]);
+      }
+      triggerToast(`Uploaded ${nextFiles.length} drawing${nextFiles.length > 1 ? "s" : ""}. Create zones directly on the drawing.`);
     }
   };
 
@@ -3063,6 +3233,9 @@ startxref
         } else {
           setUploadedDrawingFiles((prev) => [...prev, ...nextFiles]);
           setHasLoadedDrawings(true);
+          if (nextFiles[0] && !activeArea?.drawingOverlay) {
+            ensureDrawingSetupAreaFromFile(nextFiles[0]);
+          }
           triggerToast(`Uploaded ${nextFiles.length} more drawing${nextFiles.length > 1 ? "s" : ""}`, "success");
         }
         setDrawingSetupSubTab("library");
@@ -3084,7 +3257,24 @@ startxref
     ];
     setUploadedDrawingFiles((prev) => [...prev, ...demoFiles]);
     setHasLoadedDrawings(true);
+    if (demoFiles[0]) {
+      ensureDrawingSetupAreaFromFile(demoFiles[0]);
+    }
     triggerToast("Added demo drawing set");
+  };
+
+  const addHubDrawingFiles = () => {
+    const stamp = Date.now();
+    const hubFiles = HUB_BLUEPRINT_FILES.map((file, index) => ({
+      ...file,
+      id: `hub-import-${stamp}-${index}`
+    }));
+
+    setUploadedDrawingFiles((prev) => [...prev, ...hubFiles]);
+    if (hubFiles[0]) {
+      ensureDrawingSetupAreaFromFile(hubFiles[0]);
+    }
+    triggerToast("Loaded HUB drawings. Create zones directly on the base drawing.", "success");
   };
 
   const updateUploadedDrawingService = (drawingId: string, service: DrawingService) => {
@@ -3992,14 +4182,88 @@ startxref
           <Columns className="w-3.5 h-3.5" />
           <span>Split Screen</span>
         </button>
+        <div className="ml-1 pl-1 border-l border-slate-100">
+          <button
+            onClick={() => setIsDefaultViewModalOpen(true)}
+            className="h-8 w-8 rounded-xl text-slate-500 hover:text-blue-600 hover:bg-blue-50 flex items-center justify-center transition-all active:scale-95 cursor-pointer"
+            title="Viewer settings"
+            aria-label="Viewer settings"
+          >
+            <Settings className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
+
+      {isDefaultViewModalOpen && (
+        <div
+          className="fixed inset-0 z-[130] flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-sm"
+          onClick={() => setIsDefaultViewModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-3xl border border-white/80 bg-white shadow-[0_28px_80px_rgba(15,23,42,0.22)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+                    <Settings className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-extrabold text-slate-950">Default view</h3>
+                    <p className="mt-0.5 text-[10px] font-semibold text-slate-400">Choose what opens first for this project.</p>
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsDefaultViewModalOpen(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-xl text-slate-400 transition-all hover:bg-slate-50 hover:text-slate-700 cursor-pointer"
+                aria-label="Close default view settings"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="p-3">
+              {DEFAULT_VIEW_OPTIONS.map((option) => {
+                const Icon = option.icon;
+                const isSelected = defaultViewerTab === option.id;
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => handleSetDefaultViewerTab(option.id)}
+                    className={`group flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition-all cursor-pointer ${
+                      isSelected ? "bg-blue-50/80" : "hover:bg-slate-50"
+                    }`}
+                  >
+                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
+                      isSelected ? "bg-blue-600 text-white shadow-md shadow-blue-500/20" : "bg-white text-slate-500 ring-1 ring-slate-100 group-hover:text-blue-600"
+                    }`}>
+                      <Icon className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs font-extrabold text-slate-900">{option.label}</div>
+                      <div className="mt-0.5 truncate text-[10px] font-semibold text-slate-400">{option.description}</div>
+                    </div>
+                    <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
+                      isSelected ? "bg-blue-600 text-white" : "bg-white ring-1 ring-slate-200"
+                    }`}>
+                      {isSelected && <Check className="h-3 w-3 stroke-[3]" />}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 3. Floating Toast Banner */}
       {toastMessage && (
         <div
-          className={`absolute left-1/2 -translate-x-1/2 z-50 max-w-[min(520px,calc(100%-32px))] bg-white/95 backdrop-blur border border-slate-100/80 text-slate-800 text-xs font-bold px-4 py-2.5 rounded-xl shadow-lg flex items-center gap-2 animate-in fade-in ${
-            shouldShowCreateZonesGuide || shouldShowDrawingSetupGuide ? "bottom-6 slide-in-from-bottom-2" : "top-20 slide-in-from-top-2"
-          }`}
+          className="absolute bottom-6 left-1/2 z-50 flex max-w-[min(520px,calc(100%-32px))] -translate-x-1/2 animate-in fade-in slide-in-from-bottom-2 items-center gap-2 rounded-xl border border-slate-100/80 bg-white/95 px-4 py-2.5 text-xs font-bold text-slate-800 shadow-lg backdrop-blur"
         >
           <Sparkles className="w-3.5 h-3.5 shrink-0 text-yellow-400" />
           <span className="min-w-0 truncate">{toastMessage}</span>
@@ -5458,17 +5722,19 @@ startxref
                       {activeTab === "drone" ? "Setup Drone Photos" : (activeTab === "3d" ? "Setup 3D Models" : "Setup Project Drawings")}
                     </h4>
                     <p className="text-[10px] text-slate-400 max-w-[200px] mx-auto mt-1 leading-normal">
-                      {activeTab === "drone" ? "Upload site drone photos to display on top of zone drawings." : (activeTab === "3d" ? "Upload and align 3D BIM models to project floor levels." : "Assign layout sheets to floor levels and small site zones.")}
+                      {activeTab === "drone" ? "Upload site drone photos to display on top of zone drawings." : (activeTab === "3d" ? "Upload and align 3D BIM models to project floor levels." : "Start with a base drawing, then create zones directly on the sheet.")}
                     </p>
                   </div>
-                  <div className="w-full space-y-1 px-4">
-                    <button
-                      onClick={() => drawingLibraryInputRef.current?.click()}
-                      className="w-full h-9 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold  transition-colors cursor-pointer flex items-center justify-center gap-1.5"
-                    >
-                      <Upload className="w-3.5 h-3.5" />
-                      {activeTab === "drone" ? "Upload Drone Photos" : (activeTab === "3d" ? "Upload 3D Models" : "Upload Drawings")}
-                    </button>
+                  <div className="w-full px-4">
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50/50 px-3 py-2.5 text-left">
+                      <div className="flex items-center gap-2">
+                        <FolderOpen className="h-3.5 w-3.5 shrink-0 text-blue-500" />
+                        <span className="text-[10px] font-bold text-slate-700">Choose a source from the canvas card.</span>
+                      </div>
+                      <p className="mt-1 text-[9px] font-semibold leading-4 text-slate-400">
+                        Upload and HUB actions are available in the main setup panel.
+                      </p>
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -5858,7 +6124,9 @@ startxref
 
                               {/* Inner child zones (Chhota areas) */}
                               {(!activeArea.childLayers || activeArea.childLayers.length === 0) ? (
-                                <p className="text-[8.5px] text-slate-400 italic">No inner zones defined on the map setup.</p>
+                                <div className="rounded-lg border border-dashed border-blue-100 bg-blue-50/30 p-2 text-[8.5px] font-semibold leading-4 text-blue-600">
+                                  No zones yet. Use Create Zone above, then click on the drawing to mark your first area.
+                                </div>
                               ) : (
                                 activeArea.childLayers.map((zone) => {
                                   const zoneConfig = zoneDrawingConfigs[zone.id];
@@ -6144,7 +6412,7 @@ startxref
                           </div>
                         ) : (
                           <div className="p-4 border border-dashed border-slate-200 rounded-xl bg-white text-center text-slate-405 text-[10px]">
-                            Create site area boundaries on the Map Setup tab first.
+                            Upload or choose a base drawing to begin configuring zones.
                           </div>
                         )}
                       </div>
@@ -6198,9 +6466,9 @@ startxref
                 )}
                 <button
                   onClick={handleCreateZoneFromDrawingSetup}
-                  disabled={!activeArea?.drawingOverlay}
+                  disabled={!currentDrawingUrl}
                   className="h-8.5 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white text-[10px] font-bold flex items-center gap-1.5 cursor-pointer transition-colors  shadow-blue-500/10"
-                  title={activeArea?.drawingOverlay ? "Create a new zone inside this site boundary" : "Link a blueprint overlay before creating zones"}
+                  title={currentDrawingUrl ? "Create a new zone directly on this drawing" : "Upload or choose a base drawing before creating zones"}
                 >
                   <PolygonIcon className="w-3.5 h-3.5" />
                   Create Zone
@@ -6250,15 +6518,17 @@ startxref
                 <div
                   ref={drawingViewportRef}
                   className={`w-full h-full relative overflow-hidden flex items-center justify-center rounded-2xl border border-slate-100/80 bg-white ${
-                    isDrawingPanning ? "cursor-grabbing" : "cursor-grab"
+                    activeTool === "nestedPolygon" ? "cursor-crosshair" : (isDrawingPanning ? "cursor-grabbing" : "cursor-grab")
                   }`}
                   onWheel={handleDrawingViewerWheel}
                   onMouseDown={handleDrawingViewerMouseDown}
                   onMouseMove={handleDrawingViewerMouseMove}
                   onMouseUp={stopDrawingViewerPan}
                   onMouseLeave={stopDrawingViewerPan}
+                  onClick={handleDrawingViewerZoneClick}
                 >
                   <div
+                    ref={drawingCanvasContentRef}
                     className="relative w-[min(72vw,72vh)] h-[min(72vw,72vh)] shrink-0 transition-transform duration-75 ease-out select-none"
                     style={{
                       transform: `translate(${drawingAdjustments.panX}px, ${drawingAdjustments.panY}px) scale(${drawingAdjustments.zoom}) rotate(${drawingAdjustments.rotate}deg)`,
@@ -6578,7 +6848,138 @@ startxref
                         </div>
                       );
                     })}
+
+                    {activeTool === "nestedPolygon" && activeArea && !isDrawingStackedView && (
+                      <svg className="absolute inset-0 w-full h-full pointer-events-none z-20" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        {nestedDrawingPoints.length > 1 && (
+                          <polyline
+                            points={nestedDrawingPoints.map((point) => `${point.x},${point.y}`).join(" ")}
+                            fill="rgba(37,99,235,0.08)"
+                            stroke="#2563eb"
+                            strokeWidth="1.2"
+                            vectorEffect="non-scaling-stroke"
+                            strokeLinejoin="round"
+                            strokeDasharray="2,2"
+                          />
+                        )}
+                        {nestedDrawingPoints.map((point, index) => (
+                          <circle
+                            key={`drawing-zone-point-${index}`}
+                            cx={point.x}
+                            cy={point.y}
+                            r={index === 0 ? 1.25 : 1}
+                            fill={index === 0 ? "#22c55e" : "#2563eb"}
+                            stroke="#ffffff"
+                            strokeWidth="0.45"
+                            vectorEffect="non-scaling-stroke"
+                          />
+                        ))}
+                      </svg>
+                    )}
                   </div>
+
+                  {activeTool === "nestedPolygon" && activeArea && (
+                    <div
+                      className="absolute left-4 top-1/2 z-45 flex -translate-y-1/2 items-center gap-2"
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="flex flex-col gap-1.5 rounded-2xl border border-slate-100/80 bg-white/95 p-1.5 shadow-[0_12px_34px_rgba(15,23,42,0.12)] backdrop-blur-md">
+                        <div className="relative group/tooltip">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setNestedDrawingPoints([]);
+                              setNestedRedoPoints([]);
+                              setActiveTool("pan");
+                            }}
+                            className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition-all hover:bg-slate-50 hover:text-slate-900"
+                          >
+                            <MousePointer className="h-4 w-4" />
+                          </button>
+                          <div className="absolute left-14 top-1/2 z-50 w-40 -translate-y-1/2 scale-95 rounded-xl border border-slate-100/80 bg-white p-2 text-left opacity-0 shadow-xl transition-all duration-150 pointer-events-none group-hover/tooltip:scale-100 group-hover/tooltip:opacity-100">
+                            <p className="text-[10px] font-bold text-slate-800">Exit zone tool</p>
+                            <p className="mt-0.5 text-[8.5px] font-semibold leading-normal text-slate-400">Return to pan and select mode.</p>
+                          </div>
+                        </div>
+
+                        <div className="relative group/tooltip">
+                          <button
+                            type="button"
+                            className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white shadow-md shadow-blue-500/20"
+                          >
+                            <PolygonIcon className="h-4 w-4" />
+                            <span className="absolute -right-1 -top-1 rounded-full bg-slate-950 px-1 text-[8px] font-extrabold text-white">
+                              {nestedDrawingPoints.length}
+                            </span>
+                          </button>
+                          <div className="absolute left-14 top-1/2 z-50 w-44 -translate-y-1/2 scale-95 rounded-xl border border-slate-100/80 bg-white p-2 text-left opacity-0 shadow-xl transition-all duration-150 pointer-events-none group-hover/tooltip:scale-100 group-hover/tooltip:opacity-100">
+                            <p className="flex items-center gap-1.5 text-[10px] font-bold text-slate-800">
+                              <PolygonIcon className="h-3.5 w-3.5 text-blue-500" />
+                              Zone polygon
+                            </p>
+                            <p className="mt-0.5 text-[8.5px] font-semibold leading-normal text-slate-400">Click the drawing to place corners.</p>
+                          </div>
+                        </div>
+
+                        <div className="mx-1 h-px bg-slate-100" />
+
+                        <button
+                          type="button"
+                          onClick={handleUndoNestedPoint}
+                          disabled={nestedDrawingPoints.length === 0}
+                          className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition-all hover:bg-slate-50 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-35"
+                          title="Undo point"
+                        >
+                          <Undo2 className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleRedoNestedPoint}
+                          disabled={nestedRedoPoints.length === 0}
+                          className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition-all hover:bg-slate-50 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-35"
+                          title="Redo point"
+                        >
+                          <Redo2 className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => completeNestedLayerDrawing(nestedDrawingPoints)}
+                          disabled={nestedDrawingPoints.length < 3}
+                          className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 transition-all hover:bg-emerald-600 hover:text-white disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-300"
+                          title="Create zone"
+                        >
+                          <Check className="h-4 w-4 stroke-[3]" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setNestedDrawingPoints([]);
+                            setNestedRedoPoints([]);
+                            setActiveTool("pan");
+                          }}
+                          className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 transition-all hover:bg-rose-50 hover:text-rose-600"
+                          title="Cancel zone"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+
+                      <div className="w-52 rounded-2xl border border-blue-100/80 bg-white/95 p-3 text-left shadow-[0_12px_34px_rgba(15,23,42,0.12)] backdrop-blur-md">
+                        <p className="text-[9px] font-extrabold uppercase tracking-wider text-blue-600">Create zone</p>
+                        <p className="mt-1 text-[11px] font-bold leading-snug text-slate-800">
+                          Mark corners on the drawing.
+                        </p>
+                        <p className="mt-1 text-[9px] font-semibold leading-4 text-slate-400">
+                          Use Done after 3+ points, or click near the first point to close.
+                        </p>
+                        <div className="mt-3 flex items-center justify-between rounded-xl bg-slate-50 px-2.5 py-2">
+                          <span className="text-[9px] font-bold text-slate-500">Points placed</span>
+                          <span className="text-[10px] font-extrabold text-slate-900">{nestedDrawingPoints.length}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Figma Rulers & Guidelines */}
                   {showRulers && (
@@ -6838,29 +7239,32 @@ startxref
                 </div>
               ) : (
                 /* Empty state */
-                <div className="max-w-md w-full text-center bg-white border border-slate-100/80 rounded-[32px] p-8  flex flex-col items-center gap-5">
-                  <div className="w-14 h-14 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center border border-amber-100  shadow-amber-500/5">
-                    <MapPin className="w-6 h-6" />
+                <div className="max-w-md w-full text-center bg-white border border-slate-100/80 rounded-[32px] p-8 flex flex-col items-center gap-5 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
+                  <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center border border-blue-100 shadow-blue-500/5">
+                    <UploadCloud className="w-6 h-6" />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-slate-800">Map setup is not complete</h3>
-                    <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto leading-normal">
-                      First draw a site boundary in Map Setup and link a blueprint. Your drawing and zones will appear here automatically after setup.
+                    <h3 className="text-base font-bold text-slate-800">Base site drawing required</h3>
+                    <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto leading-normal">
+                      Upload the main site or floor plan first. It becomes the reference for zones, levels, and drawing assignments.
                     </p>
                   </div>
-                  <button
-                    onClick={() => {
-                      setActiveTab("map");
-                      setActiveTool("polygon");
-                      setDrawingPoints([]);
-                      setRedoPoints([]);
-                      triggerToast("Draw a site boundary in Map Setup, then link a blueprint.");
-                    }}
-                    className="w-full h-10 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold cursor-pointer shadow-md shadow-blue-500/10 transition-all flex items-center justify-center gap-1.5"
-                  >
-                    <PolygonIcon className="w-4 h-4" />
-                    Go to Map Setup
-                  </button>
+                  <div className="grid w-full grid-cols-2 gap-2">
+                    <button
+                      onClick={() => drawingLibraryInputRef.current?.click()}
+                      className="h-10 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold cursor-pointer shadow-md shadow-blue-500/10 transition-all flex items-center justify-center gap-1.5"
+                    >
+                      <Upload className="w-4 h-4" />
+                      Upload
+                    </button>
+                    <button
+                      onClick={addHubDrawingFiles}
+                      className="h-10 rounded-2xl border border-blue-100 bg-blue-50 hover:bg-blue-100 text-blue-600 text-xs font-bold cursor-pointer transition-all flex items-center justify-center gap-1.5"
+                    >
+                      <FolderOpen className="w-4 h-4" />
+                      From HUB
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -10716,22 +11120,38 @@ startxref
       {/* Zone Floor Plan Source Modal */}
       {isBlueprintSourceModalOpen && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/55 backdrop-blur-sm micro-fade-in">
-          <div className="w-full max-w-2xl rounded-2xl bg-white border border-slate-100/60 shadow-[0_22px_60px_rgba(15,23,42,0.2)] overflow-hidden">
-            <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-extrabold text-slate-900">Upload floor plan</h3>
-                <p className="text-[10px] text-slate-400 font-semibold mt-0.5">
-                  Add a drawing to this zone. Alignment remains in the setup panel.
+          <div className="w-full max-w-xl rounded-3xl bg-white border border-white/70 shadow-[0_28px_80px_rgba(15,23,42,0.24)] overflow-hidden">
+            <div className="relative px-5 py-4 border-b border-slate-100 bg-gradient-to-br from-white via-blue-50/35 to-slate-50">
+              <div className="absolute right-12 top-0 h-20 w-20 rounded-full bg-blue-200/20 blur-2xl" />
+              <div className="relative flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-600/20">
+                    <UploadCloud className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-extrabold text-slate-900">Upload floor plan</h3>
+                    <p className="text-[10px] text-slate-500 font-semibold mt-1 leading-4 max-w-sm">
+                      Select a floor plan from Project HUB or upload a local drawing. Alignment remains available in the setup panel.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsBlueprintSourceModalOpen(false)}
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-white/80 transition-all cursor-pointer"
+                  title="Close"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {blueprintSourceMode === "source" && (
+              <div className="px-5 pt-4">
+                <p className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">
+                  Choose source
                 </p>
               </div>
-              <button
-                onClick={() => setIsBlueprintSourceModalOpen(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all cursor-pointer"
-                title="Close"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+            )}
 
             <input
               ref={blueprintLocalInputRef}
@@ -10745,32 +11165,42 @@ startxref
             />
 
             {blueprintSourceMode === "source" ? (
-              <div className="grid gap-3 p-4 sm:grid-cols-2">
+              <div className="grid gap-3 p-5 pt-3 sm:grid-cols-2">
                 <button
                   type="button"
                   onClick={() => setBlueprintSourceMode("hub")}
-                  className="group rounded-2xl border border-slate-100 bg-slate-50/50 p-4 text-left hover:border-blue-200 hover:bg-blue-50/40 transition-all cursor-pointer"
+                  className="group relative overflow-hidden rounded-2xl border border-slate-100 bg-white p-4 text-left shadow-sm hover:border-blue-200 hover:shadow-[0_16px_36px_rgba(37,99,235,0.10)] transition-all cursor-pointer"
                 >
-                  <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-white text-blue-600 shadow-sm group-hover:scale-105 transition-transform">
-                    <FolderOpen className="h-4.5 w-4.5" />
+                  <div className="absolute inset-x-0 top-0 h-1 bg-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 border border-blue-100 group-hover:scale-105 transition-transform">
+                    <FolderOpen className="h-5 w-5" />
                   </div>
                   <div className="text-sm font-extrabold text-slate-900">Choose from HUB</div>
-                  <div className="mt-1 text-[10px] font-semibold leading-4 text-slate-400">
-                    Open project HUB files in view-only mode and select a drawing.
+                  <div className="mt-1.5 text-[10px] font-semibold leading-4 text-slate-500">
+                    Browse project drawings in view-only mode and attach one to this area.
+                  </div>
+                  <div className="mt-4 inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-1 text-[8.5px] font-extrabold uppercase tracking-wide text-blue-600">
+                    Project files
+                    <ChevronRight className="h-3 w-3" />
                   </div>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => blueprintLocalInputRef.current?.click()}
-                  className="group rounded-2xl border border-slate-100 bg-slate-50/50 p-4 text-left hover:border-blue-200 hover:bg-blue-50/40 transition-all cursor-pointer"
+                  className="group relative overflow-hidden rounded-2xl border border-slate-100 bg-white p-4 text-left shadow-sm hover:border-blue-200 hover:shadow-[0_16px_36px_rgba(37,99,235,0.10)] transition-all cursor-pointer"
                 >
-                  <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-white text-blue-600 shadow-sm group-hover:scale-105 transition-transform">
-                    <UploadCloud className="h-4.5 w-4.5" />
+                  <div className="absolute inset-x-0 top-0 h-1 bg-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 border border-blue-100 group-hover:scale-105 transition-transform">
+                    <UploadCloud className="h-5 w-5" />
                   </div>
                   <div className="text-sm font-extrabold text-slate-900">Choose from device</div>
-                  <div className="mt-1 text-[10px] font-semibold leading-4 text-slate-400">
-                    Pick a floor plan image or SVG from your machine.
+                  <div className="mt-1.5 text-[10px] font-semibold leading-4 text-slate-500">
+                    Upload a floor plan image or SVG from your computer.
+                  </div>
+                  <div className="mt-4 inline-flex items-center gap-1 rounded-full bg-slate-50 px-2 py-1 text-[8.5px] font-extrabold uppercase tracking-wide text-slate-500">
+                    Local upload
+                    <ChevronRight className="h-3 w-3" />
                   </div>
                 </button>
               </div>

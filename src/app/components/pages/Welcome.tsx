@@ -32,8 +32,16 @@ interface Project {
   progress: number;
 }
 
+type MapPinSelection = {
+  label: string;
+  lat: number;
+  lng: number;
+  x: number;
+  y: number;
+};
+
 const PHASE_OPTIONS = [
-  { id: "pre-con", label: "Pre-Construction", desc: "Schedules & BIM specs", icon: Sparkles, route: "/pre-construction" },
+  { id: "pre-con", label: "Pre-Construction", desc: "Schedules & BIM specs", icon: Sparkles, route: "/pre-construction/workspace?tab=home" },
   { id: "construction", label: "Construction", desc: "Onsite logging & safety", icon: HardHat, route: "/construction" },
   { id: "site-survey", label: "Site Survey", desc: "Drone topography scans", icon: MapPin, route: "/site-survey" },
   { id: "bim-migration", label: "BIM Migration", desc: "CAD conversion & clashes", icon: Settings, route: "/dashboard" },
@@ -115,6 +123,15 @@ export function Welcome() {
   const [step, setStep] = useState(1); // 1: Name, 2: Location, 3: Phases, 4: Loading Setup
   const [projectName, setProjectName] = useState("");
   const [projectLocation, setProjectLocation] = useState("");
+  const [mapPickerOpen, setMapPickerOpen] = useState(false);
+  const [mapPickerQuery, setMapPickerQuery] = useState("");
+  const [mapPinSelection, setMapPinSelection] = useState<MapPinSelection>({
+    label: "Austin, TX - Downtown Development Zone",
+    lat: 30.2672,
+    lng: -97.7431,
+    x: 50,
+    y: 50
+  });
   const [selectedPhases, setSelectedPhases] = useState<string[]>(["Pre-Construction"]);
   const [loadingSteps, setLoadingSteps] = useState<any[]>([
     { id: 1, label: "Setting up your HUB", sub: "Initializing workspace configuration...", icon: LayoutGrid, done: false, active: true },
@@ -124,6 +141,8 @@ export function Welcome() {
   ]);
   const [newProjectDetails, setNewProjectDetails] = useState<{ name: string; location: string } | null>(null);
   const [countdown, setCountdown] = useState(4);
+  const getPostSetupRoute = (phases = selectedPhases) =>
+    phases.includes("Pre-Construction") ? "/pre-construction/workspace?tab=home" : "/projects";
 
   // Cycle greeting name/roles
   useEffect(() => {
@@ -145,7 +164,7 @@ export function Welcome() {
         setCountdown(prev => {
           if (prev <= 1) {
             clearInterval(timer);
-            window.location.href = `/projects`;
+            window.location.href = getPostSetupRoute();
             return 0;
           }
           return prev - 1;
@@ -166,18 +185,54 @@ export function Welcome() {
     "Boston, MA - Seaport Innovation Hub"
   ];
 
+  const getLocationCoordinates = (label: string) => {
+    const normalized = label.toLowerCase();
+    if (normalized.includes("miami")) return { lat: 25.7617, lng: -80.1918 };
+    if (normalized.includes("san francisco")) return { lat: 37.7749, lng: -122.4194 };
+    if (normalized.includes("new york")) return { lat: 40.7128, lng: -74.006 };
+    if (normalized.includes("chicago")) return { lat: 41.8781, lng: -87.6298 };
+    if (normalized.includes("seattle")) return { lat: 47.6062, lng: -122.3321 };
+    if (normalized.includes("los angeles")) return { lat: 34.0522, lng: -118.2437 };
+    if (normalized.includes("boston")) return { lat: 42.3601, lng: -71.0589 };
+    return { lat: 30.2672, lng: -97.7431 };
+  };
+
+  const openMapPicker = (label: string, coords?: { lat: number; lng: number }) => {
+    const nextCoords = coords || getLocationCoordinates(label);
+    setMapPickerQuery(label);
+    setMapPinSelection({
+      label,
+      lat: nextCoords.lat,
+      lng: nextCoords.lng,
+      x: 50,
+      y: 50
+    });
+    setMapPickerOpen(true);
+  };
+
+  const confirmMapLocation = () => {
+    const locationLabel = `${mapPinSelection.label} (${mapPinSelection.lat.toFixed(5)}, ${mapPinSelection.lng.toFixed(5)})`;
+    setInputValue(locationLabel);
+    setProjectLocation(locationLabel);
+    setMapPickerOpen(false);
+    triggerLoadingSequence(projectName, locationLabel);
+  };
+
   const handleUseCurrentLocation = () => {
     setInputValue("Detecting location...");
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           setTimeout(() => {
-            setInputValue("Miami, FL (Current Location)");
+            openMapPicker("Current location", {
+              lat: position.coords.latitude,
+              lng: position.coords.longitude
+            });
           }, 800);
         },
         (error) => {
           setTimeout(() => {
-            setInputValue("Austin, TX (Default Location)");
+            openMapPicker("Austin, TX (Default Location)", { lat: 30.2672, lng: -97.7431 });
           }, 800);
         },
         { timeout: 5000 }
@@ -212,8 +267,12 @@ export function Welcome() {
       setStep(2);
     } else if (step === 2) {
       const nextLocation = val || "Location not specified";
-      setProjectLocation(nextLocation);
-      triggerLoadingSequence(projectName, nextLocation);
+      if (val) {
+        openMapPicker(nextLocation);
+      } else {
+        setProjectLocation(nextLocation);
+        triggerLoadingSequence(projectName, nextLocation);
+      }
     }
   };
 
@@ -259,7 +318,7 @@ export function Welcome() {
     localStorage.setItem("active_project", JSON.stringify(projectToAdd));
 
     setTimeout(() => {
-      window.location.href = `/projects`;
+      window.location.href = getPostSetupRoute(projectToAdd.activePhases);
     }, 500);
   };
 
@@ -317,6 +376,9 @@ export function Welcome() {
             setProjects(updated);
             localStorage.setItem("bimbox_projects", JSON.stringify(updated));
             localStorage.setItem("active_project", JSON.stringify(projectToAdd));
+            window.setTimeout(() => {
+              window.location.href = getPostSetupRoute(projectToAdd.activePhases);
+            }, 650);
           }, 800);
         }
         return next;
@@ -650,7 +712,7 @@ export function Welcome() {
                       onClick={() => {
                         setInputValue(loc);
                         setProjectLocation(loc);
-                        triggerLoadingSequence(projectName, loc);
+                        openMapPicker(loc);
                       }}
                       className="w-full text-left px-3 py-2 hover:bg-slate-50 text-slate-650 hover:text-slate-900 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer"
                     >
@@ -742,17 +804,17 @@ export function Welcome() {
                 </p>
               </div>
 
-              {/* The Checklist Card */}
-              <div className="w-full bg-slate-50/50 border border-slate-200/40 rounded-2xl p-4 flex flex-col gap-3">
+              {/* The Checklist */}
+              <div className="w-full px-5 py-2 flex flex-col gap-3">
                 {loadingSteps.map((s) => {
                   const Icon = s.icon;
                   return (
-                    <div key={s.id} className="flex items-center gap-3.5 p-1">
-                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border transition-all ${
+                    <div key={s.id} className="flex items-center gap-3.5">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 border transition-all ${
                         s.done 
-                          ? "bg-emerald-500 border-emerald-500 text-white animate-scale-in" 
+                          ? "bg-emerald-50 border-emerald-100 text-emerald-600 animate-scale-in" 
                           : s.active 
-                            ? "bg-blue-600 border-blue-600 text-white animate-pulse" 
+                            ? "bg-blue-50 border-blue-100 text-blue-600 animate-pulse" 
                             : "bg-white border-slate-200 text-slate-400"
                       }`}>
                         {s.done ? (
@@ -765,7 +827,7 @@ export function Welcome() {
                       <div className="min-w-0 text-left flex-1">
                         <div className={`text-xs font-bold transition-colors ${
                           s.done 
-                            ? "text-slate-850 line-through opacity-70" 
+                            ? "text-slate-600" 
                             : s.active 
                               ? "text-blue-605" 
                               : "text-slate-400"
@@ -780,7 +842,12 @@ export function Welcome() {
                       </div>
 
                       {s.active && !s.done && (
-                        <Loader2 className="w-4 h-4 text-blue-600 animate-spin shrink-0" />
+                        <Loader2 className="w-4 h-4 text-blue-500 animate-spin shrink-0" />
+                      )}
+                      {s.done && (
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-500 shrink-0">
+                          Done
+                        </span>
                       )}
                     </div>
                   );
@@ -864,6 +931,98 @@ export function Welcome() {
               Cancel Setup
             </button>
           )}
+        </div>
+      )}
+
+      {mapPickerOpen && (
+        <div className="fixed inset-0 z-[200] bg-white animate-in fade-in duration-200">
+          <div className="absolute inset-0 bg-slate-100">
+            <iframe
+              title="Project location map"
+              src={`https://www.openstreetmap.org/export/embed.html?bbox=${mapPinSelection.lng - 0.035}%2C${mapPinSelection.lat - 0.025}%2C${mapPinSelection.lng + 0.035}%2C${mapPinSelection.lat + 0.025}&layer=mapnik&marker=${mapPinSelection.lat}%2C${mapPinSelection.lng}`}
+              className="h-full w-full border-0"
+            />
+            <button
+              type="button"
+              aria-label="Set pin location"
+              onClick={(event) => {
+                const rect = event.currentTarget.getBoundingClientRect();
+                const x = ((event.clientX - rect.left) / rect.width) * 100;
+                const y = ((event.clientY - rect.top) / rect.height) * 100;
+                const lngOffset = (x - 50) * 0.0007;
+                const latOffset = (50 - y) * 0.0005;
+                setMapPinSelection((prev) => ({
+                  ...prev,
+                  x,
+                  y,
+                  lat: prev.lat + latOffset,
+                  lng: prev.lng + lngOffset
+                }));
+              }}
+              className="absolute inset-0 cursor-crosshair bg-transparent"
+            />
+            <div
+              className="pointer-events-none absolute -translate-x-1/2 -translate-y-full"
+              style={{ left: `${mapPinSelection.x}%`, top: `${mapPinSelection.y}%` }}
+            >
+              <div className="relative flex flex-col items-center">
+                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-600 text-white shadow-[0_12px_30px_rgba(37,99,235,0.35)] ring-4 ring-white">
+                  <MapPin className="h-5 w-5 fill-current" />
+                </div>
+                <span className="mt-1 h-3 w-3 rounded-full bg-blue-600/25 blur-[2px]" />
+              </div>
+            </div>
+          </div>
+
+          <div className="absolute left-1/2 top-5 w-[min(760px,calc(100%-32px))] -translate-x-1/2 rounded-3xl border border-white/80 bg-white/95 p-3 shadow-[0_20px_70px_rgba(15,23,42,0.18)] backdrop-blur-xl">
+            <div className="flex items-center gap-2">
+              <div className="relative flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-md shadow-blue-600/20">
+                <span className="absolute inset-0 rounded-2xl bg-blue-500/35 animate-ping" />
+                <span className="absolute -inset-1 rounded-[20px] border border-blue-300/60 animate-pulse" />
+                <MapPin className="relative h-5 w-5 fill-current" />
+              </div>
+              <div className="relative min-w-0 flex-1">
+                <input
+                  value={mapPickerQuery}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    const coords = getLocationCoordinates(value);
+                    setMapPickerQuery(value);
+                    setMapPinSelection((prev) => ({
+                      ...prev,
+                      label: value,
+                      lat: coords.lat,
+                      lng: coords.lng,
+                      x: 50,
+                      y: 50
+                    }));
+                  }}
+                  placeholder="Search or enter exact project location"
+                  className="h-10 w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 text-xs font-semibold text-slate-800 outline-hidden focus:border-blue-300 focus:bg-white"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => setMapPickerOpen(false)}
+                className="h-10 rounded-2xl border border-slate-200 bg-white px-4 text-xs font-bold text-slate-600 hover:bg-slate-50"
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                onClick={confirmMapLocation}
+                className="h-10 rounded-2xl bg-blue-600 px-5 text-xs font-bold text-white shadow-md shadow-blue-600/20 hover:bg-blue-700"
+              >
+                Done
+              </button>
+            </div>
+            <div className="mt-2 flex items-center justify-between gap-3 px-1 text-[10px] font-semibold text-slate-500">
+              <span className="truncate">Click anywhere on the map to drop the exact project pin.</span>
+              <span className="shrink-0 font-mono text-slate-400">
+                {mapPinSelection.lat.toFixed(5)}, {mapPinSelection.lng.toFixed(5)}
+              </span>
+            </div>
+          </div>
         </div>
       )}
     </div>

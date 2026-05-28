@@ -194,6 +194,13 @@ const DEMO_BLUEPRINT_POOL = [
   "/demo_plan_c.svg"
 ];
 
+const HUB_BLUEPRINT_FILES: UploadedDrawingFile[] = [
+  { id: "hub-a101", name: "A101 Ground Floor Plan", url: "/architectural_drawing.png", service: "Architectural" },
+  { id: "hub-s101", name: "S101 Foundation Details", url: "/demo_plan_a.svg", service: "Structural" },
+  { id: "hub-m101", name: "M101 HVAC Layout Plan", url: "/demo_plan_b.svg", service: "Mechanical" },
+  { id: "hub-e101", name: "E101 Lighting Routing", url: "/demo_plan_c.svg", service: "Electrical" }
+];
+
 const PEN_CURSOR =
   "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cfilter id='s' x='-30%25' y='-30%25' width='160%25' height='160%25'%3E%3CfeDropShadow dx='1' dy='2' stdDeviation='1.2' flood-color='%23000000' flood-opacity='.35'/%3E%3C/filter%3E%3Cg filter='url(%23s)'%3E%3Cpath d='M7 6.5c5.8.8 10.9 2.9 15.1 6.4 2.9 2.4 3.8 6.4 2 9.7-.5 1-1.7 1.2-2.5.4l-4-4-3.2 3.2c-.8.8-2.1.8-2.9 0l-4.8-4.8c-.8-.8-.8-2.1 0-2.9l3.2-3.2-4-4c-.8-.8-.4-2.5 1.1-2.3z' fill='%23ffffff' stroke='%23111111' stroke-width='2.2' stroke-linejoin='round'/%3E%3Ccircle cx='14.2' cy='15.2' r='3.3' fill='%23ffffff' stroke='%23111111' stroke-width='2'/%3E%3Cpath d='M5.8 5.8l8.4 9.4' stroke='%23111111' stroke-width='2.2' stroke-linecap='round'/%3E%3C/g%3E%3C/svg%3E\") 6 6, crosshair";
 
@@ -250,6 +257,7 @@ export default function ViewerSetup() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const drawingLibraryInputRef = useRef<HTMLInputElement>(null);
   const uploadMoreInputRef = useRef<HTMLInputElement>(null);
+  const blueprintLocalInputRef = useRef<HTMLInputElement>(null);
   const drawingDropdownRef = useRef<HTMLDivElement>(null);
   const [isDrawingDropdownOpen, setIsDrawingDropdownOpen] = useState(false);
 
@@ -328,6 +336,9 @@ export default function ViewerSetup() {
   const [isDrawingPanning, setIsDrawingPanning] = useState(false);
   const [drawingPanStart, setDrawingPanStart] = useState({ x: 0, y: 0 });
   const [isDrawingSetupModalOpen, setIsDrawingSetupModalOpen] = useState(false);
+  const [isBlueprintSourceModalOpen, setIsBlueprintSourceModalOpen] = useState(false);
+  const [blueprintSourceMode, setBlueprintSourceMode] = useState<"source" | "hub">("source");
+  const [blueprintHubSearch, setBlueprintHubSearch] = useState("");
   const [uploadedDrawingFiles, setUploadedDrawingFiles] = useState<UploadedDrawingFile[]>([]);
   const [uploaded3DFiles, setUploaded3DFiles] = useState<UploadedDrawingFile[]>([
     { id: "demo-3d-1", name: "L01 Architectural Model.ifc", url: "/demo_plan_a.svg", service: "Architectural" },
@@ -377,6 +388,10 @@ export default function ViewerSetup() {
   const currentFilesList = activeTab === "3d" ? uploaded3DFiles : (activeTab === "drone" ? uploadedDroneImages : uploadedDrawingFiles);
   const setCurrentFilesList = activeTab === "3d" ? setUploaded3DFiles : (activeTab === "drone" ? setUploadedDroneImages : setUploadedDrawingFiles);
   const hasLoadedAny = activeTab === "3d" ? true : (activeTab === "drone" ? uploadedDroneImages.length > 0 : hasLoadedDrawings);
+  const filteredHubBlueprintFiles = HUB_BLUEPRINT_FILES.filter((file) =>
+    file.name.toLowerCase().includes(blueprintHubSearch.toLowerCase()) ||
+    file.service.toLowerCase().includes(blueprintHubSearch.toLowerCase())
+  );
 
   const activeArea = useMemo(() => {
     const siteAreas = markups.filter((m) => m.type === "area");
@@ -384,6 +399,9 @@ export default function ViewerSetup() {
     const found = siteAreas.find((area) => area.id === selectedDrawingAreaId);
     return found || siteAreas[0];
   }, [markups, selectedDrawingAreaId]);
+  const activeAreaZoneCount = activeArea?.childLayers?.length || 0;
+  const shouldShowCreateZonesGuide = activeTab === "map" && activeTool === "pan" && Boolean(activeArea?.drawingOverlay) && activeAreaZoneCount === 0;
+  const shouldShowDrawingSetupGuide = activeTab === "map" && activeTool === "pan" && Boolean(activeArea?.drawingOverlay) && activeAreaZoneCount > 0;
 
   const currentDrawingUrl = useMemo(() => {
     if (activeTab === "drawing" && activeEyeDrawing) {
@@ -805,6 +823,47 @@ export default function ViewerSetup() {
     triggerToast(targetLayerId ? "Linked drawing inside selected layer" : "Aligned floorplan drawing onto map area!");
   };
 
+  const openBlueprintSourceModal = (targetMarkupId: string) => {
+    setSelectedMarkupId(targetMarkupId);
+    setSelectedNestedLayerId(null);
+    setBlueprintSourceMode("source");
+    setBlueprintHubSearch("");
+    setIsBlueprintSourceModalOpen(true);
+  };
+
+  const applyBlueprintOverlayToSelectedArea = (file: UploadedDrawingFile) => {
+    if (!selectedMarkupId) return;
+    const overlay = makeDrawingOverlay(file.url);
+
+    setMarkups((prev) =>
+      prev.map((markup) =>
+        markup.id === selectedMarkupId
+          ? { ...markup, drawingOverlay: overlay }
+          : markup
+      )
+    );
+    setUploadedDrawing(file.url);
+    setSelectedDrawingAreaId(selectedMarkupId);
+    setActiveEyeDrawing(null);
+    setIsBlueprintSourceModalOpen(false);
+    setBlueprintSourceMode("source");
+    triggerToast(`Floor plan "${file.name}" added. Next, create zones inside your area.`);
+  };
+
+  const handleBlueprintLocalUpload = (files: FileList | null) => {
+    const file = files?.[0];
+    if (!file) return;
+    const drawingFile: UploadedDrawingFile = {
+      id: `zone-plan-${Date.now()}`,
+      name: file.name.replace(/\.[^/.]+$/, ""),
+      url: URL.createObjectURL(file),
+      service: inferDrawingService(file.name)
+    };
+    setUploadedDrawingFiles((prev) => [...prev, drawingFile]);
+    setHasLoadedDrawings(true);
+    applyBlueprintOverlayToSelectedArea(drawingFile);
+  };
+
   const updateOverlayProp = (key: keyof DrawingOverlay, value: number, targetId?: string) => {
     const idToUpdate = targetId || selectedNestedLayerId || selectedMarkupId;
     if (!idToUpdate) return;
@@ -904,6 +963,20 @@ export default function ViewerSetup() {
     }, 80);
   };
 
+  const openDrawingSetupFromMapGuide = () => {
+    if (activeArea) {
+      setSelectedDrawingAreaId(activeArea.id);
+      setSelectedMarkupId(activeArea.id);
+      setSelectedNestedLayerId(null);
+    }
+    setDrawingSetupSubTab("configure");
+    setIsDrawingLeftSetupOpen(true);
+    setIsDrawingRightLayersOpen(true);
+    setActiveEyeDrawing(null);
+    setActiveTab("drawing");
+    triggerToast("Drawing Setup is ready. Assign drawings to levels and zones from the setup panel.");
+  };
+
   const completeNestedLayerDrawing = (pointsToSubmit: Point[]) => {
     if (!selectedMarkupId) return;
     if (pointsToSubmit.length < 3) {
@@ -959,7 +1032,7 @@ export default function ViewerSetup() {
         );
       }
     }
-    triggerToast("Added polygon drawing zone");
+    triggerToast("Zone created. Add another zone if needed, or continue to Drawing Setup when zoning is complete.");
   };
 
   const handleUndoNestedPoint = () => {
@@ -2776,9 +2849,13 @@ export default function ViewerSetup() {
 
       {/* 3. Floating Toast Banner */}
       {toastMessage && (
-        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 bg-white/95 backdrop-blur border border-slate-200 text-slate-800 text-xs font-bold px-4 py-2.5 rounded-xl shadow-lg flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
-          <Sparkles className="w-3.5 h-3.5 text-yellow-400" />
-          <span>{toastMessage}</span>
+        <div
+          className={`absolute left-1/2 -translate-x-1/2 z-50 max-w-[min(520px,calc(100%-32px))] bg-white/95 backdrop-blur border border-slate-100/80 text-slate-800 text-xs font-bold px-4 py-2.5 rounded-xl shadow-lg flex items-center gap-2 animate-in fade-in ${
+            shouldShowCreateZonesGuide || shouldShowDrawingSetupGuide ? "bottom-6 slide-in-from-bottom-2" : "top-20 slide-in-from-top-2"
+          }`}
+        >
+          <Sparkles className="w-3.5 h-3.5 shrink-0 text-yellow-400" />
+          <span className="min-w-0 truncate">{toastMessage}</span>
         </div>
       )}
 
@@ -2806,6 +2883,49 @@ export default function ViewerSetup() {
                   {activeTool === "nestedPolygon" && nestedDrawingPoints.length === 2 && "Step 3: Add one more point to form a usable smaller area."}
                   {activeTool === "nestedPolygon" && nestedDrawingPoints.length >= 3 && "Step 4: Click the start point or press Done to create this nested polygon zone."}
                 </p>
+              </div>
+            </div>
+          )}
+
+          {(shouldShowCreateZonesGuide || shouldShowDrawingSetupGuide) && activeArea && (
+            <div className="absolute top-20 left-1/2 -translate-x-1/2 z-40 w-[min(430px,calc(100%-32px))] rounded-2xl border border-blue-100/80 bg-white/95 px-4 py-3 text-left shadow-[0_14px_36px_rgba(15,23,42,0.13)] backdrop-blur-md animate-in fade-in slide-in-from-top-4 duration-200">
+              <div className="flex items-start gap-2.5">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-md shadow-blue-500/20">
+                  {shouldShowCreateZonesGuide ? <Plus className="h-4.5 w-4.5" /> : <CheckCircle2 className="h-4.5 w-4.5" />}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-extrabold uppercase tracking-wider text-blue-600">
+                    {shouldShowCreateZonesGuide ? "Floor plan added" : "Zone markup created"}
+                  </p>
+                  <h3 className="mt-0.5 text-[13px] font-extrabold text-slate-900">
+                    {shouldShowCreateZonesGuide
+                      ? "Next, create zones inside your area."
+                      : "If your zone markup is complete, continue to Drawing Setup."}
+                  </h3>
+                  <p className="mt-1 text-[10px] font-semibold leading-4 text-slate-500">
+                    {shouldShowCreateZonesGuide
+                      ? "Use the zone tool to mark one or more internal areas on the floor plan before assigning drawings."
+                      : `${activeAreaZoneCount} zone${activeAreaZoneCount === 1 ? "" : "s"} created. You can add another zone, or proceed to configure levels and drawing assignments.`}
+                  </p>
+                  <div className="mt-2.5 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => startChildDrawingLayer(activeArea.id)}
+                      className="rounded-xl bg-blue-600 px-3 py-1.5 text-[10px] font-bold text-white shadow-sm shadow-blue-500/20 transition-all hover:bg-blue-700 active:scale-95 cursor-pointer"
+                    >
+                      {shouldShowCreateZonesGuide ? "Create zone" : "Add another zone"}
+                    </button>
+                    {shouldShowDrawingSetupGuide && (
+                      <button
+                        type="button"
+                        onClick={openDrawingSetupFromMapGuide}
+                        className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-bold text-slate-700 transition-all hover:bg-slate-50 active:scale-95 cursor-pointer"
+                      >
+                        Open Drawing Setup
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -2879,6 +2999,40 @@ export default function ViewerSetup() {
                   </div>
                 );
               })}
+
+              {/* CENTER FLOOR PLAN UPLOAD ACTION FOR ZONES WITHOUT BLUEPRINTS */}
+              {markups
+                .filter((markup) => markup.type === "area" && !markup.drawingOverlay)
+                .map((markup) => {
+                  const { x, y } = getMarkupCenter(markup);
+                  const isSelected = selectedMarkupId === markup.id;
+                  return (
+                    <button
+                      key={`upload-floor-plan-${markup.id}`}
+                      type="button"
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openBlueprintSourceModal(markup.id);
+                      }}
+                      className={`absolute z-30 pointer-events-auto -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-2 rounded-2xl px-3 py-2 text-center transition-all hover:scale-[1.03] active:scale-[0.98] cursor-pointer ${
+                        isSelected ? "ring-4 ring-blue-500/15" : ""
+                      }`}
+                      style={{ left: `${x}px`, top: `${y}px` }}
+                      title="Upload floor plan"
+                    >
+                      <span className="relative flex h-[52px] w-[52px] items-center justify-center rounded-full bg-blue-600 text-white shadow-lg shadow-blue-600/25">
+                        <span className="absolute inset-0 rounded-full bg-blue-500/40 animate-ping" />
+                        <span className="absolute inset-[-7px] rounded-full border border-blue-300/60 animate-pulse" />
+                        <Plus className="relative h-6 w-6" />
+                      </span>
+                      <span className="rounded-xl border border-white/70 bg-white/95 px-3 py-1.5 shadow-[0_10px_28px_rgba(15,23,42,0.16)] backdrop-blur">
+                        <span className="block text-[11px] font-extrabold text-slate-900">Upload floor plan</span>
+                        <span className="block text-[9px] font-semibold text-slate-400">HUB or device</span>
+                      </span>
+                    </button>
+                  );
+                })}
 
               {/* RENDER DYNAMIC FLOATING SETTINGS CONTROLS ON THE MAP */}
               {activeTool === "pan" && markups.flatMap((markup) => getCalibrationTargets(markup)).map((target) => {
@@ -3956,14 +4110,10 @@ export default function ViewerSetup() {
                         {!markup.drawingOverlay ? (
                           <div className="bg-slate-50/50 border border-slate-100 rounded-xl p-3 text-center">
                             <FolderOpen className="w-5 h-5 text-slate-400 mx-auto mb-1.5" />
-                            <p className="text-[10px] text-slate-700 font-bold mb-2">No drawing linked</p>
-                            <button
-                              onClick={() => handleAssignDrawing(null)}
-                              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-bold shadow-sm shadow-blue-500/10 transition-all cursor-pointer inline-flex items-center gap-1 animate-pulse"
-                            >
-                              <Plus className="w-3 h-3" />
-                              Link Blueprint Layout
-                            </button>
+                            <p className="text-[10px] text-slate-700 font-bold">No floor plan added</p>
+                            <p className="mt-1 text-[9px] text-slate-400 font-semibold leading-snug">
+                              Use the plus button in the zone center to upload a floor plan.
+                            </p>
                           </div>
                         ) : (
                           (() => {
@@ -5388,6 +5538,158 @@ export default function ViewerSetup() {
       )}
 
       {/* Redundant 3D Setup Workspace removed in favor of unified 2D/3D layout */}
+
+      {/* Zone Floor Plan Source Modal */}
+      {isBlueprintSourceModalOpen && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/55 backdrop-blur-sm micro-fade-in">
+          <div className="w-full max-w-xl rounded-3xl bg-white border border-white/70 shadow-[0_28px_80px_rgba(15,23,42,0.24)] overflow-hidden">
+            <div className="relative px-5 py-4 border-b border-slate-100 bg-gradient-to-br from-white via-blue-50/35 to-slate-50">
+              <div className="absolute right-12 top-0 h-20 w-20 rounded-full bg-blue-200/20 blur-2xl" />
+              <div className="relative flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-600/20">
+                    <UploadCloud className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-extrabold text-slate-900">Upload floor plan</h3>
+                    <p className="text-[10px] text-slate-500 font-semibold mt-1 leading-4 max-w-sm">
+                      Select a floor plan from Project HUB or upload a local drawing. Alignment remains available in the setup panel.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsBlueprintSourceModalOpen(false)}
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-white/80 transition-all cursor-pointer"
+                  title="Close"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {blueprintSourceMode === "source" && (
+              <div className="px-5 pt-4">
+                <p className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">
+                  Choose source
+                </p>
+              </div>
+            )}
+
+            <input
+              ref={blueprintLocalInputRef}
+              type="file"
+              accept="image/*,.svg"
+              className="hidden"
+              onChange={(e) => {
+                handleBlueprintLocalUpload(e.target.files);
+                e.currentTarget.value = "";
+              }}
+            />
+
+            {blueprintSourceMode === "source" ? (
+              <div className="grid gap-3 p-5 pt-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => setBlueprintSourceMode("hub")}
+                  className="group relative overflow-hidden rounded-2xl border border-slate-100 bg-white p-4 text-left shadow-sm hover:border-blue-200 hover:shadow-[0_16px_36px_rgba(37,99,235,0.10)] transition-all cursor-pointer"
+                >
+                  <div className="absolute inset-x-0 top-0 h-1 bg-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 border border-blue-100 group-hover:scale-105 transition-transform">
+                    <FolderOpen className="h-5 w-5" />
+                  </div>
+                  <div className="text-sm font-extrabold text-slate-900">Choose from HUB</div>
+                  <div className="mt-1.5 text-[10px] font-semibold leading-4 text-slate-500">
+                    Browse project drawings in view-only mode and attach one to this area.
+                  </div>
+                  <div className="mt-4 inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-1 text-[8.5px] font-extrabold uppercase tracking-wide text-blue-600">
+                    Project files
+                    <ChevronRight className="h-3 w-3" />
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => blueprintLocalInputRef.current?.click()}
+                  className="group relative overflow-hidden rounded-2xl border border-slate-100 bg-white p-4 text-left shadow-sm hover:border-blue-200 hover:shadow-[0_16px_36px_rgba(37,99,235,0.10)] transition-all cursor-pointer"
+                >
+                  <div className="absolute inset-x-0 top-0 h-1 bg-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 border border-blue-100 group-hover:scale-105 transition-transform">
+                    <UploadCloud className="h-5 w-5" />
+                  </div>
+                  <div className="text-sm font-extrabold text-slate-900">Choose from device</div>
+                  <div className="mt-1.5 text-[10px] font-semibold leading-4 text-slate-500">
+                    Upload a floor plan image or SVG from your computer.
+                  </div>
+                  <div className="mt-4 inline-flex items-center gap-1 rounded-full bg-slate-50 px-2 py-1 text-[8.5px] font-extrabold uppercase tracking-wide text-slate-500">
+                    Local upload
+                    <ChevronRight className="h-3 w-3" />
+                  </div>
+                </button>
+              </div>
+            ) : (
+              <div className="p-4">
+                <div className="mb-3 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setBlueprintSourceMode("source")}
+                    className="h-8 rounded-lg border border-slate-100 bg-white px-3 text-[10px] font-bold text-slate-600 hover:bg-slate-50 transition-all cursor-pointer"
+                  >
+                    Back
+                  </button>
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      value={blueprintHubSearch}
+                      onChange={(e) => setBlueprintHubSearch(e.target.value)}
+                      placeholder="Search HUB drawings"
+                      className="h-9 w-full rounded-xl border border-slate-100 bg-slate-50 pl-8 pr-3 text-xs font-semibold text-slate-700 outline-hidden focus:border-blue-200 focus:bg-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-100 bg-slate-50/50 overflow-hidden">
+                  <div className="grid grid-cols-[1fr_110px_90px] gap-3 border-b border-slate-100 bg-white px-4 py-2 text-[9px] font-extrabold uppercase tracking-wider text-slate-400">
+                    <span>HUB file</span>
+                    <span>Discipline</span>
+                    <span className="text-right">Action</span>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto">
+                    {filteredHubBlueprintFiles.map((file) => (
+                      <div key={file.id} className="grid grid-cols-[1fr_110px_90px] items-center gap-3 px-4 py-2.5 border-b border-slate-100 last:border-b-0 hover:bg-white transition-colors">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="h-9 w-11 rounded-lg border border-slate-100 bg-white overflow-hidden shrink-0">
+                            <BlueprintImage src={file.url} alt={file.name} className="h-full w-full object-cover" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="truncate text-xs font-extrabold text-slate-800">{file.name}</div>
+                            <div className="text-[9px] font-semibold text-slate-400">Project HUB · View only</div>
+                          </div>
+                        </div>
+                        <span className="rounded-lg bg-blue-50 px-2 py-1 text-[9px] font-bold text-blue-700 w-fit">
+                          {file.service}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => applyBlueprintOverlayToSelectedArea(file)}
+                          className="justify-self-end rounded-xl bg-blue-600 px-3 py-1.5 text-[10px] font-bold text-white hover:bg-blue-700 transition-all cursor-pointer"
+                        >
+                          Choose
+                        </button>
+                      </div>
+                    ))}
+                    {filteredHubBlueprintFiles.length === 0 && (
+                      <div className="py-10 text-center text-xs font-semibold text-slate-400">
+                        No HUB drawings found
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Upload More Drawings Modal */}
       {isUploadMoreModalOpen && (

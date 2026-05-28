@@ -41,7 +41,22 @@ import {
   Star,
   ChevronLeft,
   ChevronRight,
-  Forward
+  Forward,
+  Settings,
+  Link,
+  Mail,
+  Copy,
+  ExternalLink,
+  LogIn,
+  Mic,
+  MicOff,
+  VideoOff,
+  Monitor,
+  Grid,
+  PhoneOff,
+  Pin,
+  Coffee,
+  Sun
 } from "lucide-react";
 import { useSidebar } from "../../context/SidebarContext";
 
@@ -325,6 +340,195 @@ export function ChatPage() {
   const [meetingTitle, setMeetingTitle] = useState("");
   const [meetingDate, setMeetingDate] = useState("");
   const [meetingTime, setMeetingTime] = useState("");
+  const [meetingRightPanel, setMeetingRightPanel] = useState<"list" | "schedule" | "join" | "instant" | "settings">("list");
+  const [meetingDashboardTab, setMeetingDashboardTab] = useState<"scheduled" | "ongoing" | "project" | "invites">("scheduled");
+  const [meetingJoinCode, setMeetingJoinCode] = useState("");
+  const [instantMeetingLink, setInstantMeetingLink] = useState("");
+  const [copiedMeetId, setCopiedMeetId] = useState<string | null>(null);
+
+  // Active video meet flow state
+  const [activeMeetOpen, setActiveMeetOpen] = useState(false);
+  const [activeMeetTitle, setActiveMeetTitle] = useState("Weekly Design Review");
+  const [meetVideoEnabled, setMeetVideoEnabled] = useState(true);
+  const [meetMicEnabled, setMeetMicEnabled] = useState(true);
+  const [meetScreenSharing, setMeetScreenSharing] = useState(false);
+  const [meetHandRaised, setMeetHandRaised] = useState(false);
+  const [meetSidebarOpen, setMeetSidebarOpen] = useState<"none" | "participants" | "chat">("none");
+  const [meetLayout, setMeetLayout] = useState<"active-speaker-self" | "active-speaker-video" | "grid-6" | "grid-20" | "active-speaker-sidebar">("active-speaker-video");
+  const [meetSearchQuery, setMeetSearchQuery] = useState("");
+  const [approvedWaitingList, setApprovedWaitingList] = useState<string[]>([]);
+  const [declinedWaitingList, setDeclinedWaitingList] = useState<string[]>([]);
+  
+  const [meetChatMessages, setMeetChatMessages] = useState<Array<{ sender: string, time: string, text: string }>>([
+    { sender: "Ashish Dalei", time: "10:02 AM", text: "Hey team, did we resolve the structural clashes on Utkal Iconic?" },
+    { sender: "Snehasish Mohapatra", time: "10:03 AM", text: "Yes, I updated the split view comparison in the 3D viewer." }
+  ]);
+  const [meetChatInput, setMeetChatInput] = useState("");
+  
+  // Call widgets overlay states
+  const [incomingCallOpen, setIncomingCallOpen] = useState(false);
+  const [outgoingCallOpen, setOutgoingCallOpen] = useState(false);
+  const [meetBannerOpen, setMeetBannerOpen] = useState(false);
+  const [meetBannerTimeLeft, setMeetBannerTimeLeft] = useState(12);
+
+  // Selected project members for group call triggers
+  const [selectedProjectMembers, setSelectedProjectMembers] = useState<string[]>([]);
+
+  // 3-Step Scheduler wizard states
+  const [scheduleStep, setScheduleStep] = useState(1);
+  const [meetingRepeat, setMeetingRepeat] = useState<"Once" | "Daily" | "Weekly">("Once");
+  const [meetingDuration, setMeetingDuration] = useState("1 Hour");
+  const [meetingAgenda, setMeetingAgenda] = useState("");
+  const [meetingInvitedEmails, setMeetingInvitedEmails] = useState<string[]>(["rd43057@gmail.com"]);
+  const [emailInput, setEmailInput] = useState("");
+  const [browseTeamExpanded, setBrowseTeamExpanded] = useState(true);
+  const [selectedMeetingDate, setSelectedMeetingDate] = useState("2026-03-25");
+  const [step3Tab, setStep3Tab] = useState<"email" | "team">("email");
+
+  // Helper to format date string to readable format
+  const formatDateString = (dateStr: string) => {
+    try {
+      const date = new Date(dateStr);
+      const days = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+      const monthsFull = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+      const dayName = days[date.getDay()];
+      const dayNum = date.getDate();
+      const monthName = monthsFull[date.getMonth()];
+      
+      const today = new Date();
+      const isToday = date.getDate() === today.getDate() && 
+                      date.getMonth() === today.getMonth() && 
+                      date.getFullYear() === today.getFullYear();
+      
+      const prefix = isToday ? "TODAY - " : "";
+      return `${prefix}${dayName}, ${dayNum} ${monthName}`;
+    } catch {
+      return dateStr;
+    }
+  };
+
+  // Call duration counter
+  const [activeCallDuration, setActiveCallDuration] = useState(159); // 2 mins 39s default
+  // Mock mic input level bars heights
+  const [micLevelBars, setMicLevelBars] = useState([4, 8, 12, 16, 20, 16, 12, 8, 4]);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (activeMeetOpen) {
+      interval = setInterval(() => {
+        setActiveCallDuration(prev => prev + 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [activeMeetOpen]);
+
+  useEffect(() => {
+    let timeout: NodeJS.Timeout;
+    if (outgoingCallOpen) {
+      timeout = setTimeout(() => {
+        setOutgoingCallOpen(false);
+        setActiveMeetOpen(true);
+      }, 3500);
+    }
+    return () => clearTimeout(timeout);
+  }, [outgoingCallOpen]);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (meetBannerOpen && meetBannerTimeLeft > 0) {
+      interval = setInterval(() => {
+        setMeetBannerTimeLeft(prev => {
+          if (prev <= 1) {
+            setMeetBannerOpen(false);
+            return 12;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [meetBannerOpen, meetBannerTimeLeft]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Mock mic audio level bouncing
+      setMicLevelBars(Array.from({ length: 12 }, () => Math.floor(Math.random() * 20) + 4));
+    }, 150);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Prevent trigger when typing in input/textarea elements
+      const activeEl = document.activeElement;
+      if (activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA")) {
+        return;
+      }
+      if (e.key === "i" || e.key === "I") {
+        setIncomingCallOpen(prev => !prev);
+      }
+      if (e.key === "b" || e.key === "B") {
+        setMeetBannerOpen(prev => !prev);
+        setMeetBannerTimeLeft(12);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  const handleCopyLink = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedMeetId(id);
+    setTimeout(() => setCopiedMeetId(null), 2000);
+  };
+
+  // Dynamic meetings list matching the user's design requirements
+  const [meetings, setMeetings] = useState([
+    {
+      id: "meet-1",
+      project: "BIMBOX SUBLIME",
+      title: "Design Sprint",
+      date: "TODAY - MON, 10 MAR",
+      time: "2.00 - 3.00 PM",
+      peopleCount: 8,
+      service: "UI/UX",
+      link: "https://meet.bimbox.com/sublime-design-sprint",
+      avatars: ["#3b82f6", "#ef4444", "#10b981", "#f59e0b"]
+    },
+    {
+      id: "meet-2",
+      project: "BIMBOX SUBLIME",
+      title: "Design Sprint",
+      date: "TODAY - MON, 10 MAR",
+      time: "2.00 - 3.00 PM",
+      peopleCount: 8,
+      service: "UI/UX",
+      link: "https://meet.bimbox.com/sublime-design-sprint",
+      avatars: ["#3b82f6", "#ef4444", "#10b981", "#f59e0b"]
+    },
+    {
+      id: "meet-3",
+      project: "BIMBOX SUBLIME",
+      title: "Design Sprint",
+      date: "MON, 16 MAR",
+      time: "2.00 - 3.00 PM",
+      peopleCount: 8,
+      service: "UI/UX",
+      link: "https://meet.bimbox.com/sublime-design-sprint",
+      avatars: ["#3b82f6", "#ef4444", "#10b981", "#f59e0b"]
+    },
+    {
+      id: "meet-4",
+      project: "BIMBOX SUBLIME",
+      title: "Design Sprint",
+      date: "MON, 16 MAR",
+      time: "2.00 - 3.00 PM",
+      peopleCount: 8,
+      service: "UI/UX",
+      link: "https://meet.bimbox.com/sublime-design-sprint",
+      avatars: ["#3b82f6", "#ef4444", "#10b981", "#f59e0b"]
+    }
+  ]);
 
   const [shareFilesModalOpen, setShareFilesModalOpen] = useState(false);
   const [selectedFileName, setSelectedFileName] = useState("");
@@ -345,7 +549,7 @@ export function ChatPage() {
   const [memberSearchQuery, setMemberSearchQuery] = useState("");
   const [newMemberName, setNewMemberName] = useState("");
   const [sharedMediaModalOpen, setSharedMediaModalOpen] = useState(false);
-  const [sharedMediaTab, setSharedMediaTab] = useState<"media" | "files" | "starred" | "meetings">("media");
+  const [sharedMediaTab, setSharedMediaTab] = useState<"members" | "media" | "files" | "starred" | "meetings">("members");
   const [chatOptionsOpen, setChatOptionsOpen] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedMessageIds, setSelectedMessageIds] = useState<string[]>([]);
@@ -355,6 +559,7 @@ export function ChatPage() {
   const [activeMemberMenuName, setActiveMemberMenuName] = useState<string | null>(null);
   const [attachmentPreviewMessage, setAttachmentPreviewMessage] = useState<Message | null>(null);
   const [attachmentPreviewIndex, setAttachmentPreviewIndex] = useState(0);
+  const [readReceiptMessage, setReadReceiptMessage] = useState<Message | null>(null);
   const [chatFeedbackToast, setChatFeedbackToast] = useState<ChatFeedbackToast | null>(null);
   const [deleteConfirmAction, setDeleteConfirmAction] = useState<{
     title: string;
@@ -1070,6 +1275,21 @@ export function ChatPage() {
       });
     }
 
+    if (landingActionType === "meeting") {
+      const newMeet = {
+        id: `meet-${Date.now()}`,
+        project: "BIMBOX SUBLIME",
+        title: meetingTitle,
+        date: formatDateString(meetingDate),
+        time: meetingTime,
+        peopleCount: 8,
+        service: "UI/UX",
+        link: `https://meet.bimbox.com/sublime-${meetingTitle.toLowerCase().replace(/\s+/g, "-")}`,
+        avatars: ["#3b82f6", "#ef4444", "#10b981", "#f59e0b"]
+      };
+      setMeetings(prev => [newMeet, ...prev]);
+    }
+
     targets.forEach(({ channelId: chanId }) => {
       let textContent = "";
       let attachmentPayload: any = undefined;
@@ -1445,6 +1665,22 @@ export function ChatPage() {
     </div>
   );
 
+  const getReadReceiptMembers = (msg: Message) => {
+    if (!activeChannel || msg.status !== "read") return [];
+    return activeChannel.members.filter((member) => member !== "Rudra" && member !== "Joy" && member !== msg.sender);
+  };
+
+  const renderReadInfoButton = (msg: Message) => (
+    <button
+      type="button"
+      onClick={() => setReadReceiptMessage(msg)}
+      className="flex h-4 w-4 items-center justify-center rounded-full text-slate-400 hover:bg-[#e8f0fe] hover:text-[#1a73e8] transition-colors cursor-pointer border-none bg-transparent"
+      title="Message info"
+    >
+      <Info className="h-3 w-3" />
+    </button>
+  );
+
   const renderAttachmentGrid = (msg: Message, isSelf: boolean) => {
     const attachments = msg.attachments || [];
     const visibleAttachments = attachments.slice(0, 4);
@@ -1553,8 +1789,9 @@ export function ChatPage() {
           <span className="text-[10px] text-[#64748b] font-normal shrink-0 ml-3">{msg.time}</span>
         </div>
         {isSelf && msg.status && (
-          <div className="flex justify-end px-1 text-[9px] font-bold tracking-tight text-[#1a73e8]">
-            {msg.status === "read" ? "● ●" : "● ●"}
+          <div className="flex justify-end items-center gap-1 px-1 text-[9px] font-bold tracking-tight text-[#1a73e8]">
+            <span className={msg.status === "read" ? "text-[#1a73e8]" : "text-slate-350"}>● ●</span>
+            {renderReadInfoButton(msg)}
           </div>
         )}
       </div>
@@ -1607,9 +1844,23 @@ export function ChatPage() {
       meetingTime
     });
 
+    const newMeet = {
+      id: `meet-${Date.now()}`,
+      project: "BIMBOX SUBLIME",
+      title: meetingTitle,
+      date: formatDateString(meetingDate),
+      time: meetingTime,
+      peopleCount: 8,
+      service: "UI/UX",
+      link: `https://meet.bimbox.com/sublime-${meetingTitle.toLowerCase().replace(/\s+/g, "-")}`,
+      avatars: ["#3b82f6", "#ef4444", "#10b981", "#f59e0b"]
+    };
+    setMeetings(prev => [newMeet, ...prev]);
+
     setMeetingTitle("");
     setMeetingDate("");
     setMeetingTime("");
+    setMeetingRightPanel("list");
     setScheduleMeetingModalOpen(false);
   };
 
@@ -2056,7 +2307,7 @@ export function ChatPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    setSharedMediaTab("media");
+                    setSharedMediaTab("members");
                     setSharedMediaModalOpen(true);
                   }}
                   className="relative shrink-0 select-none cursor-pointer bg-transparent border-none p-0"
@@ -2072,7 +2323,7 @@ export function ChatPage() {
                 
                 <div 
                   onClick={() => {
-                    setSharedMediaTab("media");
+                    setSharedMediaTab("members");
                     setSharedMediaModalOpen(true);
                   }}
                   className="text-left cursor-pointer hover:opacity-80 transition-opacity"
@@ -2086,7 +2337,14 @@ export function ChatPage() {
 
               {/* Header actions */}
               <div className="flex items-center gap-2 text-slate-400 select-none">
-                <button className="chat-icon-button w-9 h-9 rounded-full bg-[#e8f0fe] hover:bg-[#d2e3fc] flex items-center justify-center text-[#1a73e8] cursor-pointer" title="Start video call">
+                <button 
+                  onClick={() => {
+                    setActiveMeetTitle("Direct Video Call");
+                    setOutgoingCallOpen(true);
+                  }}
+                  className="chat-icon-button w-9 h-9 rounded-full bg-[#e8f0fe] hover:bg-[#d2e3fc] flex items-center justify-center text-[#1a73e8] cursor-pointer" 
+                  title="Start video call"
+                >
                   <Video className="w-4 h-4" />
                 </button>
                 <button 
@@ -2329,7 +2587,10 @@ export function ChatPage() {
                             </div>
                             
                             <button 
-                              onClick={() => alert("Joining meeting...")}
+                              onClick={() => {
+                                setActiveMeetTitle(msg.attachment?.meetingTitle || "Weekly Design Review");
+                                setActiveMeetOpen(true);
+                              }}
                               className="mt-2.5 w-full py-1 bg-[#e8f0fe] hover:bg-[#d2e3fc] text-[#1a73e8] rounded-lg text-[9px] font-semibold transition-all cursor-pointer text-center"
                             >
                               Join Call
@@ -2558,7 +2819,15 @@ export function ChatPage() {
                           />
                           <div className="flex items-center justify-between mt-2.5 px-1 pb-0.5">
                             <span className="text-xs text-[#0f2942] font-normal">{msg.text || "See this, how it is"}</span>
-                            <span className="text-[10px] text-[#64748b] font-normal shrink-0 ml-3">{msg.time}</span>
+                            <span className="flex items-center gap-1 text-[10px] text-[#64748b] font-normal shrink-0 ml-3">
+                              {msg.time}
+                              {msg.status && (
+                                <>
+                                  <span className={msg.status === "read" ? "text-[#1a73e8] text-[9px] font-bold tracking-tight" : "text-slate-350 text-[9px] font-bold tracking-tight"}>● ●</span>
+                                  {renderReadInfoButton(msg)}
+                                </>
+                              )}
+                            </span>
                           </div>
                         </div>
                       ) : msg.attachment?.type === "file" ? (
@@ -2608,7 +2877,10 @@ export function ChatPage() {
                           </div>
                           
                           <button 
-                            onClick={() => alert("Joining meeting...")}
+                            onClick={() => {
+                              setActiveMeetTitle(msg.attachment?.meetingTitle || "Weekly Design Review");
+                              setActiveMeetOpen(true);
+                            }}
                             className="mt-2.5 w-full py-1 bg-[#e8f0fe] hover:bg-[#d2e3fc] text-[#1a73e8] rounded-lg text-[9px] font-semibold transition-all cursor-pointer text-center"
                           >
                             Join Call
@@ -2769,6 +3041,7 @@ export function ChatPage() {
                         ) : (
                           <span className="text-slate-350 text-[9px] font-bold tracking-tight">● ●</span>
                         )}
+                        {renderReadInfoButton(msg)}
                       </div>
                     )}
                   </div>
@@ -3222,78 +3495,1171 @@ export function ChatPage() {
 
       {/* 3. Modal: Schedule Meeting */}
       {scheduleMeetingModalOpen && (
-        <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-[999] p-4 select-none animate-in fade-in duration-100" onClick={() => setScheduleMeetingModalOpen(false)}>
-          <div className="bg-white border border-zinc-200 rounded-xl shadow-lg w-full max-w-sm p-5 animate-in zoom-in-98 duration-100" onClick={(e) => e.stopPropagation()}>
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="text-sm font-semibold text-zinc-900">Schedule meeting</h3>
-              <button 
-                onClick={() => setScheduleMeetingModalOpen(false)}
-                className="p-1 hover:bg-zinc-50 text-zinc-400 hover:text-zinc-600 rounded-md transition-colors cursor-pointer"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-            
-            <form onSubmit={handleScheduleMeeting} className="space-y-3">
-              <div className="text-left">
-                <label className="text-[10px] uppercase font-semibold text-zinc-400 tracking-wider">Meeting Title</label>
-                <input 
-                  type="text" 
-                  required
-                  placeholder="e.g. BIM Coordination Review" 
-                  value={meetingTitle}
-                  onChange={(e) => setMeetingTitle(e.target.value)}
-                  className="w-full mt-1 px-2.5 py-1.5 bg-zinc-50 border border-zinc-200 rounded-lg text-xs font-normal placeholder-zinc-400 focus:outline-hidden focus:bg-white focus:border-zinc-450 transition-all text-zinc-800"
-                />
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-[999] p-4 select-none animate-in fade-in duration-150" onClick={() => {
+          setScheduleMeetingModalOpen(false);
+          setMeetingRightPanel("list"); // Reset to dashboard when closing
+        }}>
+          <div 
+            className="bg-slate-50 border border-slate-200/80 rounded-[28px] shadow-[0_24px_70px_rgba(2,6,23,0.18)] w-full max-w-4xl h-[530px] overflow-hidden animate-in zoom-in-98 duration-150 flex flex-col md:flex-row"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Left Control Panel (2x2 grid of actions) */}
+            <div className="w-full md:w-[240px] bg-slate-50 p-5 flex flex-col justify-between border-r border-slate-100/80 shrink-0 text-left">
+              <div className="flex-1 flex flex-col justify-center">
+                <div className="grid grid-cols-2 gap-3 w-full">
+                  {/* Instant */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMeetingRightPanel("instant");
+                      setInstantMeetingLink(`https://meet.bimbox.com/sublime-instant-${Math.floor(1000 + Math.random() * 9000)}`);
+                    }}
+                    className={`aspect-square rounded-[20px] flex flex-col items-center justify-center gap-1.5 transition-all duration-200 cursor-pointer ${
+                      meetingRightPanel === "instant"
+                        ? "bg-blue-600 text-white shadow-md shadow-blue-500/20 scale-102"
+                        : "bg-white border border-slate-100 hover:border-blue-200 hover:bg-blue-50/10 text-slate-700 shadow-xs"
+                    }`}
+                  >
+                    <div className={`p-2 rounded-xl ${meetingRightPanel === "instant" ? "bg-white/20" : "bg-blue-50/60"}`}>
+                      <Video className={`w-4 h-4 ${meetingRightPanel === "instant" ? "text-white" : "text-blue-600"} stroke-[1.8]`} />
+                    </div>
+                    <span className="text-[10px] font-extrabold tracking-tight">Instant</span>
+                  </button>
+
+                  {/* Join Meet */}
+                  <button
+                    type="button"
+                    onClick={() => setMeetingRightPanel("join")}
+                    className={`aspect-square rounded-[20px] flex flex-col items-center justify-center gap-1.5 transition-all duration-200 cursor-pointer ${
+                      meetingRightPanel === "join"
+                        ? "bg-blue-600 text-white shadow-md shadow-blue-500/20 scale-102"
+                        : "bg-white border border-slate-100 hover:border-blue-200 hover:bg-blue-50/10 text-slate-700 shadow-xs"
+                    }`}
+                  >
+                    <div className={`p-2 rounded-xl ${meetingRightPanel === "join" ? "bg-white/20" : "bg-blue-50/60"}`}>
+                      <LogIn className={`w-4 h-4 ${meetingRightPanel === "join" ? "text-white" : "text-blue-600"} stroke-[1.8]`} />
+                    </div>
+                    <span className="text-[10px] font-extrabold tracking-tight">Join Meet</span>
+                  </button>
+
+                  {/* Schedule */}
+                  <button
+                    type="button"
+                    onClick={() => setMeetingRightPanel("schedule")}
+                    className={`aspect-square rounded-[20px] flex flex-col items-center justify-center gap-1.5 transition-all duration-200 cursor-pointer ${
+                      meetingRightPanel === "schedule"
+                        ? "bg-blue-600 text-white shadow-md shadow-blue-500/20 scale-102"
+                        : "bg-white border border-slate-100 hover:border-blue-200 hover:bg-blue-50/10 text-slate-700 shadow-xs"
+                    }`}
+                  >
+                    <div className={`p-2 rounded-xl ${meetingRightPanel === "schedule" ? "bg-white/20" : "bg-blue-50/60"}`}>
+                      <Calendar className={`w-4 h-4 ${meetingRightPanel === "schedule" ? "text-white" : "text-blue-600"} stroke-[1.8]`} />
+                    </div>
+                    <span className="text-[10px] font-extrabold tracking-tight">Schedule</span>
+                  </button>
+
+                  {/* Settings */}
+                  <button
+                    type="button"
+                    onClick={() => setMeetingRightPanel("settings")}
+                    className={`aspect-square rounded-[20px] flex flex-col items-center justify-center gap-1.5 transition-all duration-200 cursor-pointer ${
+                      meetingRightPanel === "settings"
+                        ? "bg-blue-600 text-white shadow-md shadow-blue-500/20 scale-102"
+                        : "bg-white border border-slate-100 hover:border-blue-200 hover:bg-blue-50/10 text-slate-700 shadow-xs"
+                    }`}
+                  >
+                    <div className={`p-2 rounded-xl ${meetingRightPanel === "settings" ? "bg-white/20" : "bg-blue-50/60"}`}>
+                      <Settings className={`w-4 h-4 ${meetingRightPanel === "settings" ? "text-white" : "text-blue-600"} stroke-[1.8]`} />
+                    </div>
+                    <span className="text-[10px] font-extrabold tracking-tight">Settings</span>
+                  </button>
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2.5">
-                <div className="text-left">
-                  <label className="text-[10px] uppercase font-semibold text-zinc-400 tracking-wider">Date</label>
-                  <input 
-                    type="date" 
-                    required
-                    value={meetingDate}
-                    onChange={(e) => setMeetingDate(e.target.value)}
-                    className="w-full mt-1 px-2.5 py-1.5 bg-zinc-50 border border-zinc-200 rounded-lg text-xs font-normal placeholder-zinc-400 focus:outline-hidden focus:bg-white focus:border-zinc-450 transition-all text-zinc-800"
-                  />
-                </div>
-                <div className="text-left">
-                  <label className="text-[10px] uppercase font-semibold text-zinc-400 tracking-wider">Time</label>
-                  <input 
-                    type="time" 
-                    required
-                    value={meetingTime}
-                    onChange={(e) => setMeetingTime(e.target.value)}
-                    className="w-full mt-1 px-2.5 py-1.5 bg-zinc-50 border border-zinc-200 rounded-lg text-xs font-normal placeholder-zinc-400 focus:outline-hidden focus:bg-white focus:border-zinc-450 transition-all text-zinc-800"
-                  />
-                </div>
-              </div>
-
-              {!activeChannelId ? (
-                <div className="p-2.5 bg-blue-50 border border-blue-200/50 rounded-lg text-left flex items-start gap-2">
-                  <Info className="w-3.5 h-3.5 text-blue-600 shrink-0 mt-0.5" />
-                  <span className="text-[9px] font-semibold text-blue-700">Post this meeting from workspace landing. Click Next to choose up to 5 team channels.</span>
-                </div>
-              ) : null}
-
-              <div className="pt-2 flex gap-2">
+              {/* Footer text */}
+              <div className="pt-3 border-t border-slate-100/80 flex items-center justify-between text-slate-400">
+                <span className="text-[9px] font-bold tracking-wider uppercase text-slate-400">BIMBOX Meet</span>
                 <button
                   type="button"
-                  onClick={() => setScheduleMeetingModalOpen(false)}
-                  className="flex-1 py-1.75 border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 rounded-lg text-xs font-semibold transition-all cursor-pointer"
+                  onClick={() => {
+                    setScheduleMeetingModalOpen(false);
+                    setMeetingRightPanel("list");
+                  }}
+                  className="text-[10px] font-bold text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={!meetingTitle.trim() || !meetingDate || !meetingTime}
-                  className="flex-1 py-1.75 bg-[#1a73e8] hover:bg-[#1557b0] disabled:opacity-30 disabled:pointer-events-none text-white rounded-lg text-xs font-semibold transition-all cursor-pointer"
-                >
-                  {!activeChannelId ? "Next: Choose Channels" : "Post Invite"}
+                  Close
                 </button>
               </div>
-            </form>
+            </div>
+
+            <div className="flex-1 bg-white p-5 flex flex-col min-w-0 h-full overflow-hidden text-left relative">
+              {/* BACK BUTTON FOR FORMS */}
+              {meetingRightPanel !== "list" && (
+                <div className="flex items-center gap-2 mb-3 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMeetingRightPanel("list");
+                      setScheduleStep(1);
+                    }}
+                    className="h-7 rounded-lg border border-slate-150 bg-white px-2.5 text-[9px] font-extrabold text-slate-600 hover:bg-slate-50 transition-all cursor-pointer flex items-center gap-1"
+                  >
+                    ← Back to Meetings
+                  </button>
+                </div>
+              )}
+
+              {/* VIEW: MEETING DASHBOARD (LIST) */}
+              {meetingRightPanel === "list" && (
+                <div className="flex flex-col h-full overflow-hidden">
+                  {/* Header SubTabs */}
+                  <div className="flex items-center justify-between border-b border-slate-100/80 pb-2 px-0.5 shrink-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {/* Scheduled Tab */}
+                      <button
+                        type="button"
+                        onClick={() => setMeetingDashboardTab("scheduled")}
+                        className={`px-3 py-1.5 rounded-full text-[10px] font-extrabold transition-all cursor-pointer flex items-center gap-1.5 ${
+                          meetingDashboardTab === "scheduled"
+                            ? "bg-blue-600 text-white shadow-xs"
+                            : "text-slate-500 hover:text-slate-800 hover:bg-slate-50"
+                        }`}
+                      >
+                        <Calendar className="w-3 h-3" />
+                        <span>Scheduled</span>
+                      </button>
+
+                      {/* Ongoing Tab */}
+                      <button
+                        type="button"
+                        onClick={() => setMeetingDashboardTab("ongoing")}
+                        className={`px-3 py-1.5 rounded-full text-[10px] font-extrabold transition-all cursor-pointer flex items-center gap-1.5 ${
+                          meetingDashboardTab === "ongoing"
+                            ? "bg-blue-600 text-white shadow-xs"
+                            : "text-slate-500 hover:text-slate-800 hover:bg-slate-50"
+                        }`}
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                        <span>Ongoing</span>
+                      </button>
+
+                      {/* Project Wise Tab */}
+                      <button
+                        type="button"
+                        onClick={() => setMeetingDashboardTab("project")}
+                        className={`px-3 py-1.5 rounded-full text-[10px] font-extrabold transition-all cursor-pointer flex items-center gap-1.5 ${
+                          meetingDashboardTab === "project"
+                            ? "bg-blue-600 text-white shadow-xs"
+                            : "text-slate-500 hover:text-slate-800 hover:bg-slate-50"
+                        }`}
+                      >
+                        <Users className="w-3 h-3" />
+                        <span>Project wise</span>
+                      </button>
+
+                      {/* Invites Tab */}
+                      <button
+                        type="button"
+                        onClick={() => setMeetingDashboardTab("invites")}
+                        className={`px-3 py-1.5 rounded-full text-[10px] font-extrabold transition-all cursor-pointer flex items-center gap-1.5 ${
+                          meetingDashboardTab === "invites"
+                            ? "bg-blue-600 text-white shadow-xs"
+                            : "text-slate-500 hover:text-slate-800 hover:bg-slate-50"
+                        }`}
+                      >
+                        <Mail className="w-3 h-3" />
+                        <span>Invites</span>
+                        <span className="text-[8px] px-1 py-0.25 bg-rose-500 text-white rounded-full font-bold">
+                          3
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* List Content */}
+                  <div className="flex-1 overflow-y-auto pt-3.5 pr-0.5 space-y-3.5 relative">
+                    {meetingDashboardTab === "scheduled" && (
+                      <>
+                        {/* Group meetings by date */}
+                        {(() => {
+                          const grouped: { [key: string]: typeof meetings } = {};
+                          meetings.forEach(m => {
+                            if (!grouped[m.date]) grouped[m.date] = [];
+                            grouped[m.date].push(m);
+                          });
+
+                          return Object.entries(grouped).map(([dateKey, items]) => (
+                            <div key={dateKey} className="space-y-2 text-left">
+                              <div className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider px-2 py-0.5 bg-slate-50 rounded-md w-fit">
+                                {dateKey}
+                              </div>
+                              <div className="space-y-2">
+                                {items.map((meet) => (
+                                  <div 
+                                    key={meet.id} 
+                                    className="bg-white rounded-2xl border border-slate-100 hover:border-slate-200/80 p-3 shadow-[0_2px_12px_rgba(148,163,184,0.02)] hover:shadow-xs flex items-center justify-between transition-all"
+                                  >
+                                    <div className="min-w-0">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="text-[9px] font-bold text-slate-650 tracking-wide uppercase flex items-center gap-1 shrink-0">
+                                          {meet.project} · {meet.peopleCount} People
+                                        </span>
+                                        <span className="rounded bg-blue-50 px-1.5 py-0.25 text-[8px] font-extrabold text-blue-700 shrink-0">
+                                          {meet.service}
+                                        </span>
+                                      </div>
+                                      <h4 className="text-xs font-extrabold text-slate-800 mt-0.5 leading-tight">{meet.title}</h4>
+                                      <div className="flex items-center gap-2 text-[9px] font-semibold text-slate-450 mt-1">
+                                        <Clock className="w-3 h-3 text-slate-400" />
+                                        <span>{meet.time}</span>
+                                        
+                                        {/* Avatar stack */}
+                                        <div className="flex -space-x-1 ml-1.5">
+                                          {meet.avatars.map((color, i) => (
+                                            <div key={i} className="w-3.5 h-3.5 rounded-full border border-white text-[6px] font-extrabold text-white flex items-center justify-center shrink-0 uppercase" style={{ backgroundColor: color }}>
+                                              {i === 3 ? "+5" : String.fromCharCode(65 + i * 4)}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 shrink-0 ml-3">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleCopyLink(meet.link, meet.id)}
+                                        className="h-7 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 px-2.5 text-[9px] font-bold flex items-center gap-1 cursor-pointer transition-all active:scale-[0.95]"
+                                      >
+                                        <Copy className="w-2.5 h-2.5" />
+                                        <span>{copiedMeetId === meet.id ? "Copied" : "Copy link"}</span>
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          setActiveMeetTitle(meet.title);
+                                          setScheduleMeetingModalOpen(false);
+                                          setActiveMeetOpen(true);
+                                        }}
+                                        className="h-7 rounded-full bg-blue-600 hover:bg-blue-700 text-white px-3 text-[9px] font-bold flex items-center gap-1 cursor-pointer transition-all active:scale-[0.95] shadow-xs"
+                                      >
+                                        <Video className="w-2.5 h-2.5 text-white" />
+                                        <span>Join</span>
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ));
+                        })()}
+                      </>
+                    )}
+
+                    {/* ONGOING MEETING VIEW */}
+                    {meetingDashboardTab === "ongoing" && (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 text-slate-500 text-[10px] font-semibold mb-1">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-rose-50 text-rose-600 gap-1 border border-rose-100">
+                            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                            2 Live Now
+                          </span>
+                          <span>Updated just now</span>
+                        </div>
+
+                        {[
+                          { id: "ong-1", title: "All Hands - Q1 Review", host: "Priya Raj", elapsed: "35:21", avatars: ["#3b82f6", "#8b5cf6", "#ec4899", "#10b981"] },
+                          { id: "ong-2", title: "BIM Coordination Review & Split-view", host: "Amit Verma", elapsed: "14:02", avatars: ["#ef4444", "#f59e0b", "#06b6d4", "#6366f1"] }
+                        ].map((call) => (
+                          <div key={call.id} className="bg-white rounded-2xl border border-slate-100 p-3.5 shadow-sm hover:border-slate-200 transition-all flex items-center justify-between text-left">
+                            <div>
+                              <h4 className="text-xs font-bold text-slate-800 leading-tight">{call.title}</h4>
+                              <div className="flex items-center gap-1 text-[9px] text-slate-400 font-semibold mt-1">
+                                <User className="w-3 h-3 text-slate-350" />
+                                <span>{call.host}</span>
+                              </div>
+                              <div className="flex items-center gap-2 mt-2">
+                                <div className="flex -space-x-1.5">
+                                  {call.avatars.map((c, i) => (
+                                    <div key={i} className="w-4 h-4 rounded-full border border-white text-[6px] font-bold text-white flex items-center justify-center shrink-0 uppercase" style={{ backgroundColor: c }}>
+                                      {String.fromCharCode(65 + i * 3)}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex flex-col items-end gap-2.5">
+                              <span className="text-[9px] font-bold text-rose-500 bg-rose-50/50 border border-rose-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                <span className="w-1 h-1 rounded-full bg-rose-500 animate-ping" />
+                                {call.elapsed}
+                              </span>
+                              <div className="flex gap-1.5">
+                                <button
+                                  onClick={() => {
+                                    setActiveMeetTitle(call.title);
+                                    setScheduleMeetingModalOpen(false);
+                                    setActiveMeetOpen(true);
+                                  }}
+                                  className="h-7 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-full text-[9px] font-extrabold transition-all cursor-pointer shadow-xs"
+                                >
+                                  Join Live
+                                </button>
+                                <button 
+                                  onClick={() => alert(`Host: ${call.host}\nSubject: ${call.title}\nActive Call Room ID: ${call.id}`)}
+                                  className="h-7 px-3 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-full text-[9px] font-extrabold transition-all cursor-pointer"
+                                >
+                                  Details
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* PROJECT WISE ACCORDIONS VIEW */}
+                    {meetingDashboardTab === "project" && (
+                      <div className="space-y-3 text-left">
+                        {/* Utkal Iconic Accordion (Open) */}
+                        <div className="border border-slate-100 rounded-2xl bg-white overflow-hidden shadow-xs">
+                          <div className="p-3 bg-slate-50/70 flex items-center justify-between border-b border-slate-100">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-7 h-7 rounded-full bg-blue-600 text-white font-extrabold text-xs flex items-center justify-center shadow-xs">
+                                U
+                              </div>
+                              <div>
+                                <h4 className="text-[11px] font-bold text-slate-800">Utkal Iconic</h4>
+                                <p className="text-[8px] text-slate-450 font-semibold mt-0.25">5 members, 2 online</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => {
+                                  setSelectedProjectMembers(["Salman Kumar", "Jessika Smith"]);
+                                }}
+                                className="h-6 px-2.5 border border-blue-200 hover:bg-blue-50 text-blue-600 rounded-full text-[9px] font-bold transition-all cursor-pointer"
+                              >
+                                Select All
+                              </button>
+                              <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                            </div>
+                          </div>
+
+                          <div className="p-3 space-y-3">
+                            {/* Structural Team */}
+                            <div>
+                              <div className="flex justify-between items-center text-[8px] font-bold text-slate-400 tracking-wider uppercase mb-1.5">
+                                <span className="flex items-center gap-1">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                                  STRUCTURAL TEAM
+                                </span>
+                                <button className="text-[8px] font-bold text-blue-600 hover:underline">+ Team</button>
+                              </div>
+
+                              <div className="space-y-2">
+                                {/* Salman */}
+                                <div className="flex items-center justify-between py-1 border-b border-slate-50">
+                                  <div className="flex items-center gap-2.5">
+                                    <input 
+                                      type="checkbox" 
+                                      checked={selectedProjectMembers.includes("Salman Kumar")}
+                                      onChange={() => {
+                                        setSelectedProjectMembers(prev => 
+                                          prev.includes("Salman Kumar") ? prev.filter(m => m !== "Salman Kumar") : [...prev, "Salman Kumar"]
+                                        );
+                                      }}
+                                      className="w-3.5 h-3.5 rounded-full border-slate-350 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                    />
+                                    <div className="w-6 h-6 rounded-full bg-blue-500 text-white font-bold text-[9px] flex items-center justify-center">
+                                      SK
+                                    </div>
+                                    <div>
+                                      <div className="text-[10px] font-bold text-slate-800">Salman Kumar</div>
+                                      <div className="text-[8px] text-slate-450">BIM Engineer</div>
+                                    </div>
+                                  </div>
+                                  <span className="px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-600 text-[8px] font-bold">Online</span>
+                                </div>
+
+                                {/* Jessika */}
+                                <div className="flex items-center justify-between py-1">
+                                  <div className="flex items-center gap-2.5">
+                                    <input 
+                                      type="checkbox" 
+                                      checked={selectedProjectMembers.includes("Jessika Smith")}
+                                      onChange={() => {
+                                        setSelectedProjectMembers(prev => 
+                                          prev.includes("Jessika Smith") ? prev.filter(m => m !== "Jessika Smith") : [...prev, "Jessika Smith"]
+                                        );
+                                      }}
+                                      className="w-3.5 h-3.5 rounded-full border-slate-350 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                    />
+                                    <div className="w-6 h-6 rounded-full bg-amber-500 text-white font-bold text-[9px] flex items-center justify-center">
+                                      JS
+                                    </div>
+                                    <div>
+                                      <div className="text-[10px] font-bold text-slate-800">Jessika Smith</div>
+                                      <div className="text-[8px] text-slate-450">Team Lead</div>
+                                    </div>
+                                  </div>
+                                  <span className="px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-600 text-[8px] font-bold">Online</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* MEP Team */}
+                            <div className="pt-1.5">
+                              <div className="flex justify-between items-center text-[8px] font-bold text-slate-400 tracking-wider uppercase mb-1.5">
+                                <span className="flex items-center gap-1">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                                  MEP TEAM
+                                </span>
+                              </div>
+
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between py-1 border-b border-slate-50">
+                                  <div className="flex items-center gap-2.5">
+                                    <input type="checkbox" className="w-3.5 h-3.5 rounded-full border-slate-350 text-blue-600 focus:ring-blue-500 cursor-pointer" />
+                                    <div className="w-6 h-6 rounded-full bg-indigo-500 text-white font-bold text-[9px] flex items-center justify-center">SK</div>
+                                    <div>
+                                      <div className="text-[10px] font-bold text-slate-800">Salman Kumar</div>
+                                      <div className="text-[8px] text-slate-450">BIM Engineer</div>
+                                    </div>
+                                  </div>
+                                  <span className="px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-600 text-[8px] font-bold">Online</span>
+                                </div>
+
+                                <div className="flex items-center justify-between py-1">
+                                  <div className="flex items-center gap-2.5">
+                                    <input type="checkbox" className="w-3.5 h-3.5 rounded-full border-slate-350 text-blue-600 focus:ring-blue-500 cursor-pointer" />
+                                    <div className="w-6 h-6 rounded-full bg-pink-500 text-white font-bold text-[9px] flex items-center justify-center">JS</div>
+                                    <div>
+                                      <div className="text-[10px] font-bold text-slate-800">Jessika Smith</div>
+                                      <div className="text-[8px] text-slate-450">Team Lead</div>
+                                    </div>
+                                  </div>
+                                  <span className="px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-600 text-[8px] font-bold">Online</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Collapsed accordions */}
+                        {["Assotech Señorita", "Assotech Projects B-Block"].map((project, idx) => (
+                          <div key={idx} className="border border-slate-100 bg-white rounded-2xl overflow-hidden p-3 flex items-center justify-between">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-7 h-7 rounded-full bg-blue-600 text-white font-extrabold text-xs flex items-center justify-center">
+                                U
+                              </div>
+                              <div>
+                                <h4 className="text-[11px] font-bold text-slate-800">{project}</h4>
+                                <p className="text-[8px] text-slate-450 font-semibold mt-0.25">5 members, 2 online</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <button className="h-6 px-2.5 border border-slate-200 hover:bg-slate-50 text-slate-650 rounded-full text-[9px] font-bold transition-all cursor-pointer">
+                                Select All
+                              </button>
+                              <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* INVITES TAB VIEW */}
+                    {meetingDashboardTab === "invites" && (
+                      <div className="space-y-3 text-left">
+                        {[
+                          { id: "inv-1", title: "Design Sprint Kickoff", host: "Priya Raj", time: "Tue, 11 Mar - 2:00 - 3:00 PM", tag: "Structural", avatar: "PR" },
+                          { id: "inv-2", title: "BIM Coordination Alignment", host: "Amit Verma", time: "Wed, 12 Mar - 4:00 - 5:00 PM", tag: "MEP", avatar: "AV" }
+                        ].map((invite) => (
+                          <div key={invite.id} className="bg-white border border-slate-100 rounded-2xl p-3.5 shadow-xs hover:border-slate-200 transition-all">
+                            <div className="flex items-start justify-between">
+                              <div>
+                                <h4 className="text-xs font-bold text-slate-800 leading-tight">{invite.title}</h4>
+                                <div className="flex items-center gap-1 text-[9px] text-slate-500 font-semibold mt-1">
+                                  <div className="w-4.5 h-4.5 rounded-full bg-blue-50 text-blue-600 font-extrabold text-[8px] flex items-center justify-center shrink-0 uppercase">
+                                    {invite.avatar}
+                                  </div>
+                                  <span><strong className="text-slate-650">{invite.host}</strong> invited you to join scheduled meet</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-400 mt-2 bg-slate-50 px-2 py-0.5 rounded-md w-fit">
+                                  <Clock className="w-3 h-3 text-slate-350" />
+                                  <span>{invite.time}</span>
+                                </div>
+                              </div>
+                              <span className="px-2 py-0.5 bg-blue-50/70 text-blue-600 text-[8px] font-bold rounded-md uppercase tracking-wider shrink-0">
+                                {invite.tag}
+                              </span>
+                            </div>
+
+                            <div className="mt-3 flex justify-end gap-1.5">
+                              <button className="h-7 px-3.5 bg-white border border-slate-200 text-slate-650 hover:bg-slate-50 text-[9px] font-bold rounded-full cursor-pointer transition-all active:scale-[0.97]">
+                                Decline
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setActiveMeetTitle(invite.title);
+                                  setScheduleMeetingModalOpen(false);
+                                  setActiveMeetOpen(true);
+                                }}
+                                className="h-7 px-4 bg-blue-600 hover:bg-blue-700 text-white text-[9px] font-bold rounded-full cursor-pointer transition-all active:scale-[0.97] shadow-xs"
+                              >
+                                Accept
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* FLOATING ACTION PANEL FOR SELECTED PROJECT MEMBERS */}
+                  {meetingDashboardTab === "project" && selectedProjectMembers.length > 0 && (
+                    <div className="absolute bottom-4 left-4 right-4 bg-white border border-slate-200 rounded-2xl p-2.5 shadow-xl flex items-center justify-between animate-in slide-in-from-bottom-2 duration-200">
+                      <div className="flex items-center gap-2">
+                        <div className="flex -space-x-1.5">
+                          {selectedProjectMembers.map((m, idx) => (
+                            <div key={idx} className="w-5 h-5 rounded-full bg-blue-500 text-white font-extrabold text-[8px] flex items-center justify-center border border-white uppercase">
+                              {m.split(" ").map(n => n[0]).join("")}
+                            </div>
+                          ))}
+                        </div>
+                        <span className="text-[10px] font-bold text-slate-650">{selectedProjectMembers.length} Selected</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => setSelectedProjectMembers([])}
+                          className="h-7 px-2.5 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-full text-[9px] font-bold flex items-center gap-0.5 cursor-pointer"
+                        >
+                          ✕ Clear
+                        </button>
+                        <button
+                          onClick={() => {
+                            setActiveMeetTitle("Utkal Iconic Project Sync");
+                            setScheduleMeetingModalOpen(false);
+                            setActiveMeetOpen(true);
+                          }}
+                          className="h-7 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-full text-[9px] font-extrabold flex items-center gap-1 cursor-pointer shadow-xs"
+                        >
+                          <Video className="w-3 h-3 text-white" />
+                          <span>Start Meeting</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* VIEW: SCHEDULE A MEETING FORM (3-STEP WIZARD) */}
+              {meetingRightPanel === "schedule" && (
+                <div className="flex flex-col h-full overflow-hidden text-left relative">
+                  {/* Wizard Step Stepper */}
+                  <div className="bg-slate-50/50 border border-slate-100 rounded-2xl p-3 mb-4 shrink-0 flex items-center justify-around">
+                    <div className="flex flex-col items-center gap-1">
+                      <div className={`w-5 h-5 rounded-full font-bold text-[10px] flex items-center justify-center shadow-xs ${
+                        scheduleStep >= 1 ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-500"
+                      }`}>
+                        1
+                      </div>
+                      <span className={`text-[8px] font-bold ${scheduleStep >= 1 ? "text-blue-600" : "text-slate-400"}`}>Date & Time</span>
+                    </div>
+                    <div className="h-0.5 bg-slate-200 flex-1 max-w-[50px] -mt-3" />
+                    <div className="flex flex-col items-center gap-1">
+                      <div className={`w-5 h-5 rounded-full font-bold text-[10px] flex items-center justify-center shadow-xs ${
+                        scheduleStep >= 2 ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-500"
+                      }`}>
+                        2
+                      </div>
+                      <span className={`text-[8px] font-bold ${scheduleStep >= 2 ? "text-blue-600" : "text-slate-400"}`}>Details</span>
+                    </div>
+                    <div className="h-0.5 bg-slate-200 flex-1 max-w-[50px] -mt-3" />
+                    <div className="flex flex-col items-center gap-1">
+                      <div className={`w-5 h-5 rounded-full font-bold text-[10px] flex items-center justify-center shadow-xs ${
+                        scheduleStep >= 3 ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-500"
+                      }`}>
+                        3
+                      </div>
+                      <span className={`text-[8px] font-bold ${scheduleStep >= 3 ? "text-blue-600" : "text-slate-400"}`}>Participants</span>
+                    </div>
+                  </div>
+
+                  {/* STEP 1: Date & Time Picker */}
+                  {scheduleStep === 1 && (
+                    <div className="flex-1 flex flex-col min-h-0">
+                      <div className="bg-slate-50/50 border border-slate-150 rounded-2xl p-4 flex-1 flex flex-col justify-center max-w-sm mx-auto w-full">
+                        {/* Month bar */}
+                        <div className="flex justify-between items-center mb-3">
+                          <button className="p-1 rounded hover:bg-slate-200 text-slate-500">←</button>
+                          <span className="text-[11px] font-extrabold text-slate-800 uppercase tracking-wide">March 2026</span>
+                          <button className="p-1 rounded hover:bg-slate-200 text-slate-500">→</button>
+                        </div>
+                        {/* Days label */}
+                        <div className="grid grid-cols-7 gap-1.5 text-center text-[8px] font-bold text-slate-400 mb-2">
+                          <span>SU</span><span>MO</span><span>TU</span><span>WE</span><span>TH</span><span>FR</span><span>SA</span>
+                        </div>
+                        {/* Calendar Grid */}
+                        <div className="grid grid-cols-7 gap-1.5 text-center">
+                          {Array.from({ length: 31 }, (_, i) => {
+                            const day = i + 1;
+                            const isSelected = day === 25;
+                            const isHighlight = day === 11;
+                            return (
+                              <button
+                                key={day}
+                                type="button"
+                                onClick={() => setSelectedMeetingDate(`2026-03-${day < 10 ? '0' + day : day}`)}
+                                className={`h-6 rounded-lg text-[9px] font-bold transition-all cursor-pointer ${
+                                  isSelected 
+                                    ? "bg-blue-600 text-white shadow-md shadow-blue-500/20" 
+                                    : isHighlight 
+                                      ? "border border-blue-500 text-blue-600 font-extrabold" 
+                                      : "text-slate-650 hover:bg-slate-100"
+                                }`}
+                              >
+                                {day}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Footer */}
+                      <div className="pt-3 border-t border-slate-100 flex items-center justify-between mt-3 shrink-0">
+                        <button
+                          type="button"
+                          disabled
+                          className="h-8 px-4 border border-slate-200 text-slate-350 rounded-xl text-[10px] font-bold opacity-50"
+                        >
+                          ← Back
+                        </button>
+                        <span className="text-[9px] text-slate-400 font-bold">Step 1 of 3</span>
+                        <button
+                          type="button"
+                          onClick={() => setScheduleStep(2)}
+                          className="h-8 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[10px] font-bold shadow-xs cursor-pointer"
+                        >
+                          Next →
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* STEP 2: Details */}
+                  {scheduleStep === 2 && (
+                    <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
+                      <div className="space-y-3 flex-1">
+                        <div>
+                          <label className="text-[8px] font-bold text-slate-450 uppercase tracking-wider">Meeting Title</label>
+                          <input 
+                            type="text"
+                            placeholder="e.g. Design Review Sync"
+                            value={meetingTitle}
+                            onChange={(e) => setMeetingTitle(e.target.value)}
+                            className="w-full mt-1 px-3 py-1.75 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold placeholder-slate-400 text-slate-800"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[8px] font-bold text-slate-450 uppercase tracking-wider block mb-1">Repeat</label>
+                          <div className="flex gap-2">
+                            {["Once", "Daily", "Weekly"].map((rep) => (
+                              <button
+                                key={rep}
+                                type="button"
+                                onClick={() => setMeetingRepeat(rep as any)}
+                                className={`px-3 py-1 rounded-full text-[9px] font-bold border transition-all ${
+                                  meetingRepeat === rep 
+                                    ? "bg-blue-600 text-white border-blue-600 shadow-xs" 
+                                    : "bg-white border-slate-200 text-slate-650 hover:bg-slate-50"
+                                }`}
+                              >
+                                {rep}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-[8px] font-bold text-slate-450 uppercase tracking-wider">Time</label>
+                            <input 
+                              type="time"
+                              value={meetingTime}
+                              onChange={(e) => setMeetingTime(e.target.value)}
+                              className="w-full mt-1 px-3 py-1.75 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-850"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[8px] font-bold text-slate-450 uppercase tracking-wider">Duration</label>
+                            <select
+                              value={meetingDuration}
+                              onChange={(e) => setMeetingDuration(e.target.value)}
+                              className="w-full mt-1 px-3 py-1.75 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800"
+                            >
+                              <option>30 Mins</option>
+                              <option>1 Hour</option>
+                              <option>2 Hours</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="text-[8px] font-bold text-slate-450 uppercase tracking-wider">Agenda</label>
+                          <textarea 
+                            rows={3}
+                            placeholder="Topics to cover, goals, notes..."
+                            value={meetingAgenda}
+                            onChange={(e) => setMeetingAgenda(e.target.value)}
+                            className="w-full mt-1 px-3 py-1.75 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold placeholder-slate-400 text-slate-850 focus:outline-hidden"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Footer */}
+                      <div className="pt-3 border-t border-slate-100 flex items-center justify-between mt-3 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setScheduleStep(1)}
+                          className="h-8 px-4 border border-slate-200 text-slate-650 hover:bg-slate-50 rounded-xl text-[10px] font-bold cursor-pointer"
+                        >
+                          ← Back
+                        </button>
+                        <span className="text-[9px] text-slate-400 font-bold">Step 2 of 3</span>
+                        <button
+                          type="button"
+                          onClick={() => setScheduleStep(3)}
+                          className="h-8 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[10px] font-bold shadow-xs cursor-pointer"
+                        >
+                          Next →
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* STEP 3: Participants */}
+                  {scheduleStep === 3 && (
+                    <div className="flex-1 flex flex-col min-h-0">
+                      {/* Sub-tabs: Email / Browse Team */}
+                      <div className="flex border-b border-slate-100 mb-3.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setStep3Tab("email")}
+                          className={`flex-1 pb-2 text-[10px] font-bold text-center border-b-2 transition-all flex items-center justify-center gap-1.5 ${
+                            step3Tab === "email" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-400"
+                          }`}
+                        >
+                          <Mail className="w-3.5 h-3.5" />
+                          Email Invite
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setStep3Tab("team")}
+                          className={`flex-1 pb-2 text-[10px] font-bold text-center border-b-2 transition-all flex items-center justify-center gap-1.5 ${
+                            step3Tab === "team" ? "border-blue-600 text-blue-600" : "border-transparent text-slate-400"
+                          }`}
+                        >
+                          <Users className="w-3.5 h-3.5" />
+                          Browse Team
+                        </button>
+                      </div>
+
+                      <div className="flex-1 overflow-y-auto">
+                        {step3Tab === "email" && (
+                          <div className="space-y-3">
+                            <div>
+                              <label className="text-[8px] font-bold text-slate-450 uppercase tracking-wider">Invite via email</label>
+                              <div className="flex gap-2 mt-1">
+                                <input 
+                                  type="email"
+                                  placeholder="Type email and press enter..."
+                                  value={emailInput}
+                                  onChange={(e) => setEmailInput(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" && emailInput.trim()) {
+                                      e.preventDefault();
+                                      if (!meetingInvitedEmails.includes(emailInput.trim())) {
+                                        setMeetingInvitedEmails(prev => [...prev, emailInput.trim()]);
+                                      }
+                                      setEmailInput("");
+                                    }
+                                  }}
+                                  className="flex-1 px-3 py-1.75 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold placeholder-slate-400 text-slate-800"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (emailInput.trim()) {
+                                      if (!meetingInvitedEmails.includes(emailInput.trim())) {
+                                        setMeetingInvitedEmails(prev => [...prev, emailInput.trim()]);
+                                      }
+                                      setEmailInput("");
+                                    }
+                                  }}
+                                  className="h-8 px-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[10px] font-bold"
+                                >
+                                  Add
+                                </button>
+                              </div>
+                              <span className="text-[8px] text-slate-400 font-semibold mt-1 block">Press Enter or click Add to add multiple invitees</span>
+                            </div>
+
+                            <div className="space-y-1.5 pt-1">
+                              <label className="text-[8px] font-bold text-slate-450 uppercase tracking-wider">Invited List</label>
+                              <div className="flex flex-wrap gap-1.5">
+                                {meetingInvitedEmails.map((email) => (
+                                  <div key={email} className="inline-flex items-center gap-1 bg-blue-50 border border-blue-100 rounded-full px-2 py-0.5 text-[9px] font-semibold text-blue-700">
+                                    <div className="w-3.5 h-3.5 rounded-full bg-blue-600 text-white text-[6px] font-bold flex items-center justify-center">
+                                      {email[0].toUpperCase()}
+                                    </div>
+                                    <span>{email}</span>
+                                    <button 
+                                      type="button" 
+                                      onClick={() => setMeetingInvitedEmails(prev => prev.filter(e => e !== email))}
+                                      className="text-[9px] hover:text-red-500 font-bold ml-0.5 cursor-pointer"
+                                    >
+                                      ×
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {step3Tab === "team" && (
+                          <div className="border border-slate-100 bg-white rounded-2xl p-3">
+                            <div className="flex items-center justify-between border-b border-slate-50 pb-2 mb-2">
+                              <span className="text-[10px] font-bold text-slate-800">Utkal Iconic</span>
+                              <span className="text-[8px] text-slate-400">5 members</span>
+                            </div>
+                            <div className="space-y-2.5">
+                              {["Salman Kumar (BIM Engineer)", "Jessika Smith (Team Lead)", "Ashish Dalei (Designer)", "Rudra Dash (Structural Lead)"].map((member) => (
+                                <label key={member} className="flex items-center gap-2.5 cursor-pointer">
+                                  <input type="checkbox" defaultChecked className="w-3.5 h-3.5 text-blue-600 border-slate-350 rounded focus:ring-blue-500" />
+                                  <span className="text-[10px] font-bold text-slate-650">{member}</span>
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Footer */}
+                      <div className="pt-3 border-t border-slate-100 flex items-center justify-between mt-3 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setScheduleStep(2)}
+                          className="h-8 px-4 border border-slate-200 text-slate-650 hover:bg-slate-50 rounded-xl text-[10px] font-bold cursor-pointer"
+                        >
+                          ← Back
+                        </button>
+                        <span className="text-[9px] text-slate-400 font-bold">Step 3 of 3</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            // Schedule meeting submission simulation
+                            const newMeet = {
+                              id: `meet-new-${Math.floor(1000 + Math.random() * 9000)}`,
+                              title: meetingTitle || "Design Review Sync",
+                              date: selectedMeetingDate,
+                              time: meetingTime || "10:00 AM",
+                              project: "Utkal Iconic",
+                              service: "Coordination",
+                              peopleCount: 4,
+                              avatars: ["#3b82f6", "#8b5cf6", "#ec4899", "#10b981"],
+                              link: `https://meet.bimbox.ai/sublime-room-${Math.floor(100 + Math.random() * 900)}`
+                            };
+                            setMeetings(prev => [newMeet, ...prev]);
+                            
+                            // Post invite directly into chat
+                            if (activeChannelId) {
+                              handleSendMessage(`Scheduled a new meeting: ${newMeet.title}`, {
+                                type: "meeting",
+                                meetingTitle: newMeet.title,
+                                meetingDate: newMeet.date,
+                                meetingTime: newMeet.time
+                              });
+                            }
+                            
+                            setMeetingRightPanel("list");
+                            setScheduleMeetingModalOpen(false);
+                            setScheduleStep(1);
+                            setMeetingTitle("");
+                          }}
+                          className="h-8 px-5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[10px] font-bold shadow-xs cursor-pointer"
+                        >
+                          Done
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* VIEW: JOIN MEET */}
+              {meetingRightPanel === "join" && (
+                <div className="flex flex-col h-full justify-center text-left max-w-xs mx-auto">
+                  <div className="text-center mb-5 shrink-0">
+                    <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-2.5 shadow-sm border border-blue-100">
+                      <LogIn className="w-4 h-4 stroke-[2]" />
+                    </div>
+                    <h3 className="text-xs font-extrabold text-slate-900">Join a meeting</h3>
+                    <p className="text-[9px] text-slate-400 font-semibold mt-0.5">Enter meeting invite link, ID, or room code.</p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <input 
+                      type="text" 
+                      placeholder="e.g. sublime-design-sprint or link" 
+                      value={meetingJoinCode}
+                      onChange={(e) => setMeetingJoinCode(e.target.value)}
+                      className="w-full px-2.5 py-1.75 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold placeholder-slate-400 text-slate-800"
+                    />
+
+                    <button
+                      type="button"
+                      disabled={!meetingJoinCode.trim()}
+                      onClick={() => {
+                        setActiveMeetTitle(meetingJoinCode);
+                        setScheduleMeetingModalOpen(false);
+                        setActiveMeetOpen(true);
+                        setMeetingJoinCode("");
+                      }}
+                      className="w-full py-1.75 bg-blue-600 hover:bg-blue-700 disabled:opacity-30 disabled:pointer-events-none text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs"
+                    >
+                      Join Meeting Room
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* VIEW: INSTANT MEETING SETUP (MATCHING POPUP) */}
+              {meetingRightPanel === "instant" && (
+                <div className="flex flex-col h-full overflow-hidden text-left">
+                  {/* Top Preview Section */}
+                  <div className="bg-blue-700 rounded-2xl p-4 text-center text-white shrink-0 relative flex flex-col items-center justify-center">
+                    <div className="w-12 h-12 rounded-full bg-white/10 text-white font-extrabold text-sm flex items-center justify-center shadow-xs border border-white/20 mb-1">
+                      SK
+                    </div>
+                    <div className="text-[9px] font-bold text-white/80">Camera is off</div>
+                    <div className="text-[8px] font-bold text-white/50 absolute bottom-2 left-3">Salman Kumar · You</div>
+                    
+                    {/* Media option indicators */}
+                    <div className="flex gap-1.5 absolute bottom-2 right-3">
+                      <button 
+                        type="button" 
+                        onClick={() => setMeetMicEnabled(!meetMicEnabled)} 
+                        className={`w-5 h-5 rounded-full flex items-center justify-center border transition-all ${
+                          meetMicEnabled ? "bg-white/10 border-white/20" : "bg-red-500 border-red-400"
+                        }`}
+                      >
+                        {meetMicEnabled ? <Mic className="w-2.5 h-2.5 text-white" /> : <MicOff className="w-2.5 h-2.5 text-white" />}
+                      </button>
+                      <button 
+                        type="button" 
+                        onClick={() => setMeetVideoEnabled(!meetVideoEnabled)} 
+                        className={`w-5 h-5 rounded-full flex items-center justify-center border transition-all ${
+                          meetVideoEnabled ? "bg-white/10 border-white/20" : "bg-red-500 border-red-400"
+                        }`}
+                      >
+                        {meetVideoEnabled ? <Video className="w-2.5 h-2.5 text-white" /> : <VideoOff className="w-2.5 h-2.5 text-white" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 pt-3 flex-1 overflow-y-auto">
+                    <div>
+                      <label className="text-[8px] font-bold text-slate-450 uppercase tracking-wider">Meeting name</label>
+                      <div className="relative mt-1">
+                        <input 
+                          type="text" 
+                          placeholder="e.g Quick Sync, Design Review.." 
+                          value={meetingTitle}
+                          onChange={(e) => setMeetingTitle(e.target.value)}
+                          className="w-full pl-7 pr-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold placeholder-slate-400 text-slate-800"
+                        />
+                        <Pencil className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2" />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[8px] font-bold text-slate-450 uppercase tracking-wider">Invite People</label>
+                      <div className="relative mt-1">
+                        <input 
+                          type="text" 
+                          placeholder="name@gmail.com, new.." 
+                          className="w-full pl-7 pr-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold placeholder-slate-400 text-slate-800"
+                        />
+                        <UserPlus className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2" />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[8px] font-bold text-slate-450 uppercase tracking-wider">Meeting Link</label>
+                      <div className="bg-slate-50 border border-slate-150 rounded-xl p-1.5 pl-2.5 mt-1 flex items-center justify-between gap-3">
+                        <span className="text-[10px] font-bold text-slate-650 truncate">meet.bimbox.ai/ysk-21h3-y673</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleCopyLink("meet.bimbox.ai/ysk-21h3-y673", "instant");
+                          }}
+                          className="h-7 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[9px] font-bold flex items-center gap-1 cursor-pointer"
+                        >
+                          <Copy className="w-2.5 h-2.5" />
+                          <span>Copy</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveMeetTitle(meetingTitle || "Instant Meeting");
+                        setScheduleMeetingModalOpen(false);
+                        setActiveMeetOpen(true);
+                      }}
+                      className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-md shadow-blue-500/10 text-center"
+                    >
+                      Start Meeting
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* VIEW: SETTINGS (MATCHING SPECIFIC POPUP) */}
+              {meetingRightPanel === "settings" && (
+                <div className="flex flex-col h-full overflow-hidden text-left relative">
+                  {/* Camera Preview Header */}
+                  <div className="bg-blue-700 rounded-2xl p-4 text-center text-white shrink-0 relative flex flex-col items-center justify-center mb-3">
+                    <div className="w-12 h-12 rounded-full bg-white/10 text-white font-extrabold text-sm flex items-center justify-center border border-white/20 mb-1">
+                      SK
+                    </div>
+                    <div className="text-[9px] font-bold text-white/80">Camera Preview</div>
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto space-y-3.5 pr-0.5 pb-2">
+                    {/* Settings header */}
+                    <div className="flex items-center gap-2.5 pb-2 border-b border-slate-100 shrink-0">
+                      <div className="w-8 h-8 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center border border-blue-100">
+                        <Settings className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-800">Settings</h4>
+                        <p className="text-[8px] text-slate-400 font-semibold mt-0.25">Audio · Video · Preferences</p>
+                      </div>
+                    </div>
+
+                    {/* VIDEO SECTION */}
+                    <div>
+                      <span className="text-[8px] font-bold text-slate-400 tracking-wider uppercase flex items-center gap-1 mb-1.5">
+                        <Video className="w-3 h-3 text-slate-350" />
+                        VIDEO
+                      </span>
+                      <div>
+                        <label className="text-[8px] font-bold text-[#64748b]">CAMERA</label>
+                        <select className="w-full mt-1 px-3 py-1.75 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800">
+                          <option>FaceTime HD Camera</option>
+                          <option>External USB Camera</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* AUDIO SECTION */}
+                    <div className="space-y-3">
+                      <span className="text-[8px] font-bold text-slate-400 tracking-wider uppercase flex items-center gap-1">
+                        <Mic className="w-3 h-3 text-slate-350" />
+                        AUDIO
+                      </span>
+                      <div>
+                        <label className="text-[8px] font-bold text-[#64748b]">MICROPHONE</label>
+                        <select className="w-full mt-1 px-3 py-1.75 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800">
+                          <option>Built-in Microphone</option>
+                          <option>External USB Microphone</option>
+                        </select>
+                      </div>
+
+                      {/* Animated Audio Meter */}
+                      <div>
+                        <label className="text-[8px] font-bold text-[#64748b] block mb-1">Input Level</label>
+                        <div className="bg-slate-50 border border-slate-150 rounded-xl p-2 flex items-center justify-between h-9 px-3">
+                          <span className="text-[10px] font-semibold text-slate-450">Input Level</span>
+                          <div className="flex items-end gap-0.5 h-full py-1">
+                            {micLevelBars.map((height, i) => (
+                              <div
+                                key={i}
+                                className="w-1.25 bg-blue-600 rounded-full transition-all duration-150"
+                                style={{ height: `${height * 4}%` }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-[8px] font-bold text-[#64748b]">SPEAKER</label>
+                        <select className="w-full mt-1 px-3 py-1.75 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800">
+                          <option>MacBook Speakers</option>
+                          <option>External Headphones</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* GENERAL SECTION */}
+                    <div className="space-y-2.5">
+                      <span className="text-[8px] font-bold text-slate-400 tracking-wider uppercase flex items-center gap-1">
+                        <User className="w-3 h-3 text-slate-350" />
+                        GENERAL
+                      </span>
+                      <div>
+                        <label className="text-[8px] font-bold text-[#64748b]">YOUR DISPLAY NAME</label>
+                        <div className="relative mt-1">
+                          <input 
+                            type="text" 
+                            defaultValue="Salman Kumar"
+                            className="w-full pl-7 pr-3 py-1.75 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-850"
+                          />
+                          <User className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                        </div>
+                      </div>
+
+                      {/* Switched toggles */}
+                      <div className="space-y-1.5 pt-1.5 border-t border-slate-50">
+                        {[
+                          { key: "noise", label: "Noise cancellation", defaultChecked: true, icon: Coffee },
+                          { key: "mirror", label: "Mirror my video", defaultChecked: true, icon: Monitor },
+                          { key: "hd", label: "HD video", defaultChecked: false, icon: Sun }
+                        ].map((t) => {
+                          const IconComponent = t.icon;
+                          return (
+                            <div key={t.key} className="flex items-center justify-between py-1 bg-slate-50/20 px-2 rounded-lg">
+                              <div className="flex items-center gap-2">
+                                <IconComponent className="w-3.5 h-3.5 text-slate-450" />
+                                <span className="text-[10px] font-bold text-slate-700">{t.label}</span>
+                              </div>
+                              <label className="relative inline-flex items-center cursor-pointer select-none">
+                                <input type="checkbox" defaultChecked={t.defaultChecked} className="sr-only peer" />
+                                <div className="w-8 h-4.5 bg-slate-200 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-blue-600"></div>
+                              </label>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMeetingRightPanel("list");
+                        alert("Settings applied successfully!");
+                      }}
+                      className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-md shadow-blue-500/10 text-center"
+                    >
+                      Apply Changes
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -3504,16 +4870,16 @@ export function ChatPage() {
       {/* 7. Modal: Channel Profile, Shared Media and Starred Messages */}
       {sharedMediaModalOpen && activeChannel && (
         <div className="fixed inset-0 bg-[#0f172a]/20 backdrop-blur-[1px] flex items-center justify-center z-[999] p-4 select-none animate-in fade-in duration-100" onClick={() => setSharedMediaModalOpen(false)}>
-          <div className="bg-white/95 backdrop-blur-xl border border-white/80 rounded-2xl shadow-[0_20px_60px_rgba(15,23,42,0.16)] w-full max-w-xl p-5 animate-in zoom-in-98 duration-100" onClick={(e) => e.stopPropagation()}>
-            <div className="relative mb-4 overflow-hidden rounded-2xl border border-slate-100 bg-gradient-to-br from-slate-50 via-white to-blue-50/70 p-4">
-              <div className="absolute -right-16 -top-20 h-44 w-44 rounded-full bg-sky-200/60 blur-3xl" />
-              <div className="absolute -bottom-20 left-10 h-40 w-40 rounded-full bg-violet-200/50 blur-3xl" />
+          <div className="bg-white/95 backdrop-blur-xl border border-white/80 rounded-2xl shadow-[0_20px_60px_rgba(15,23,42,0.16)] w-full max-w-lg p-4 animate-in zoom-in-98 duration-100" onClick={(e) => e.stopPropagation()}>
+            <div className="relative mb-3 overflow-hidden rounded-2xl border border-slate-100 bg-gradient-to-br from-slate-50 via-white to-blue-50/70 p-3.5">
+              <div className="absolute -right-16 -top-20 h-36 w-36 rounded-full bg-sky-200/50 blur-3xl" />
+              <div className="absolute -bottom-20 left-10 h-32 w-32 rounded-full bg-violet-200/40 blur-3xl" />
               <div className="relative flex justify-between items-start gap-4">
                 <div className="flex items-center gap-3 text-left min-w-0">
                   <button
                     type="button"
                     onClick={() => document.getElementById("group-dp-picker")?.click()}
-                    className="group/avatar relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-white/80 bg-slate-100 p-0 shadow-sm cursor-pointer"
+                    className="group/avatar relative h-12 w-12 shrink-0 overflow-hidden rounded-2xl border border-white/80 bg-slate-100 p-0 shadow-sm cursor-pointer"
                     title="Change group DP"
                   >
                     <img
@@ -3529,17 +4895,17 @@ export function ChatPage() {
                     </span>
                   </button>
                   <div className="min-w-0">
-                    <h3 className="text-base font-semibold text-slate-900 truncate">{activeChannel.name}</h3>
+                    <h3 className="text-sm font-semibold text-slate-900 truncate">{activeChannel.name}</h3>
                     <span className="text-[10px] text-slate-500 font-medium">{activeChannel.members.length} members • project coordination room</span>
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      <span className="rounded-full bg-white/75 border border-white px-2 py-1 text-[9px] font-bold text-blue-600">{profileMediaItems.length} media</span>
-                      <span className="rounded-full bg-white/75 border border-white px-2 py-1 text-[9px] font-bold text-emerald-600">{profileFileItems.length} files</span>
-                      <span className="rounded-full bg-white/75 border border-white px-2 py-1 text-[9px] font-bold text-amber-600">{profileStarredItems.length} starred</span>
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      <span className="rounded-full bg-white/75 border border-white px-2 py-0.5 text-[8.5px] font-bold text-blue-600">{profileMediaItems.length} media</span>
+                      <span className="rounded-full bg-white/75 border border-white px-2 py-0.5 text-[8.5px] font-bold text-emerald-600">{profileFileItems.length} files</span>
+                      <span className="rounded-full bg-white/75 border border-white px-2 py-0.5 text-[8.5px] font-bold text-amber-600">{profileStarredItems.length} starred</span>
                     </div>
 	                    <button
 	                      type="button"
 	                      onClick={() => document.getElementById("group-dp-picker")?.click()}
-	                      className="mt-2 text-[10px] font-bold text-[#1a73e8] hover:text-[#1557b0] transition-colors bg-transparent border-none p-0 cursor-pointer"
+	                      className="mt-1.5 text-[9.5px] font-bold text-[#1a73e8] hover:text-[#1557b0] transition-colors bg-transparent border-none p-0 cursor-pointer"
 	                    >
 	                      Change team DP
 	                    </button>
@@ -3554,97 +4920,10 @@ export function ChatPage() {
               </div>
             </div>
 
-	            {/* Team Members */}
-	            <div className="mb-3.5 rounded-2xl border border-slate-100 bg-white/80 p-3 text-left">
-	              <div className="mb-2 flex items-center justify-between">
-	                <div>
-	                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Team members</div>
-	                  <div className="text-[9px] font-medium text-slate-400">{activeChannel.members.length} people in this team</div>
-	                </div>
-	                <button
-	                  type="button"
-	                  onClick={() => setMembersModalOpen(true)}
-	                  className="rounded-lg bg-[#e8f0fe] px-2.5 py-1.5 text-[10px] font-bold text-[#1a73e8] hover:bg-[#d2e3fc] transition-colors cursor-pointer border-none"
-	                >
-	                  Add
-	                </button>
-	              </div>
-	              <div className="max-h-56 overflow-y-auto space-y-1.5 pr-1">
-	                {activeChannel.members.map((member) => {
-	                  const isSelf = member === "Rudra" || member === "Joy";
-	                  const memberAvatar = channels.find(c => c.members.includes(member) && c.avatarUrl)?.avatarUrl;
-	                  return (
-	                    <div key={member} className="flex items-center gap-2 rounded-xl bg-slate-50/80 px-2.5 py-2">
-	                      {memberAvatar ? (
-	                        <img src={memberAvatar} alt={member} className="h-8 w-8 rounded-full object-cover" />
-	                      ) : (
-	                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-xs font-bold text-slate-600 ring-1 ring-slate-100">
-	                          {member.charAt(0)}
-	                        </span>
-	                      )}
-	                      <div className="min-w-0 flex-1">
-	                        <div className="truncate text-xs font-semibold text-slate-800">
-	                          {member} {isSelf && <span className="font-medium text-[#1a73e8]">(You)</span>}
-	                        </div>
-	                        <div className="text-[9px] font-medium text-slate-400">{member === "Rudra" ? "Project Admin" : "Team member"}</div>
-	                      </div>
-	                      <div className="flex items-center gap-1">
-	                        {!isSelf && (
-	                          <button
-	                            type="button"
-	                            onClick={() => {
-	                              openDirectChat(member, memberAvatar);
-	                              setSharedMediaModalOpen(false);
-	                            }}
-	                            className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-slate-500 hover:bg-[#e8f0fe] hover:text-[#1a73e8] transition-colors cursor-pointer border-none"
-	                            title={`Chat with ${member}`}
-	                          >
-	                            <MessageCircle className="h-3.5 w-3.5" />
-	                          </button>
-	                        )}
-	                        <button
-	                          type="button"
-	                          onClick={() => showChatFeedback("Video call", `Starting video call with ${member}.`, "info")}
-	                          className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-slate-500 hover:bg-emerald-50 hover:text-emerald-600 transition-colors cursor-pointer border-none"
-	                          title={`Video call ${member}`}
-	                        >
-	                          <Video className="h-3.5 w-3.5" />
-	                        </button>
-	                        {!isSelf && (
-	                          <div className="relative">
-	                            <button
-	                              type="button"
-	                              data-chat-popover-trigger="true"
-	                              onClick={() => setActiveMemberMenuName(activeMemberMenuName === member ? null : member)}
-	                              className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors cursor-pointer border-none"
-	                              title="Member options"
-	                            >
-	                              <MoreVertical className="h-3.5 w-3.5" />
-	                            </button>
-	                            {activeMemberMenuName === member && (
-	                              <div className="chat-menu-surface absolute right-0 top-8 z-[1001] w-36 rounded-xl p-1">
-	                                <button
-	                                  type="button"
-	                                  onClick={() => removeMemberFromActiveTeam(member)}
-	                                  className="chat-menu-item flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[11px] font-semibold text-rose-600 hover:bg-rose-50 cursor-pointer border-none bg-transparent"
-	                                >
-	                                  <Trash2 className="h-3.5 w-3.5" />
-	                                  <span>Remove member</span>
-	                                </button>
-	                              </div>
-	                            )}
-	                          </div>
-	                        )}
-	                      </div>
-	                    </div>
-	                  );
-	                })}
-	              </div>
-	            </div>
-
 	            {/* Tab Selector */}
-	            <div className="flex rounded-xl bg-slate-100/70 p-1 mb-3.5">
+	            <div className="flex rounded-xl bg-slate-100/70 p-1 mb-3">
               {[
+                { id: "members", label: "Members", count: activeChannel.members.length },
                 { id: "media", label: "Media", count: profileMediaItems.length },
                 { id: "files", label: "Files", count: profileFileItems.length },
                 { id: "starred", label: "Starred", count: profileStarredItems.length },
@@ -3666,7 +4945,96 @@ export function ChatPage() {
             </div>
 
             {/* Tab Content */}
-            <div className="max-h-[360px] overflow-y-auto space-y-2 pr-1 text-left">
+            <div className="max-h-[300px] overflow-y-auto space-y-2 pr-1 text-left">
+              {sharedMediaTab === "members" && (
+                <div className="rounded-2xl border border-slate-100 bg-white/80 p-3">
+                  <div className="mb-2.5 flex items-center justify-between">
+                    <div>
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Members</div>
+                      <div className="text-[9px] font-medium text-slate-400">{activeChannel.members.length} people in this team</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setMembersModalOpen(true)}
+                      className="rounded-lg bg-[#e8f0fe] px-2.5 py-1.5 text-[10px] font-bold text-[#1a73e8] hover:bg-[#d2e3fc] transition-colors cursor-pointer border-none"
+                    >
+                      Add
+                    </button>
+                  </div>
+                  <div className="space-y-1.5">
+                    {activeChannel.members.map((member) => {
+                      const isSelf = member === "Rudra" || member === "Joy";
+                      const memberAvatar = channels.find(c => c.members.includes(member) && c.avatarUrl)?.avatarUrl;
+                      return (
+                        <div key={member} className="flex items-center gap-2 rounded-xl bg-slate-50/80 px-2.5 py-2">
+                          {memberAvatar ? (
+                            <img src={memberAvatar} alt={member} className="h-8 w-8 rounded-full object-cover" />
+                          ) : (
+                            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-xs font-bold text-slate-600 ring-1 ring-slate-100">
+                              {member.charAt(0)}
+                            </span>
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate text-xs font-semibold text-slate-800">
+                              {member} {isSelf && <span className="font-medium text-[#1a73e8]">(You)</span>}
+                            </div>
+                            <div className="text-[9px] font-medium text-slate-400">{member === "Rudra" ? "Project Admin" : "Team member"}</div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            {!isSelf && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  openDirectChat(member, memberAvatar);
+                                  setSharedMediaModalOpen(false);
+                                }}
+                                className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-slate-500 hover:bg-[#e8f0fe] hover:text-[#1a73e8] transition-colors cursor-pointer border-none"
+                                title={`Chat with ${member}`}
+                              >
+                                <MessageCircle className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => showChatFeedback("Video call", `Starting video call with ${member}.`, "info")}
+                              className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-slate-500 hover:bg-emerald-50 hover:text-emerald-600 transition-colors cursor-pointer border-none"
+                              title={`Video call ${member}`}
+                            >
+                              <Video className="h-3.5 w-3.5" />
+                            </button>
+                            {!isSelf && (
+                              <div className="relative">
+                                <button
+                                  type="button"
+                                  data-chat-popover-trigger="true"
+                                  onClick={() => setActiveMemberMenuName(activeMemberMenuName === member ? null : member)}
+                                  className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors cursor-pointer border-none"
+                                  title="Member options"
+                                >
+                                  <MoreVertical className="h-3.5 w-3.5" />
+                                </button>
+                                {activeMemberMenuName === member && (
+                                  <div className="chat-menu-surface absolute right-0 top-8 z-[1001] w-36 rounded-xl p-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => removeMemberFromActiveTeam(member)}
+                                      className="chat-menu-item flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[11px] font-semibold text-rose-600 hover:bg-rose-50 cursor-pointer border-none bg-transparent"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                      <span>Remove member</span>
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {sharedMediaTab === "media" && (
                 <div className="grid grid-cols-3 gap-2.5">
                   {profileMediaItems.map((item, i) => (
@@ -3772,25 +5140,8 @@ export function ChatPage() {
                           <span>{item.time}</span>
                           <span>•</span>
                           <span>{item.owner}</span>
-	            </div>
-
-	            <div className="mt-4 flex gap-2 border-t border-slate-100 pt-3">
-	              <button
-	                type="button"
-	                onClick={handleCollapseActiveTeam}
-	                className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
-	              >
-	                Collapse team
-	              </button>
-	              <button
-	                type="button"
-	                onClick={handleExitActiveTeam}
-	                className="flex-1 rounded-xl bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-100 transition-colors cursor-pointer border-none"
-	              >
-	                Exit team
-	              </button>
-	            </div>
-	          </div>
+	                        </div>
+	                      </div>
                       </div>
                     ))}
                   {profileMeetingItems.length === 0 && (
@@ -3799,11 +5150,93 @@ export function ChatPage() {
                 </div>
               )}
             </div>
+            <div className="mt-3 flex gap-2 border-t border-slate-100 pt-3">
+              <button
+                type="button"
+                onClick={handleCollapseActiveTeam}
+                className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                Collapse team
+              </button>
+              <button
+                type="button"
+                onClick={handleExitActiveTeam}
+                className="flex-1 rounded-xl bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-100 transition-colors cursor-pointer border-none"
+              >
+                Exit team
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* 8. Modal: Forward Selected Messages */}
+      {/* 8. Modal: Message Read Info */}
+      {readReceiptMessage && activeChannel && (
+        <div className="fixed inset-0 bg-[#0f172a]/20 backdrop-blur-[1px] flex items-center justify-center z-[1000] p-4 select-none animate-in fade-in duration-100" onClick={() => setReadReceiptMessage(null)}>
+          <div className="bg-white border border-slate-100 rounded-2xl shadow-[0_20px_60px_rgba(15,23,42,0.16)] w-full max-w-sm p-4 animate-in zoom-in-98 duration-100" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-900">Message info</h3>
+                <p className="text-[10px] text-slate-400 font-medium mt-0.5">
+                  Sent {readReceiptMessage.time}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReadReceiptMessage(null)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer border-none bg-transparent"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="rounded-2xl bg-slate-50 border border-slate-100 px-3 py-2.5 text-left">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Message</div>
+              <div className="text-xs text-slate-700 line-clamp-2">
+                {readReceiptMessage.text || readReceiptMessage.attachment?.fileName || readReceiptMessage.attachments?.[0]?.fileName || "Attachment"}
+              </div>
+            </div>
+
+            <div className="mt-3">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Seen by</span>
+                <span className="text-[10px] font-semibold text-[#1a73e8]">
+                  {getReadReceiptMembers(readReceiptMessage).length}
+                </span>
+              </div>
+              <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                {getReadReceiptMembers(readReceiptMessage).length > 0 ? (
+                  getReadReceiptMembers(readReceiptMessage).map((member) => {
+                    const memberAvatar = channels.find(c => c.members.includes(member) && c.avatarUrl)?.avatarUrl;
+                    return (
+                      <div key={member} className="flex items-center gap-2 rounded-xl bg-white border border-slate-100 px-2.5 py-2">
+                        {memberAvatar ? (
+                          <img src={memberAvatar} alt={member} className="h-8 w-8 rounded-full object-cover" />
+                        ) : (
+                          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-50 text-xs font-bold text-slate-600 ring-1 ring-slate-100">
+                            {member.charAt(0)}
+                          </span>
+                        )}
+                        <div className="min-w-0 flex-1 text-left">
+                          <div className="truncate text-xs font-semibold text-slate-800">{member}</div>
+                          <div className="text-[9px] font-medium text-slate-400">Seen today</div>
+                        </div>
+                        <Check className="h-3.5 w-3.5 text-[#1a73e8]" />
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 py-5 text-center text-xs font-medium text-slate-400">
+                    Not seen by anyone yet
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 9. Modal: Forward Selected Messages */}
       {forwardModalOpen && activeChannel && (
         <div className="fixed inset-0 bg-[#0f172a]/20 backdrop-blur-[1px] flex items-center justify-center z-[999] p-4 select-none animate-in fade-in duration-100" onClick={() => setForwardModalOpen(false)}>
           <div className="bg-white border border-slate-100 rounded-2xl shadow-xl w-full max-w-md p-5 animate-in zoom-in-98 duration-100" onClick={(e) => e.stopPropagation()}>
@@ -4357,6 +5790,629 @@ export function ChatPage() {
                   )}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 5. Active Video Meet Screen Overlay */}
+      {activeMeetOpen && (
+        <div className="fixed inset-0 z-[1002] bg-slate-950 flex flex-col md:flex-row select-none animate-in fade-in duration-200">
+          {/* Main Video call canvas Area */}
+          <div className="flex-1 flex flex-col relative h-full bg-radial from-slate-900 via-slate-950 to-slate-950">
+            {/* Top header options */}
+            <div className="absolute top-4 left-4 right-4 z-10 flex items-center justify-between pointer-events-none">
+              <div className="flex items-center gap-2 bg-slate-900/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-slate-800 pointer-events-auto">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-white text-xs font-bold truncate max-w-[150px]">{activeMeetTitle}</span>
+                <span className="text-slate-400 text-[10px] border-l border-slate-800 pl-2">
+                  {Math.floor(activeCallDuration / 60)}:{(activeCallDuration % 60).toString().padStart(2, '0')}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 pointer-events-auto">
+                {meetScreenSharing && (
+                  <span className="bg-blue-600/90 text-white text-[9px] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wider shadow-sm flex items-center gap-1">
+                    <Monitor className="w-3 h-3 text-white" />
+                    Screen Sharing
+                  </span>
+                )}
+                {meetHandRaised && (
+                  <span className="bg-amber-500/90 text-white text-[9px] font-extrabold px-2.5 py-1 rounded-full shadow-sm flex items-center gap-1">
+                    ✋ Hand Raised
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Layouts container */}
+            <div className="flex-1 flex items-center justify-center p-6 h-full relative">
+              {/* Layout 1: Camera Disabled Concentric Waves */}
+              {!meetVideoEnabled && meetLayout === "active-speaker-self" && (
+                <div className="flex flex-col items-center justify-center">
+                  <div className="relative flex items-center justify-center w-28 h-28">
+                    {/* Glowing concentric waves */}
+                    <div className="absolute inset-0 rounded-full bg-blue-500/10 animate-[ping_3s_infinite]" />
+                    <div className="absolute inset-2 rounded-full bg-blue-500/20 animate-[ping_2.5s_infinite]" />
+                    <div className="absolute inset-4 rounded-full bg-blue-500/30 animate-[ping_2s_infinite]" />
+                    <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-extrabold text-xl flex items-center justify-center shadow-2xl relative z-10">
+                      SK
+                    </div>
+                  </div>
+                  <span className="text-white text-xs font-bold mt-4 tracking-wide">Salman Kumar (You)</span>
+                  <span className="text-slate-400 text-[10px] mt-1">Camera is disabled</span>
+                </div>
+              )}
+
+              {/* Layout 2: Active Speaker Video feed */}
+              {(meetVideoEnabled || meetLayout !== "active-speaker-self") && meetLayout === "active-speaker-video" && (
+                <div className="w-full h-full max-w-4xl rounded-3xl overflow-hidden border border-slate-800/80 bg-slate-900 shadow-2xl relative flex items-center justify-center">
+                  {meetVideoEnabled ? (
+                    <div className="absolute inset-0 bg-slate-850 flex items-center justify-center text-white">
+                      {/* Live camera simulator */}
+                      <div className="w-full h-full bg-gradient-to-b from-indigo-900/20 via-slate-900/60 to-slate-950 flex flex-col items-center justify-center">
+                        <div className="w-20 h-20 rounded-full bg-blue-600 text-white font-extrabold text-2xl flex items-center justify-center shadow-lg border border-blue-400/20 animate-pulse">
+                          SK
+                        </div>
+                        <span className="text-slate-200 text-xs font-bold mt-3">Salman Kumar · Live</span>
+                        <div className="absolute bottom-4 left-4 flex items-center gap-1.5 bg-slate-950/80 px-2.5 py-1 rounded-lg text-[9px] text-white">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          HD Quality · 30 FPS
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center">
+                      <div className="w-16 h-16 rounded-full bg-blue-600 text-white font-extrabold text-lg flex items-center justify-center mb-3">
+                        SK
+                      </div>
+                      <span className="text-slate-400 text-xs">Salman Kumar is speaking (Camera off)</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Layout 3: 6-Grid view */}
+              {meetLayout === "grid-6" && (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 w-full h-full max-h-[80vh]">
+                  {[
+                    { initials: "SK", name: "Salman Kumar (You)", active: true, video: meetVideoEnabled, color: "bg-blue-600" },
+                    { initials: "JS", name: "Jessica Smith", active: false, video: true, color: "bg-amber-500", mockVideo: true },
+                    { initials: "AB", name: "Alex Brown", active: false, video: false, color: "bg-pink-500" },
+                    { initials: "ML", name: "Michael Lee", active: true, video: true, color: "bg-indigo-600", mockVideo: true },
+                    { initials: "RT", name: "Rachel Thornton", active: false, video: false, color: "bg-emerald-600" },
+                    { initials: "AD", name: "Ashish Dalei", active: false, video: true, color: "bg-teal-650", mockVideo: true }
+                  ].map((p, i) => (
+                    <div key={i} className={`rounded-2xl border overflow-hidden relative flex flex-col items-center justify-center transition-all ${
+                      p.active ? "border-blue-500 shadow-md shadow-blue-500/10" : "border-slate-800/80 bg-slate-900/60"
+                    }`}>
+                      {p.video ? (
+                        <div className="w-full h-full bg-slate-800 flex flex-col items-center justify-center text-white">
+                          <div className={`w-10 h-10 rounded-full ${p.color} text-white font-bold text-xs flex items-center justify-center shadow-md`}>
+                            {p.initials}
+                          </div>
+                          <span className="text-[10px] text-slate-300 font-bold mt-2">{p.name}</span>
+                          <span className="absolute bottom-2 left-2 bg-slate-950/70 text-[8px] px-1.5 py-0.5 rounded text-white flex items-center gap-1">
+                            <span className="w-1 h-1 rounded-full bg-emerald-500" />
+                            Live video
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center">
+                          <div className={`w-10 h-10 rounded-full ${p.color} text-white font-bold text-xs flex items-center justify-center`}>
+                            {p.initials}
+                          </div>
+                          <span className="text-[10px] text-slate-450 mt-2">{p.name}</span>
+                        </div>
+                      )}
+                      {p.active && (
+                        <div className="absolute top-2 right-2 bg-blue-600 text-white rounded-full p-0.5" title="Active speaker">
+                          <Mic className="w-2.5 h-2.5" />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Layout 4: High Density (20-Grid view) */}
+              {meetLayout === "grid-20" && (
+                <div className="flex flex-col w-full h-full justify-between max-h-[85vh]">
+                  {/* Pagination control info */}
+                  <div className="flex items-center justify-center gap-1.5 pb-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-700" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-700" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-700" />
+                    <span className="text-slate-400 text-[8px] font-bold ml-1">Page 1 of 4 (20 active)</span>
+                  </div>
+
+                  <div className="grid grid-cols-4 md:grid-cols-5 gap-2.5 flex-1">
+                    {Array.from({ length: 20 }, (_, idx) => {
+                      const initials = String.fromCharCode(65 + (idx % 8) * 3) + String.fromCharCode(66 + (idx % 6) * 4);
+                      const isSelf = idx === 0;
+                      return (
+                        <div key={idx} className="rounded-xl border border-slate-900 bg-slate-900/80 flex flex-col items-center justify-center p-2 relative">
+                          <div className="w-7 h-7 rounded-full bg-slate-800 text-slate-300 font-bold text-[9px] flex items-center justify-center shadow-xs">
+                            {isSelf ? "SK" : initials}
+                          </div>
+                          <span className="text-[8px] text-slate-450 mt-1.5 truncate max-w-[50px]">
+                            {isSelf ? "You" : `User ${idx + 1}`}
+                          </span>
+                          {idx % 4 === 0 && (
+                            <div className="absolute top-1.5 right-1.5 bg-blue-600/20 text-blue-500 rounded-full p-0.5">
+                              <Mic className="w-2 h-2" />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Layout 5: Active speaker + sidebar columns */}
+              {meetLayout === "active-speaker-sidebar" && (
+                <div className="grid grid-cols-4 gap-4 w-full h-full max-h-[80vh]">
+                  {/* Left big speaker feed */}
+                  <div className="col-span-3 rounded-2xl overflow-hidden border border-slate-800/80 bg-slate-900 flex flex-col items-center justify-center relative">
+                    <div className="w-full h-full bg-gradient-to-tr from-indigo-950/40 via-slate-900 to-slate-950 flex flex-col items-center justify-center">
+                      <div className="w-16 h-16 rounded-full bg-pink-505 text-white font-extrabold text-lg flex items-center justify-center mb-3">
+                        JS
+                      </div>
+                      <span className="text-white text-xs font-bold">Jessica Smith (Speaking)</span>
+                      <span className="text-slate-400 text-[10px] mt-0.5">Sharing screen...</span>
+                    </div>
+                  </div>
+
+                  {/* Right column vertical grid */}
+                  <div className="col-span-1 flex flex-col gap-2 overflow-y-auto pr-1">
+                    {["SK (You)", "Alex B", "Michael L", "David M", "Priya R", "Aman S", "Rudra D"].map((name, i) => (
+                      <div key={i} className="rounded-xl border border-slate-900 bg-slate-900/60 p-2 text-center flex flex-col items-center justify-center shrink-0">
+                        <div className="w-6 h-6 rounded-full bg-slate-800 text-[8px] font-bold text-slate-300 flex items-center justify-center">
+                          {name.split(" ").map(n => n[0]).join("")}
+                        </div>
+                        <span className="text-[8px] text-slate-450 mt-1 truncate w-full">{name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Floating PIP Self Window (when in speaker view) */}
+              {meetLayout !== "grid-6" && meetLayout !== "grid-20" && (
+                <div className="absolute bottom-4 right-4 w-28 h-36 rounded-2xl overflow-hidden border border-slate-800 bg-slate-900 shadow-2xl flex flex-col items-center justify-center relative z-20">
+                  {meetVideoEnabled ? (
+                    <div className="w-full h-full bg-slate-800 flex items-center justify-center text-white text-[10px] font-bold">
+                      Self Preview
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center">
+                      <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-bold text-[9px] flex items-center justify-center">
+                        SK
+                      </div>
+                      <span className="text-slate-400 text-[8px] mt-1">You</span>
+                    </div>
+                  )}
+                  <div className="absolute top-2 right-2 bg-slate-950/80 p-0.5 rounded text-white">
+                    <Pin className="w-2.5 h-2.5 text-slate-400" />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Floating Controls Toolbar */}
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30">
+              <div className="bg-slate-900/95 border border-slate-850 shadow-2xl px-5 py-2.5 rounded-full flex items-center gap-3 backdrop-blur-md">
+                {/* Microphone toggle */}
+                <button
+                  onClick={() => setMeetMicEnabled(!meetMicEnabled)}
+                  className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                    meetMicEnabled ? "bg-slate-800 hover:bg-slate-700 text-white" : "bg-red-500 text-white shadow-md shadow-red-500/20"
+                  }`}
+                  title={meetMicEnabled ? "Mute Microphone" : "Unmute Microphone"}
+                >
+                  {meetMicEnabled ? <Mic className="w-4 h-4 text-white" /> : <MicOff className="w-4 h-4 text-white" />}
+                </button>
+
+                {/* Video camera toggle */}
+                <button
+                  onClick={() => setMeetVideoEnabled(!meetVideoEnabled)}
+                  className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                    meetVideoEnabled ? "bg-slate-800 hover:bg-slate-700 text-white" : "bg-red-500 text-white shadow-md shadow-red-500/20"
+                  }`}
+                  title={meetVideoEnabled ? "Turn Off Camera" : "Turn On Camera"}
+                >
+                  {meetVideoEnabled ? <Video className="w-4 h-4 text-white" /> : <VideoOff className="w-4 h-4 text-white" />}
+                </button>
+
+                {/* Screen sharing */}
+                <button
+                  onClick={() => setMeetScreenSharing(!meetScreenSharing)}
+                  className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                    meetScreenSharing ? "bg-blue-600 text-white" : "bg-slate-800 hover:bg-slate-700 text-slate-300"
+                  }`}
+                  title="Share Screen"
+                >
+                  <Monitor className="w-4 h-4" />
+                </button>
+
+                {/* Hand raise */}
+                <button
+                  onClick={() => setMeetHandRaised(!meetHandRaised)}
+                  className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                    meetHandRaised ? "bg-amber-500 text-white" : "bg-slate-800 hover:bg-slate-700 text-slate-300"
+                  }`}
+                  title="Raise Hand"
+                >
+                  <Smile className="w-4 h-4" />
+                </button>
+
+                {/* Divider */}
+                <div className="w-px h-5 bg-slate-800" />
+
+                {/* Participant list sidebar toggle */}
+                <button
+                  onClick={() => setMeetSidebarOpen(meetSidebarOpen === "participants" ? "none" : "participants")}
+                  className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                    meetSidebarOpen === "participants" ? "bg-blue-600 text-white" : "bg-slate-800 hover:bg-slate-700 text-slate-350"
+                  }`}
+                  title="View Attendees"
+                >
+                  <Users className="w-4 h-4" />
+                </button>
+
+                {/* Chat panel sidebar toggle */}
+                <button
+                  onClick={() => setMeetSidebarOpen(meetSidebarOpen === "chat" ? "none" : "chat")}
+                  className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                    meetSidebarOpen === "chat" ? "bg-blue-600 text-white" : "bg-slate-800 hover:bg-slate-700 text-slate-350"
+                  }`}
+                  title="Meeting Chat Room"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                </button>
+
+                {/* Cycles layout screen options */}
+                <button
+                  onClick={() => {
+                    const layouts: typeof meetLayout[] = ["active-speaker-self", "active-speaker-video", "grid-6", "grid-20", "active-speaker-sidebar"];
+                    const currentIdx = layouts.indexOf(meetLayout);
+                    const nextLayout = layouts[(currentIdx + 1) % layouts.length];
+                    setMeetLayout(nextLayout);
+                  }}
+                  className="w-9 h-9 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-350 flex items-center justify-center cursor-pointer"
+                  title="Cycle Grid Layout Options"
+                >
+                  <Grid className="w-4 h-4" />
+                </button>
+
+                {/* Hangup Red Call Exit Button */}
+                <button
+                  onClick={() => setActiveMeetOpen(false)}
+                  className="w-10 h-10 bg-red-600 hover:bg-red-700 rounded-full flex items-center justify-center text-white transition-all shadow-md shadow-red-500/25 cursor-pointer transform hover:scale-[1.05]"
+                  title="End Meeting"
+                >
+                  <PhoneOff className="w-4 h-4 text-white" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Sidebar panels (Attendee list / Live Call Chatroom) */}
+          {meetSidebarOpen !== "none" && (
+            <div className="w-full md:w-[320px] bg-slate-50 border-l border-slate-200/80 flex flex-col h-full shrink-0 text-left animate-in slide-in-from-right duration-200 z-40">
+              {/* Sidebar Header */}
+              <div className="p-4 border-b border-slate-150 flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wide">
+                  {meetSidebarOpen === "participants" ? "Participants" : "In-Call Chat"}
+                </span>
+                <button
+                  onClick={() => setMeetSidebarOpen("none")}
+                  className="p-1 rounded-md text-slate-450 hover:text-slate-800 hover:bg-slate-100 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Sidebar Participants List */}
+              {meetSidebarOpen === "participants" && (
+                <div className="flex-1 flex flex-col min-h-0 overflow-y-auto p-4 space-y-4">
+                  {/* Search Attendee */}
+                  <div className="relative shrink-0">
+                    <input
+                      type="text"
+                      placeholder="Search participant..."
+                      value={meetSearchQuery}
+                      onChange={(e) => setMeetSearchQuery(e.target.value)}
+                      className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs placeholder-slate-455 text-slate-800 focus:outline-hidden focus:border-blue-500"
+                    />
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                  </div>
+
+                  {/* WAITING ROOM (Approval flow) */}
+                  {!declinedWaitingList.includes("Rudra narayan Dash") && !approvedWaitingList.includes("Rudra narayan Dash") && (
+                    <div className="bg-blue-50/70 border border-blue-100 rounded-2xl p-3 shrink-0 animate-in fade-in duration-100">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[9px] font-bold text-blue-700 uppercase tracking-wider">Waiting to join (1)</span>
+                        <button 
+                          onClick={() => setApprovedWaitingList(prev => [...prev, "Rudra narayan Dash"])}
+                          className="text-[9px] font-bold text-blue-600 hover:underline"
+                        >
+                          Approve all
+                        </button>
+                      </div>
+                      <div className="flex items-center justify-between bg-white border border-blue-100/50 rounded-xl p-2">
+                        <div className="min-w-0">
+                          <div className="text-[10px] font-bold text-slate-805 truncate">Rudra narayan Dash</div>
+                          <div className="text-[8px] text-slate-450">BIM Structural Lead</div>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0 ml-1.5">
+                          <button
+                            onClick={() => setDeclinedWaitingList(prev => [...prev, "Rudra narayan Dash"])}
+                            className="w-5.5 h-5.5 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 flex items-center justify-center cursor-pointer"
+                            title="Decline"
+                          >
+                            ✕
+                          </button>
+                          <button
+                            onClick={() => setApprovedWaitingList(prev => [...prev, "Rudra narayan Dash"])}
+                            className="w-5.5 h-5.5 rounded-full bg-blue-650 text-white hover:bg-blue-755 flex items-center justify-center cursor-pointer shadow-xs"
+                            title="Approve"
+                          >
+                            ✓
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ACTIVE MEETING MEMBER LIST */}
+                  <div className="flex-1 space-y-3">
+                    <div className="flex items-center justify-between text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                      <span>In this meeting ({5 + (approvedWaitingList.includes("Rudra narayan Dash") ? 1 : 0)})</span>
+                      <button className="text-[9px] font-bold text-slate-500 hover:text-slate-800">Mute all</button>
+                    </div>
+
+                    <div className="space-y-2">
+                      {/* Host */}
+                      <div className="flex items-center justify-between py-1 bg-white p-2 rounded-xl border border-slate-100">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-full bg-teal-600 text-white font-bold text-[10px] flex items-center justify-center uppercase">
+                            AD
+                          </div>
+                          <div>
+                            <div className="text-[10px] font-bold text-slate-850">Ashish Dalei</div>
+                            <span className="text-[8px] text-slate-400 font-bold">Organizer · Host</span>
+                          </div>
+                        </div>
+                        <Mic className="w-3.5 h-3.5 text-emerald-500" />
+                      </div>
+
+                      {/* Approved Waiting room guest */}
+                      {approvedWaitingList.includes("Rudra narayan Dash") && (
+                        <div className="flex items-center justify-between py-1 bg-white p-2 rounded-xl border border-slate-100 animate-in zoom-in-95 duration-200">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-full bg-blue-600 text-white font-bold text-[10px] flex items-center justify-center uppercase">
+                              RD
+                            </div>
+                            <div>
+                              <div className="text-[10px] font-bold text-slate-850">Rudra narayan Dash</div>
+                              <span className="text-[8px] text-slate-400 font-bold">Guest</span>
+                            </div>
+                          </div>
+                          <Mic className="w-3.5 h-3.5 text-emerald-500" />
+                        </div>
+                      )}
+
+                      {/* Other regular members */}
+                      {[
+                        { initials: "SK", name: "Salman Kumar (You)", mic: meetMicEnabled, self: true, color: "bg-blue-650" },
+                        { initials: "RM", name: "Rakesh Mallik", mic: true, color: "bg-orange-500" },
+                        { initials: "SM", name: "Snehasish Mohapatra", mic: true, color: "bg-indigo-500" },
+                        { initials: "DS", name: "Deependra Samal", mic: false, color: "bg-purple-500" }
+                      ]
+                        .filter(m => m.name.toLowerCase().includes(meetSearchQuery.toLowerCase()))
+                        .map((m, idx) => (
+                          <div key={idx} className="flex items-center justify-between py-1 bg-white p-2 rounded-xl border border-slate-100">
+                            <div className="flex items-center gap-2">
+                              <div className={`w-7 h-7 rounded-full ${m.color} text-white font-bold text-[10px] flex items-center justify-center uppercase`}>
+                                {m.initials}
+                              </div>
+                              <div>
+                                <div className="text-[10px] font-bold text-slate-850">{m.name}</div>
+                                <span className="text-[8px] text-slate-400 font-semibold">{m.self ? "Participant" : "BIM Architect"}</span>
+                              </div>
+                            </div>
+                            {m.mic ? (
+                              <Mic className="w-3.5 h-3.5 text-slate-400" />
+                            ) : (
+                              <MicOff className="w-3.5 h-3.5 text-red-500" />
+                            )}
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Sidebar Chat Room content */}
+              {meetSidebarOpen === "chat" && (
+                <div className="flex-1 flex flex-col min-h-0 bg-slate-50">
+                  {/* Chat messages stream */}
+                  <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                    {meetChatMessages.map((msg, idx) => (
+                      <div key={idx} className="text-left bg-white p-2.5 rounded-2xl border border-slate-100 shadow-xs max-w-[90%]">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[9px] font-extrabold text-slate-700">{msg.sender}</span>
+                          <span className="text-[8px] text-slate-400">{msg.time}</span>
+                        </div>
+                        <p className="text-[10px] text-slate-655 mt-0.5 leading-relaxed font-semibold">{msg.text}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Chat Input panel */}
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (meetChatInput.trim()) {
+                        const now = new Date();
+                        const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                        setMeetChatMessages(prev => [...prev, {
+                          sender: "Salman Kumar (You)",
+                          time: timeStr,
+                          text: meetChatInput.trim()
+                        }]);
+                        setMeetChatInput("");
+                      }
+                    }}
+                    className="p-3 bg-white border-t border-slate-150 flex gap-2 shrink-0"
+                  >
+                    <input
+                      type="text"
+                      placeholder="Type message here..."
+                      value={meetChatInput}
+                      onChange={(e) => setMeetChatInput(e.target.value)}
+                      className="flex-1 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs placeholder-slate-400 text-slate-800 focus:outline-hidden"
+                    />
+                    <button
+                      type="submit"
+                      disabled={!meetChatInput.trim()}
+                      className="h-8 px-3 bg-blue-600 hover:bg-blue-710 disabled:opacity-40 text-white rounded-xl text-[10px] font-bold shadow-xs cursor-pointer"
+                    >
+                      Send
+                    </button>
+                  </form>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Outgoing call cancelled dialing overlay widget */}
+      {outgoingCallOpen && (
+        <div className="fixed inset-0 z-[1002] bg-slate-950/65 backdrop-blur-xs flex items-center justify-center p-4 select-none animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-6 shadow-[0_24px_70px_rgba(2,6,23,0.18)] border border-slate-100 w-full max-w-sm text-center flex flex-col items-center justify-center animate-in zoom-in-98 duration-150">
+            {/* Pulsing visual ring */}
+            <div className="relative flex items-center justify-center w-24 h-24 mb-4">
+              <div className="absolute inset-0 rounded-full border border-blue-500/30 animate-ping" />
+              <div className="absolute inset-2 rounded-full border border-blue-500/20 animate-pulse" />
+              <div className="w-16 h-16 rounded-full bg-blue-600 text-white font-extrabold text-lg flex items-center justify-center shadow-lg border border-blue-400/20 uppercase">
+                AR
+              </div>
+            </div>
+
+            <h3 className="text-sm font-extrabold text-slate-800">{activeMeetTitle}</h3>
+            <p className="text-[10px] text-slate-450 font-bold mt-1 uppercase tracking-wider">Direct Video Call</p>
+            <span className="text-[9px] text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full font-bold mt-2 animate-pulse">
+              Calling... (Auto-connect in 3s)
+            </span>
+
+            <div className="mt-6 w-full">
+              <button
+                type="button"
+                onClick={() => setOutgoingCallOpen(false)}
+                className="w-full py-2 bg-red-650 hover:bg-red-750 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-red-500/10 cursor-pointer text-center"
+              >
+                Cancel Call
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Incoming Call Request Window */}
+      {incomingCallOpen && (
+        <div className="fixed inset-0 z-[1002] bg-slate-950/65 backdrop-blur-xs flex items-center justify-center p-4 select-none animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-6 shadow-[0_24px_70px_rgba(2,6,23,0.18)] border border-slate-100 w-full max-w-sm text-center flex flex-col items-center justify-center animate-in zoom-in-98 duration-150">
+            {/* Glowing avatar ring */}
+            <div className="relative flex items-center justify-center w-24 h-24 mb-4">
+              <div className="absolute inset-0 rounded-full border-2 border-emerald-500/30 animate-pulse" />
+              <div className="absolute inset-2 rounded-full bg-emerald-500/10 animate-pulse" />
+              <div className="w-16 h-16 rounded-full bg-emerald-600 text-white font-extrabold text-lg flex items-center justify-center shadow-lg border border-emerald-450/20 uppercase">
+                AR
+              </div>
+            </div>
+
+            <h3 className="text-sm font-extrabold text-slate-800">Adil Rashid</h3>
+            <p className="text-[10px] text-slate-450 font-bold mt-1 uppercase tracking-wider">Incoming Video Call</p>
+            <span className="text-[9px] text-emerald-650 bg-emerald-50 px-2 py-0.5 rounded-full font-bold mt-2 animate-bounce">
+              Calling you...
+            </span>
+
+            <div className="mt-6 grid grid-cols-2 gap-3.5 w-full">
+              <button
+                type="button"
+                onClick={() => setIncomingCallOpen(false)}
+                className="py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-650 rounded-xl text-xs font-bold transition-all cursor-pointer text-center"
+              >
+                Reject
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIncomingCallOpen(false);
+                  setActiveMeetTitle("Adil Rashid's Call");
+                  setActiveMeetOpen(true);
+                }}
+                className="py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-emerald-500/15 cursor-pointer text-center"
+              >
+                Accept
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Call Banner Notification */}
+      {meetBannerOpen && (
+        <div className="fixed top-5 right-5 z-[1001] w-full max-w-sm select-none animate-in slide-in-from-top-4 duration-200">
+          <div className="bg-white rounded-2xl border border-slate-150 overflow-hidden shadow-[0_12px_40px_rgba(2,6,23,0.12)] flex flex-col">
+            {/* Header (blue) */}
+            <div className="bg-blue-600 text-white p-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                <span className="text-[10px] font-extrabold uppercase tracking-wider">Design team meeting in progress</span>
+              </div>
+              <span className="text-[8px] font-bold text-white/70">3 mins ago</span>
+            </div>
+
+            {/* Content body */}
+            <div className="p-3 text-left">
+              <h4 className="text-xs font-extrabold text-slate-800">Weekly Design Review</h4>
+              <p className="text-[9px] text-slate-400 font-semibold mt-0.5">Host: Ashish Dalei · 4 participants active</p>
+              
+              {/* Progress timer bar */}
+              <div className="mt-2.5 w-full h-1 bg-slate-100 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-blue-600 transition-all duration-1000"
+                  style={{ width: `${(meetBannerTimeLeft / 12) * 100}%` }}
+                />
+              </div>
+              <span className="text-[8px] text-slate-400 font-bold block mt-1">Auto-dismisses in {meetBannerTimeLeft}s</span>
+
+              {/* Actions */}
+              <div className="mt-3 flex justify-end gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setMeetBannerOpen(false)}
+                  className="h-7 px-3 bg-slate-100 hover:bg-slate-200 text-slate-650 text-[9px] font-bold rounded-lg cursor-pointer transition-all"
+                >
+                  Ignore
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMeetBannerOpen(false);
+                    setActiveMeetTitle("Weekly Design Review");
+                    setActiveMeetOpen(true);
+                  }}
+                  className="h-7 px-3 bg-blue-600 hover:bg-blue-700 text-white text-[9px] font-bold rounded-lg cursor-pointer transition-all shadow-xs"
+                >
+                  Join Now
+                </button>
+              </div>
             </div>
           </div>
         </div>
