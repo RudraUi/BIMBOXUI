@@ -41,6 +41,7 @@ import {
   Star,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Forward,
   Settings,
   Link,
@@ -443,6 +444,8 @@ export function ChatPage() {
   // Custom premium additions
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState<string>("");
+  const [channelsExpanded, setChannelsExpanded] = useState(true);
+  const [dmsExpanded, setDmsExpanded] = useState(true);
   const [replyingToMessage, setReplyingToMessage] = useState<Message | null>(null);
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [membersModalOpen, setMembersModalOpen] = useState(false);
@@ -2123,68 +2126,156 @@ export function ChatPage() {
 
         {/* Channels/Teams list */}
         <div className="flex-1 overflow-y-auto p-2 space-y-0.5 select-none">
-          {filteredChannels.length > 0 ? (
-            filteredChannels.map(chan => {
-              const active = activeChannelId === chan.id;
-              return (
-                <div
-                  key={chan.id}
-                  onClick={() => handleSelectChannel(chan.id)}
-                  className={`chat-list-row flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer border ${
-                    active 
-                      ? "bg-[linear-gradient(135deg,rgba(232,240,254,0.95),rgba(255,255,255,0.94))] border-[#1a73e8]/25 text-slate-800 shadow-[0_10px_24px_rgba(26,115,232,0.1)]" 
-                      : "hover:bg-zinc-50/70 border-transparent text-zinc-600 hover:text-slate-800"
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    {chan.id.startsWith("ch_") ? (
-                      <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 transition-all border ${
-                        active 
-                          ? "bg-blue-100/80 text-blue-600 font-black border-blue-200/50" 
-                          : "bg-slate-50 text-slate-400 group-hover:bg-slate-100 group-hover:text-slate-500 border-slate-100/50"
-                      }`}>
-                        <span className="text-sm font-extrabold font-mono">#</span>
-                      </div>
-                    ) : chan.avatarUrl ? (
-                      <img 
-                        src={chan.avatarUrl} 
-                        alt={chan.name} 
-                        className="w-7 h-7 rounded-full object-cover shrink-0 filter grayscale-[10%]" 
-                      />
-                    ) : (
-                      <div className={`w-7 h-7 rounded-full ${chan.avatarColor} text-white flex items-center justify-center font-semibold text-xs shrink-0 uppercase`}>
-                        {chan.name.charAt(0)}
-                      </div>
-                    )}
-                    
-                    <div className="text-left min-w-0">
-                      <div className={`text-xs ${active ? "font-semibold text-slate-800" : "font-normal text-zinc-800"} truncate`}>
-                        {chan.name}
-                      </div>
-                      <div className={`text-[10px] font-normal truncate mt-0.5 max-w-[150px] ${active ? "text-slate-500" : "text-zinc-400"}`}>
-                        {chan.lastMessage}
-                      </div>
-                    </div>
-                  </div>
+          {(() => {
+            const channelsOnly = filteredChannels.filter(c => c.id.startsWith("ch_"));
+            const dmsOnly = filteredChannels.filter(c => !c.id.startsWith("ch_"));
 
-                  <div className="flex flex-col items-end gap-1 shrink-0 pl-1">
-                    <span className={`text-[9px] font-normal ${active ? "text-[#1a73e8]" : "text-zinc-400"}`}>
-                      {chan.metric}
-                    </span>
-                    {chan.unreadCount && chan.unreadCount > 0 ? (
-                      <span className="bg-[#1a73e8] text-white text-[9px] font-medium px-1.5 py-0.5 rounded-full">
-                        {chan.unreadCount}
-                      </span>
-                    ) : null}
-                  </div>
+            if (filteredChannels.length === 0) {
+              return (
+                <div className="text-center py-8 text-xs text-zinc-400 font-normal">
+                  No matches found
                 </div>
               );
-            })
-          ) : (
-            <div className="text-center py-8 text-xs text-zinc-400 font-normal">
-              No channels found
-            </div>
-          )}
+            }
+
+            return (
+              <div className="space-y-4">
+                {/* 1. CHANNELS GROUP */}
+                <div className="flex flex-col gap-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setChannelsExpanded(prev => !prev)}
+                    className="flex items-center gap-1.5 px-2 py-1.5 w-full text-slate-400 hover:text-slate-650 transition-colors text-[10px] font-bold tracking-wider uppercase text-left border-none bg-transparent cursor-pointer select-none"
+                  >
+                    <ChevronDown className={`w-3 h-3 transition-transform duration-200 shrink-0 ${channelsExpanded ? "" : "-rotate-90"}`} />
+                    <span>Channels ({channelsOnly.length})</span>
+                  </button>
+
+                  {channelsExpanded && (
+                    <div className="space-y-0.5 pl-0.5">
+                      {channelsOnly.length > 0 ? (
+                        channelsOnly.map(chan => {
+                          const active = activeChannelId === chan.id;
+                          return (
+                            <div
+                              key={chan.id}
+                              onClick={() => handleSelectChannel(chan.id)}
+                              className={`chat-list-row flex items-center justify-between px-3 py-2 rounded-xl cursor-pointer border transition-all ${
+                                active 
+                                  ? "bg-[linear-gradient(135deg,rgba(232,240,254,0.95),rgba(255,255,255,0.94))] border-[#1a73e8]/25 text-slate-800 shadow-[0_4px_12px_rgba(26,115,232,0.05)]" 
+                                  : "hover:bg-zinc-50/70 border-transparent text-zinc-650 hover:text-slate-800"
+                              }`}
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 transition-all border ${
+                                  active 
+                                    ? "bg-blue-100/80 text-blue-600 font-black border-blue-200/50" 
+                                    : "bg-slate-50 text-slate-400 group-hover:bg-slate-100 border-slate-100/50"
+                                }`}>
+                                  <span className="text-sm font-extrabold font-mono">#</span>
+                                </div>
+                                <div className="text-left min-w-0">
+                                  <div className={`text-xs ${active ? "font-semibold text-slate-800" : "font-normal text-zinc-805"} truncate`}>
+                                    {chan.name}
+                                  </div>
+                                  <div className={`text-[10px] font-normal truncate mt-0.5 max-w-[150px] ${active ? "text-slate-500" : "text-zinc-400"}`}>
+                                    {chan.lastMessage}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex flex-col items-end gap-1 shrink-0 pl-1">
+                                <span className={`text-[9px] font-normal ${active ? "text-[#1a73e8]" : "text-zinc-400"}`}>
+                                  {chan.metric}
+                                </span>
+                                {chan.unreadCount && chan.unreadCount > 0 ? (
+                                  <span className="bg-[#1a73e8] text-white text-[9px] font-medium px-1.5 py-0.5 rounded-full">
+                                    {chan.unreadCount}
+                                  </span>
+                                ) : null}
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="pl-3 py-1.5 text-[10px] text-zinc-400 font-normal italic text-left">
+                          No channels available
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. DIRECT MESSAGES GROUP */}
+                <div className="flex flex-col gap-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setDmsExpanded(prev => !prev)}
+                    className="flex items-center gap-1.5 px-2 py-1.5 w-full text-slate-400 hover:text-slate-655 transition-colors text-[10px] font-bold tracking-wider uppercase text-left border-none bg-transparent cursor-pointer select-none"
+                  >
+                    <ChevronDown className={`w-3 h-3 transition-transform duration-200 shrink-0 ${dmsExpanded ? "" : "-rotate-90"}`} />
+                    <span>Direct Messages ({dmsOnly.length})</span>
+                  </button>
+
+                  {dmsExpanded && (
+                    <div className="space-y-0.5 pl-0.5">
+                      {dmsOnly.length > 0 ? (
+                        dmsOnly.map(chan => {
+                          const active = activeChannelId === chan.id;
+                          return (
+                            <div
+                              key={chan.id}
+                              onClick={() => handleSelectChannel(chan.id)}
+                              className={`chat-list-row flex items-center justify-between px-3 py-2 rounded-xl cursor-pointer border transition-all ${
+                                active 
+                                  ? "bg-[linear-gradient(135deg,rgba(232,240,254,0.95),rgba(255,255,255,0.94))] border-[#1a73e8]/25 text-slate-800 shadow-[0_4px_12px_rgba(26,115,232,0.05)]" 
+                                  : "hover:bg-zinc-50/70 border-transparent text-zinc-655 hover:text-slate-800"
+                              }`}
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                {chan.avatarUrl ? (
+                                  <img 
+                                    src={chan.avatarUrl} 
+                                    alt={chan.name} 
+                                    className="w-7 h-7 rounded-full object-cover shrink-0 filter grayscale-[10%]" 
+                                  />
+                                ) : (
+                                  <div className={`w-7 h-7 rounded-full ${chan.avatarColor} text-white flex items-center justify-center font-semibold text-xs shrink-0 uppercase`}>
+                                    {chan.name.charAt(0)}
+                                  </div>
+                                )}
+                                <div className="text-left min-w-0">
+                                  <div className={`text-xs ${active ? "font-semibold text-slate-800" : "font-normal text-zinc-805"} truncate`}>
+                                    {chan.name}
+                                  </div>
+                                  <div className={`text-[10px] font-normal truncate mt-0.5 max-w-[150px] ${active ? "text-slate-500" : "text-zinc-400"}`}>
+                                    {chan.lastMessage}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex flex-col items-end gap-1 shrink-0 pl-1">
+                                <span className={`text-[9px] font-normal ${active ? "text-[#1a73e8]" : "text-zinc-400"}`}>
+                                  {chan.metric}
+                                </span>
+                                {chan.unreadCount && chan.unreadCount > 0 ? (
+                                  <span className="bg-[#1a73e8] text-white text-[9px] font-medium px-1.5 py-0.5 rounded-full">
+                                    {chan.unreadCount}
+                                  </span>
+                                ) : null}
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="pl-3 py-1.5 text-[10px] text-zinc-400 font-normal italic text-left">
+                          No direct messages
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
       </div>
