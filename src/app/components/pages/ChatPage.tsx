@@ -41,7 +41,6 @@ import {
   Star,
   ChevronLeft,
   ChevronRight,
-  ChevronDown,
   Forward,
   Settings,
   Link,
