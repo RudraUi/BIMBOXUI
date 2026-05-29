@@ -1545,6 +1545,18 @@ export function ChatPage() {
             <Check className="w-3.5 h-3.5" />
             <span>Select</span>
           </button>
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedMessageIds([msg.id]);
+              setForwardModalOpen(true);
+              setActiveMessageMenuId(null);
+            }}
+            className="chat-menu-item w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-[11px] font-semibold text-slate-700 cursor-pointer"
+          >
+            <Forward className="w-3.5 h-3.5 text-slate-500" />
+            <span>Forward</span>
+          </button>
           {(msg.attachments?.length || (msg.attachment && ["image", "video", "file", "audio"].includes(msg.attachment.type))) && (
             <button
               type="button"
