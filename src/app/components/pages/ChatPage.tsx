@@ -2137,7 +2137,15 @@ export function ChatPage() {
                   }`}
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
-                    {chan.avatarUrl ? (
+                    {chan.id.startsWith("ch_") ? (
+                      <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 transition-all border ${
+                        active 
+                          ? "bg-blue-100/80 text-blue-600 font-black border-blue-200/50" 
+                          : "bg-slate-50 text-slate-400 group-hover:bg-slate-100 group-hover:text-slate-500 border-slate-100/50"
+                      }`}>
+                        <span className="text-sm font-extrabold font-mono">#</span>
+                      </div>
+                    ) : chan.avatarUrl ? (
                       <img 
                         src={chan.avatarUrl} 
                         alt={chan.name} 
@@ -2198,11 +2206,17 @@ export function ChatPage() {
                   className="relative shrink-0 select-none cursor-pointer bg-transparent border-none p-0"
                   title="Open profile"
                 >
-                  <img 
-                    src={activeChannel.avatarUrl || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60"} 
-                    alt={activeChannel.name} 
-                    className="w-10 h-10 rounded-full object-cover filter grayscale-[10%]" 
-                  />
+                  {activeChannel.id.startsWith("ch_") ? (
+                    <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-200/60 text-slate-500 flex items-center justify-center font-extrabold text-lg shadow-sm">
+                      <span className="font-mono">#</span>
+                    </div>
+                  ) : (
+                    <img 
+                      src={activeChannel.avatarUrl || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60"} 
+                      alt={activeChannel.name} 
+                      className="w-10 h-10 rounded-full object-cover filter grayscale-[10%]" 
+                    />
+                  )}
                   <span className="absolute bottom-0 right-0 w-3 h-3 bg-[#34a853] rounded-full border-2 border-white" />
                 </button>
                 
@@ -4127,11 +4141,21 @@ export function ChatPage() {
                     }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <img 
-                        src={chan.avatarUrl || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60"} 
-                        alt={chan.name}
-                        className="w-7 h-7 rounded-full object-cover"
-                      />
+                      {chan.id.startsWith("ch_") ? (
+                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border ${
+                          isChecked 
+                            ? "bg-blue-100 text-blue-600 font-black border-blue-200/50" 
+                            : "bg-slate-100 text-slate-500 font-extrabold border-slate-200/20"
+                        }`}>
+                          <span className="text-xs font-mono">#</span>
+                        </div>
+                      ) : (
+                        <img 
+                          src={chan.avatarUrl || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60"} 
+                          alt={chan.name}
+                          className="w-7 h-7 rounded-full object-cover"
+                        />
+                      )}
                       <div className="min-w-0">
                         <div className="text-xs font-semibold text-slate-800 truncate">{chan.name}</div>
                         <div className="text-[9px] text-slate-400 font-normal">{chan.id === activeChannel.id ? "Current chat" : `${chan.members.length} members`}</div>
