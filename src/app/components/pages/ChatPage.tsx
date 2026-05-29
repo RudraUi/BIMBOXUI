@@ -56,7 +56,8 @@ import {
   PhoneOff,
   Pin,
   Coffee,
-  Sun
+  Sun,
+  Pencil
 } from "lucide-react";
 import { useSidebar } from "../../context/SidebarContext";
 
@@ -101,6 +102,7 @@ interface Message {
   attachments?: MessageAttachment[];
   deleted?: boolean;
   deletedLabel?: string;
+  edited?: boolean;
 }
 
 interface Channel {
@@ -439,6 +441,8 @@ export function ChatPage() {
   const [activePlayingAudio, setActivePlayingAudio] = useState<string | null>(null);
 
   // Custom premium additions
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editingText, setEditingText] = useState<string>("");
   const [replyingToMessage, setReplyingToMessage] = useState<Message | null>(null);
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [membersModalOpen, setMembersModalOpen] = useState(false);
@@ -1073,6 +1077,33 @@ export function ChatPage() {
     handleCancelSelection();
   };
 
+  const handleSaveEdit = (msgId: string) => {
+    if (!activeChannelId || !editingText.trim()) return;
+    setConversations((prev) => {
+      const msgs = prev[activeChannelId] || [];
+      const updated = msgs.map((m) => {
+        if (m.id === msgId) {
+          return { ...m, text: editingText, edited: true };
+        }
+        return m;
+      });
+      return { ...prev, [activeChannelId]: updated };
+    });
+
+    // Update last message of the active channel
+    setChannels((prev) =>
+      prev.map((c) => {
+        if (c.id === activeChannelId) {
+          return { ...c, lastMessage: editingText };
+        }
+        return c;
+      })
+    );
+
+    setEditingMessageId(null);
+    setEditingText("");
+  };
+
   // Delete message locally for current user
   const handleDeleteForMe = (msgId: string) => {
     if (!activeChannelId) return;
@@ -1525,6 +1556,20 @@ export function ChatPage() {
             <Trash2 className="w-3.5 h-3.5" />
             <span>Delete for me</span>
           </button>
+          {msg.isSelf && !msg.deleted && (
+            <button
+              type="button"
+              onClick={() => {
+                setEditingMessageId(msg.id);
+                setEditingText(msg.text || "");
+                setActiveMessageMenuId(null);
+              }}
+              className="chat-menu-item w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-[11px] font-semibold text-slate-700 cursor-pointer"
+            >
+              <Pencil className="w-3.5 h-3.5 text-slate-500" />
+              <span>Edit</span>
+            </button>
+          )}
           {msg.isSelf && (
             <button
               type="button"
@@ -2428,9 +2473,9 @@ export function ChatPage() {
                     <div key={msg.id} className={`group relative flex flex-col items-start mr-auto max-w-[70%] text-left pb-1 animate-in fade-in slide-in-from-bottom-2 duration-200 ${activeMessageMenuId === msg.id ? "z-[80]" : "z-0"}`}>
                       <span className="text-[9px] font-bold mb-0.5 ml-1" style={{ color: senderTheme.color }}>{msg.sender}</span>
                       {msg.forwardedFrom && (
-                        <span className="text-[9px] text-slate-400 font-semibold mb-1 ml-1 flex items-center gap-1">
-                          <Forward className="w-2.5 h-2.5" />
-                          Forwarded from {msg.forwardedFrom.sender}
+                        <span className="text-[9.5px] text-slate-450 font-semibold mb-1 ml-1 flex items-center gap-1 select-none italic">
+                          <Forward className="w-2.5 h-2.5 text-slate-400" />
+                          Forwarded
                         </span>
                       )}
                       <div className="flex items-center gap-2">
@@ -2695,9 +2740,9 @@ export function ChatPage() {
                 return (
                   <div key={msg.id} className={`group relative flex flex-col items-end ml-auto max-w-[70%] text-right pb-1 animate-in fade-in slide-in-from-bottom-2 duration-200 ${activeMessageMenuId === msg.id ? "z-[80]" : "z-0"}`}>
                     {msg.forwardedFrom && (
-                      <span className="text-[9px] text-slate-400 font-semibold mb-1 mr-1 flex items-center gap-1">
-                        Forwarded from {msg.forwardedFrom.sender}
-                        <Forward className="w-2.5 h-2.5" />
+                      <span className="text-[9.5px] text-slate-450 font-semibold mb-1 mr-1 flex items-center gap-1 select-none italic">
+                        Forwarded
+                        <Forward className="w-2.5 h-2.5 text-slate-400" />
                       </span>
                     )}
                     <div className="flex items-center gap-2">
@@ -2932,7 +2977,48 @@ export function ChatPage() {
                               <span className="truncate block font-normal text-[9px]">{msg.replyTo.text}</span>
                             </div>
                           )}
-                          {msg.text}
+                          {editingMessageId === msg.id ? (
+                            <div className="flex flex-col gap-2 min-w-[220px] py-1">
+                              <textarea
+                                value={editingText}
+                                onChange={(e) => setEditingText(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" && !e.shiftKey) {
+                                    e.preventDefault();
+                                    handleSaveEdit(msg.id);
+                                  }
+                                }}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none font-medium"
+                                rows={2}
+                                autoFocus
+                              />
+                              <div className="flex justify-end gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingMessageId(null)}
+                                  className="h-7 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-[10px] font-bold text-slate-600 transition-colors cursor-pointer border-none"
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleSaveEdit(msg.id)}
+                                  className="h-7 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-[10px] font-bold text-white transition-colors cursor-pointer border-none"
+                                >
+                                  Save
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              {msg.text}
+                              {msg.edited && (
+                                <span className="text-[8.5px] text-slate-400 font-bold select-none ml-1.5 italic">
+                                  (edited)
+                                </span>
+                              )}
+                            </>
+                          )}
                         </div>
                       )}
                     </div>
