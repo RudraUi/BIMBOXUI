@@ -3019,7 +3019,7 @@ export default function ViewerSetup() {
                         isSelected ? "ring-4 ring-blue-500/15" : ""
                       }`}
                       style={{ left: `${x}px`, top: `${y}px` }}
-                      title="Upload floor plan"
+                      title="Upload site plan"
                     >
                       <span className="relative flex h-[52px] w-[52px] items-center justify-center rounded-full bg-blue-600 text-white shadow-lg shadow-blue-600/25">
                         <span className="absolute inset-0 rounded-full bg-blue-500/40 animate-ping" />
@@ -3027,7 +3027,7 @@ export default function ViewerSetup() {
                         <Plus className="relative h-6 w-6" />
                       </span>
                       <span className="rounded-xl border border-white/70 bg-white/95 px-3 py-1.5 shadow-[0_10px_28px_rgba(15,23,42,0.16)] backdrop-blur">
-                        <span className="block text-[11px] font-extrabold text-slate-900">Upload floor plan</span>
+                        <span className="block text-[11px] font-extrabold text-slate-900">Upload site plan</span>
                         <span className="block text-[9px] font-semibold text-slate-400">HUB or device</span>
                       </span>
                     </button>
@@ -5551,9 +5551,9 @@ export default function ViewerSetup() {
                     <UploadCloud className="h-5 w-5" />
                   </div>
                   <div>
-                    <h3 className="text-base font-extrabold text-slate-900">Upload floor plan</h3>
+                    <h3 className="text-base font-extrabold text-slate-900">Upload site plan</h3>
                     <p className="text-[10px] text-slate-500 font-semibold mt-1 leading-4 max-w-sm">
-                      Select a floor plan from Project HUB or upload a local drawing. Alignment remains available in the setup panel.
+                      Select a site plan from Project HUB or upload a local drawing. Alignment remains available in the setup panel.
                     </p>
                   </div>
                 </div>

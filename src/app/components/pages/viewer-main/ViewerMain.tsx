@@ -4964,7 +4964,7 @@ startxref
 	                        isSelected ? "ring-4 ring-blue-500/15" : ""
 	                      }`}
 	                      style={{ left: `${x}px`, top: `${y}px` }}
-	                      title="Upload floor plan"
+	                      title="Upload site plan"
 	                    >
 	                      <span className="relative flex h-[52px] w-[52px] items-center justify-center rounded-full bg-blue-600 text-white shadow-lg shadow-blue-600/25">
 	                        <span className="absolute inset-0 rounded-full bg-blue-500/40 animate-ping" />
@@ -4972,7 +4972,7 @@ startxref
 	                        <Plus className="relative h-6 w-6" />
 	                      </span>
 	                      <span className="rounded-xl border border-white/70 bg-white/95 px-3 py-1.5 shadow-[0_10px_28px_rgba(15,23,42,0.16)] backdrop-blur">
-	                        <span className="block text-[11px] font-extrabold text-slate-900">Upload floor plan</span>
+	                        <span className="block text-[11px] font-extrabold text-slate-900">Upload site plan</span>
 	                        <span className="block text-[9px] font-semibold text-slate-400">HUB or device</span>
 	                      </span>
 	                    </button>
@@ -11934,21 +11934,26 @@ startxref
               ...(suggestedPlan ? [suggestedPlan] : []),
               ...availableSitePlanSources.filter((plan) => plan.id !== suggestedPlan?.id)
             ];
+            const hasPlans = orderedPlans.length > 0;
 
             return (
-              <div className="w-full max-w-xl rounded-3xl bg-white border border-white/70 shadow-[0_28px_90px_rgba(15,23,42,0.22)] overflow-hidden text-left">
-                <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-br from-white via-blue-50/35 to-slate-50 flex items-start justify-between gap-4">
+              <div className="w-full max-w-md rounded-3xl bg-white border border-white/70 shadow-[0_28px_90px_rgba(15,23,42,0.22)] overflow-hidden text-left animate-in fade-in zoom-in-95 duration-150">
+                {/* Header */}
+                <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-br from-white via-blue-50/25 to-slate-50 flex items-start justify-between gap-4">
                   <div className="flex items-start gap-3 min-w-0">
-                    <div className="h-11 w-11 rounded-2xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-lg shadow-blue-600/20">
-                      <FolderOpen className="h-5 w-5" />
+                    <div className="h-10 w-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-600/10">
+                      <FolderOpen className="h-4.5 w-4.5" />
                     </div>
                     <div className="min-w-0">
-                      <div className="text-[9px] font-extrabold uppercase tracking-wider text-blue-600">Assign site plan</div>
-                      <h3 className="mt-1 text-base font-extrabold text-slate-900 truncate">
-                        Which plan goes inside {boundary?.label || "this boundary"}?
+                      <div className="text-[9px] font-extrabold uppercase tracking-wider text-blue-600">Map Overlay</div>
+                      <h3 className="mt-0.5 text-sm font-extrabold text-slate-800">
+                        {hasPlans ? "Select a Drawing to Display" : "No Drawings Uploaded Yet"}
                       </h3>
-                      <p className="mt-1 text-[10px] font-semibold leading-4 text-slate-500">
-                        Choose one plan now. You can switch this assignment later from the Layers panel.
+                      <p className="mt-0.5 text-[10px] font-semibold leading-relaxed text-slate-500">
+                        {hasPlans 
+                          ? `Assign a drawing to overlay on the map inside ${boundary?.label || "this boundary"}.` 
+                          : `Add blueprints or site plans to view them inside ${boundary?.label || "this boundary"}.`
+                        }
                       </p>
                     </div>
                   </div>
@@ -11957,82 +11962,109 @@ startxref
                       setSitePlanAssignmentBoundaryId(null);
                       setSitePlanAssignmentSuggestedId(null);
                     }}
-                    className="h-8 w-8 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-white/80 flex items-center justify-center cursor-pointer transition-all"
-                    title="Close"
+                    className="h-7 w-7 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center cursor-pointer transition-all"
                   >
-                    <X className="h-4 w-4" />
+                    <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
 
-                <div className="p-5 space-y-2.5 max-h-[56vh] overflow-y-auto">
-                  {orderedPlans.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 p-6 text-center">
-                      <UploadCloud className="mx-auto h-7 w-7 text-blue-500" />
-                      <p className="mt-2 text-xs font-extrabold text-slate-700">No site plans ready yet</p>
-                      <p className="mt-1 text-[10px] font-semibold text-slate-400">
-                        Upload or create a site plan in Drawing Setup, then assign it from Layers.
+                {/* Content body */}
+                <div className="p-5">
+                  {!hasPlans ? (
+                    <div className="flex flex-col items-center text-center py-4">
+                      <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center mb-3">
+                        <UploadCloud className="h-6 w-6 text-blue-500 animate-pulse" />
+                      </div>
+                      <p className="text-xs font-bold text-slate-800">Assign a map blueprint</p>
+                      <p className="mt-1 max-w-[280px] text-[10.5px] font-semibold leading-relaxed text-slate-500">
+                        Blueprints let you compare your architectural drafts directly on the map. Let's upload one to get started.
                       </p>
+                      
+                      <button
+                        onClick={() => {
+                          setActiveTab("drawing");
+                          setSitePlanAssignmentBoundaryId(null);
+                          setSitePlanAssignmentSuggestedId(null);
+                        }}
+                        className="mt-5 w-full h-9 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-md shadow-blue-500/10 active:scale-[0.98] cursor-pointer"
+                      >
+                        Upload a Drawing
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSitePlanAssignmentBoundaryId(null);
+                          setSitePlanAssignmentSuggestedId(null);
+                        }}
+                        className="mt-2.5 text-[10px] font-bold text-slate-450 hover:text-slate-650 transition-colors"
+                      >
+                        Skip for now
+                      </button>
                     </div>
                   ) : (
-                    orderedPlans.map((plan) => {
-                      const isSuggested = plan.id === suggestedPlan?.id;
-                      return (
-                        <button
-                          key={plan.id}
-                          onClick={() => assignSitePlanToBoundary(sitePlanAssignmentBoundaryId, plan.id)}
-                          className={`w-full rounded-2xl border p-3 text-left transition-all cursor-pointer flex items-center gap-3 hover:-translate-y-0.5 ${
-                            isSuggested
-                              ? "border-blue-200 bg-blue-50/70 shadow-sm shadow-blue-600/10"
-                              : "border-slate-100 bg-white hover:bg-slate-50"
-                          }`}
-                        >
-                          <div className="h-14 w-20 rounded-xl border border-slate-100 bg-slate-50 overflow-hidden shrink-0">
-                            {plan.drawingOverlay?.url ? (
-                              <BlueprintImage src={plan.drawingOverlay.url} alt={plan.label} className="h-full w-full object-cover" />
-                            ) : (
-                              <FileText className="m-5 h-4 w-4 text-blue-500" />
-                            )}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-1.5">
-                              <p className="truncate text-xs font-extrabold text-slate-900">{plan.label}</p>
-                              {isSuggested && (
-                                <span className="rounded-md bg-blue-600 px-1.5 py-0.5 text-[7px] font-extrabold uppercase text-white">
-                                  Suggested
-                                </span>
+                    <div className="space-y-2 max-h-[45vh] overflow-y-auto pr-1">
+                      {orderedPlans.map((plan) => {
+                        const isSuggested = plan.id === sitePlanAssignmentSuggestedId;
+                        return (
+                          <button
+                            key={plan.id}
+                            onClick={() => assignSitePlanToBoundary(sitePlanAssignmentBoundaryId, plan.id)}
+                            className={`w-full rounded-2xl border p-3 text-left transition-all cursor-pointer flex items-center gap-3 hover:-translate-y-0.5 ${
+                              isSuggested
+                                ? "border-blue-200 bg-blue-50/70 shadow-sm shadow-blue-600/10"
+                                : "border-slate-100 bg-white hover:bg-slate-50"
+                            }`}
+                          >
+                            <div className="h-12 w-16 rounded-xl border border-slate-100 bg-slate-50 overflow-hidden shrink-0">
+                              {plan.drawingOverlay?.url ? (
+                                <BlueprintImage src={plan.drawingOverlay.url} alt={plan.label} className="h-full w-full object-cover" />
+                              ) : (
+                                <FileText className="m-4 h-4 w-4 text-blue-500" />
                               )}
                             </div>
-                            <p className="mt-1 truncate text-[10px] font-semibold text-slate-500">
-                              {plan.drawingOverlay ? getOverlayName(plan.drawingOverlay.url) : "No base drawing"}
-                            </p>
-                            <p className="mt-1 text-[9px] font-bold text-blue-600">
-                              {(plan.childLayers || []).length} zone{(plan.childLayers || []).length === 1 ? "" : "s"} in this plan
-                            </p>
-                          </div>
-                          <CheckCircle2 className="h-4 w-4 text-blue-600 shrink-0" />
-                        </button>
-                      );
-                    })
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5">
+                                <p className="truncate text-xs font-extrabold text-slate-900">{plan.label}</p>
+                                {isSuggested && (
+                                  <span className="rounded bg-blue-600 px-1.5 py-0.5 text-[7px] font-extrabold uppercase text-white">
+                                    Suggested
+                                  </span>
+                                )}
+                              </div>
+                              <p className="mt-0.5 truncate text-[9.5px] font-semibold text-slate-500">
+                                {plan.drawingOverlay ? getOverlayName(plan.drawingOverlay.url) : "No base drawing"}
+                              </p>
+                              <p className="mt-0.5 text-[9px] font-bold text-blue-600">
+                                {(plan.childLayers || []).length} zone{(plan.childLayers || []).length === 1 ? "" : "s"} inside
+                              </p>
+                            </div>
+                            <CheckCircle2 className="h-4 w-4 text-blue-600 shrink-0" />
+                          </button>
+                        );
+                      })}
+                    </div>
                   )}
                 </div>
 
-                <div className="px-5 py-3.5 border-t border-slate-100 bg-slate-50/60 flex items-center justify-between gap-3">
-                  <button
-                    onClick={() => assignSitePlanToBoundary(sitePlanAssignmentBoundaryId, null)}
-                    className="h-9 rounded-xl border border-slate-200 bg-white px-4 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-all cursor-pointer"
-                  >
-                    Keep without plan
-                  </button>
-                  <button
-                    onClick={() => {
-                      setSitePlanAssignmentBoundaryId(null);
-                      setSitePlanAssignmentSuggestedId(null);
-                    }}
-                    className="h-9 rounded-xl bg-slate-900 px-4 text-xs font-extrabold text-white hover:bg-slate-800 transition-all cursor-pointer"
-                  >
-                    Decide later
-                  </button>
-                </div>
+                {/* Footer only if plans exist */}
+                {hasPlans && (
+                  <div className="px-5 py-3.5 border-t border-slate-100 bg-slate-50/60 flex items-center justify-between gap-3">
+                    <button
+                      onClick={() => assignSitePlanToBoundary(sitePlanAssignmentBoundaryId, null)}
+                      className="h-9 rounded-xl border border-slate-200 bg-white px-4 text-xs font-bold text-slate-655 hover:bg-slate-50 transition-all cursor-pointer"
+                    >
+                      Clear overlay / Keep empty
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSitePlanAssignmentBoundaryId(null);
+                        setSitePlanAssignmentSuggestedId(null);
+                      }}
+                      className="h-9 rounded-xl bg-slate-900 px-4 text-xs font-extrabold text-white hover:bg-slate-800 transition-all cursor-pointer"
+                    >
+                      Done
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })()}
@@ -12369,9 +12401,9 @@ startxref
                     <UploadCloud className="h-5 w-5" />
                   </div>
                   <div>
-                    <h3 className="text-base font-extrabold text-slate-900">Upload floor plan</h3>
+                    <h3 className="text-base font-extrabold text-slate-900">Upload site plan</h3>
                     <p className="text-[10px] text-slate-500 font-semibold mt-1 leading-4 max-w-sm">
-                      Select a floor plan from Project HUB or upload a local drawing. Alignment remains available in the setup panel.
+                      Select a site plan from Project HUB or upload a local drawing. Alignment remains available in the setup panel.
                     </p>
                   </div>
                 </div>
