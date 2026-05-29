@@ -87,65 +87,49 @@ function ProjectViewerWelcome({ onStart }: { onStart: (tab: "map" | "drawing") =
   ];
 
   return (
-    <div className="relative flex h-full min-h-screen items-center justify-center overflow-hidden bg-white px-6 py-8">
+    <div className="absolute inset-0 z-[90] flex items-center justify-center overflow-hidden bg-slate-950/25 px-6 py-8 backdrop-blur-[3px]">
       <style>{`
-        @keyframes preconLiquidOne {
-          0% { transform: translate3d(0, 0, 0) scale(1); }
-          50% { transform: translate3d(28px, -18px, 0) scale(1.08); }
-          100% { transform: translate3d(-18px, 12px, 0) scale(0.98); }
-        }
-        @keyframes preconLiquidTwo {
-          0% { transform: translate3d(0, 0, 0) scale(1); }
-          50% { transform: translate3d(-30px, -20px, 0) scale(1.06); }
-          100% { transform: translate3d(20px, 12px, 0) scale(1); }
-        }
         @keyframes preconOrbit {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
         }
       `}</style>
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-[45%] overflow-hidden bg-transparent">
-        <div className="absolute bottom-[-80px] left-[10%] h-[500px] w-[500px] rounded-full bg-violet-300/50 blur-[130px]" style={{ animation: "preconLiquidOne 26s ease-in-out infinite alternate" }} />
-        <div className="absolute bottom-[-100px] right-[10%] h-[550px] w-[550px] rounded-full bg-sky-300/60 blur-[140px]" style={{ animation: "preconLiquidTwo 32s ease-in-out infinite alternate" }} />
-        <div className="absolute bottom-[-60px] left-[40%] h-[450px] w-[450px] rounded-full bg-pink-200/55 blur-[125px]" style={{ animation: "preconLiquidOne 26s ease-in-out infinite alternate", animationDelay: "-8s" }} />
-        <div className="absolute inset-x-0 top-0 z-10 h-40 bg-gradient-to-b from-white via-white/80 to-transparent" />
-      </div>
-      <div className="relative w-full max-w-xl text-center">
-        <div className="relative mx-auto mb-5 h-20 w-20">
-          <div className="absolute inset-0 rounded-full border border-blue-100/80" />
-          <div className="absolute inset-2 rounded-full border border-dashed border-blue-200/80" style={{ animation: "preconOrbit 18s linear infinite" }}>
-            <span className="absolute -top-1 left-1/2 h-2 w-2 -translate-x-1/2 rounded-full bg-blue-600 shadow-[0_0_0_5px_rgba(37,99,235,0.08)]" />
-            <span className="absolute bottom-2 right-1 h-1.5 w-1.5 rounded-full bg-sky-400" />
-            <span className="absolute bottom-4 left-0 h-1.5 w-1.5 rounded-full bg-violet-400" />
+      <div className="relative w-full max-w-[460px] rounded-[26px] border border-white/75 bg-white/72 px-5 py-5 text-center shadow-[0_28px_80px_rgba(15,23,42,0.24),inset_0_1px_0_rgba(255,255,255,0.75)] backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-200">
+        <div className="pointer-events-none absolute inset-0 rounded-[26px] bg-gradient-to-br from-white/75 via-white/35 to-blue-50/20" />
+        <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-white/90" />
+        <div className="relative mx-auto mb-2.5 h-14 w-14">
+          <div className="absolute inset-0 rounded-full border border-blue-100/70 bg-white/35" />
+          <div className="absolute inset-2 rounded-full border border-dashed border-blue-200/70" style={{ animation: "preconOrbit 18s linear infinite" }}>
+            <span className="absolute -top-1 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-blue-600" />
           </div>
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-[20px] bg-blue-600 text-white shadow-[0_18px_46px_rgba(37,99,235,0.25)] ring-8 ring-blue-50/80">
-              <Building2 className="h-[22px] w-[22px] stroke-[2.2]" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-[14px] bg-blue-600 text-white shadow-[0_14px_34px_rgba(37,99,235,0.24)] ring-5 ring-white/45">
+              <Building2 className="h-4.5 w-4.5 stroke-[2.2]" />
             </div>
           </div>
         </div>
 
-        <div className="mx-auto flex w-fit items-center gap-2 rounded-full border border-blue-100/70 bg-blue-50/60 px-2.5 py-1 text-[9px] font-extrabold uppercase tracking-[0.16em] text-blue-600">
+        <div className="relative mx-auto flex w-fit items-center gap-2 rounded-full border border-blue-100/70 bg-white/45 px-2.5 py-1 text-[8.5px] font-extrabold uppercase tracking-[0.14em] text-blue-600 backdrop-blur">
           <span className="h-1.5 w-1.5 rounded-full bg-blue-600" />
           Project viewer
         </div>
-        <h1 className="mt-4 text-[30px] font-semibold tracking-[-0.025em] text-slate-950">
+        <h1 className="relative mt-2.5 text-[22px] font-semibold text-slate-950">
           {projectName}
         </h1>
-        <p className="mx-auto mt-2 max-w-sm text-sm font-medium leading-6 text-slate-500">
+        <p className="relative mx-auto mt-1 max-w-sm text-[11.5px] font-medium leading-5 text-slate-500">
           Start with the setup path that matches your first source.
         </p>
 
-        <div className="mx-auto mt-5 flex w-fit items-center gap-2 rounded-full border border-slate-100 bg-white/90 px-3.5 py-1.5 text-[10px] font-semibold text-slate-500 shadow-[0_8px_24px_rgba(15,23,42,0.06)]">
-          <span className="flex h-4.5 w-4.5 items-center justify-center rounded-full bg-blue-50 text-blue-600">
-            <Compass className="h-3 w-3" />
+        <div className="relative mx-auto mt-3 flex max-w-full w-fit items-center gap-2 rounded-full border border-white/70 bg-white/45 px-3 py-1.5 text-[9.5px] font-semibold text-slate-500 shadow-sm backdrop-blur">
+          <span className="flex h-4 w-4 items-center justify-center rounded-full bg-blue-50/80 text-blue-600">
+            <Compass className="h-2.5 w-2.5" />
           </span>
-          <span>{projectLocation}</span>
+          <span className="truncate">{projectLocation}</span>
         </div>
 
-        <div className="mt-8 rounded-[28px] border border-slate-100 bg-white/90 p-3 text-left shadow-[0_22px_70px_rgba(15,23,42,0.08)] backdrop-blur">
-          <div className="px-3 pb-2 pt-1">
-            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">Start setup</p>
+        <div className="relative mt-4 rounded-[22px] border border-white/75 bg-white/58 p-1.5 text-left shadow-[0_16px_50px_rgba(15,23,42,0.10),inset_0_1px_0_rgba(255,255,255,0.65)] backdrop-blur-xl">
+          <div className="px-3 py-1.5">
+            <p className="text-[9px] font-extrabold uppercase tracking-[0.14em] text-slate-400">Start setup</p>
           </div>
           {setupChoices.map((choice) => {
             const Icon = choice.icon;
@@ -154,17 +138,17 @@ function ProjectViewerWelcome({ onStart }: { onStart: (tab: "map" | "drawing") =
                 key={choice.id}
                 type="button"
                 onClick={() => onStart(choice.id)}
-                className="group flex w-full items-center gap-4 rounded-2xl px-3 py-3.5 transition-all hover:bg-slate-50"
+                className="group flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 transition-all hover:bg-white/70"
               >
-                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${choice.accent} text-white shadow-sm`}>
-                  <Icon className="h-[18px] w-[18px]" />
+                <div className={`flex h-8.5 w-8.5 shrink-0 items-center justify-center rounded-xl ${choice.accent} text-white shadow-sm`}>
+                  <Icon className="h-4 w-4" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-sm font-bold text-slate-950">{choice.title}</div>
-                  <div className="mt-0.5 text-[11px] font-medium text-slate-500">{choice.description}</div>
+                  <div className="text-xs font-bold text-slate-950">{choice.title}</div>
+                  <div className="mt-0.5 text-[10px] font-medium text-slate-500">{choice.description}</div>
                 </div>
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-slate-300 shadow-sm ring-1 ring-slate-100 transition-all group-hover:bg-blue-600 group-hover:text-white group-hover:ring-blue-600">
-                  <ArrowRight className="h-3.5 w-3.5" />
+                <div className="flex h-6.5 w-6.5 shrink-0 items-center justify-center rounded-full bg-white/55 text-slate-300 ring-1 ring-white/80 transition-all group-hover:bg-blue-600 group-hover:text-white group-hover:ring-blue-600">
+                  <ArrowRight className="h-3 w-3" />
                   </div>
               </button>
             );
@@ -201,9 +185,12 @@ export function PreConstructionWorkspace() {
   };
 
   return (
-    <div className="h-full min-h-screen overflow-hidden bg-white">
+    <div className="relative h-full min-h-screen overflow-hidden bg-white">
       {safeActiveTab === "home" && (
-        hasStartedViewer ? <ViewerMain key={viewerInstanceKey} /> : <ProjectViewerWelcome onStart={handleStartViewer} />
+        <>
+          <ViewerMain key={viewerInstanceKey} />
+          {!hasStartedViewer && <ProjectViewerWelcome onStart={handleStartViewer} />}
+        </>
       )}
       {safeActiveTab !== "home" && (
         <EmptyWorkspacePanel tab={activeTabMeta} />

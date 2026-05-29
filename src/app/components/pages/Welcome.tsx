@@ -18,7 +18,19 @@ import {
   LayoutGrid,
   Eye,
   Zap,
-  Users
+  Users,
+  Paintbrush,
+  Layers,
+  Cpu,
+  Wind,
+  Droplet,
+  Percent,
+  Handshake,
+  Workflow,
+  Compass,
+  DollarSign,
+  Briefcase,
+  MessageSquare
 } from "lucide-react";
 import confetti from "canvas-confetti";
 
@@ -51,7 +63,122 @@ const PHASE_OPTIONS = [
   { id: "fac-mgmt", label: "Facility Management", desc: "Operations & maintenance", icon: Wrench, route: "/facility-management" },
 ];
 
-const TEAM_TEMPLATE = ["Architecture", "Structure", "MEP"];
+const TEAM_TEMPLATE = [
+  "Design team",
+  "Structure",
+  "Architecture",
+  "Mechanical",
+  "HVAC",
+  "Plumbing",
+  "Sales",
+  "Partner",
+  "BIM",
+  "Contractor",
+  "Survey team",
+  "Finance"
+];
+
+const TEAM_TEMPLATE_DESCRIPTIONS: Record<string, string> = {
+  "Design team": "UI/UX, visual design, and experience development.",
+  Structure: "Grids, beams, slab inputs, and reinforcement reviews.",
+  Architecture: "Spatial layout, consultant sync, and drawing sets.",
+  Mechanical: "Mechanical system routing and machinery layout.",
+  HVAC: "Heating, ventilation, air conditioning coordination.",
+  Plumbing: "Water supply, drainage, and utility layout reviews.",
+  Sales: "Client onboarding, pitch decks, and revenue streams.",
+  Partner: "External relations, sub-contractors, and stakeholder sync.",
+  BIM: "3D model migration, model auditing, and clash checks.",
+  Contractor: "Site fabrication updates and material supply sync.",
+  "Survey team": "Drone photography, site boundaries, and elevation scans.",
+  Finance: "Invoice approvals, resource allocation, and payouts."
+};
+
+const TEAM_TEMPLATE_ICONS: Record<string, any> = {
+  "Design team": Paintbrush,
+  Structure: Layers,
+  Architecture: Building,
+  Mechanical: Cpu,
+  HVAC: Wind,
+  Plumbing: Droplet,
+  Sales: Percent,
+  Partner: Handshake,
+  BIM: Workflow,
+  Contractor: HardHat,
+  "Survey team": Compass,
+  Finance: DollarSign
+};
+
+const TEAM_THEMES: Record<string, {
+  activeBg: string;
+  activeBorder: string;
+  activeText: string;
+  inactiveBg: string;
+  inactiveBorder: string;
+  inactiveText: string;
+  iconActiveBg: string;
+  iconInactiveBg: string;
+}> = {
+  "Design team": {
+    activeBg: "bg-rose-50/70", activeBorder: "border-rose-250", activeText: "text-rose-700 font-extrabold",
+    inactiveBg: "bg-white", inactiveBorder: "border-slate-150", inactiveText: "text-slate-700",
+    iconActiveBg: "bg-rose-600 text-white", iconInactiveBg: "bg-rose-50 text-rose-500 group-hover:bg-rose-100"
+  },
+  Structure: {
+    activeBg: "bg-amber-50/70", activeBorder: "border-amber-250", activeText: "text-amber-700 font-extrabold",
+    inactiveBg: "bg-white", inactiveBorder: "border-slate-150", inactiveText: "text-slate-700",
+    iconActiveBg: "bg-amber-600 text-white", iconInactiveBg: "bg-amber-50 text-amber-500 group-hover:bg-amber-100"
+  },
+  Architecture: {
+    activeBg: "bg-indigo-50/70", activeBorder: "border-indigo-250", activeText: "text-indigo-700 font-extrabold",
+    inactiveBg: "bg-white", inactiveBorder: "border-slate-150", inactiveText: "text-slate-700",
+    iconActiveBg: "bg-indigo-600 text-white", iconInactiveBg: "bg-indigo-50 text-indigo-500 group-hover:bg-indigo-100"
+  },
+  Mechanical: {
+    activeBg: "bg-teal-50/70", activeBorder: "border-teal-250", activeText: "text-teal-700 font-extrabold",
+    inactiveBg: "bg-white", inactiveBorder: "border-slate-150", inactiveText: "text-slate-700",
+    iconActiveBg: "bg-teal-600 text-white", iconInactiveBg: "bg-teal-50 text-teal-500 group-hover:bg-teal-100"
+  },
+  HVAC: {
+    activeBg: "bg-sky-50/70", activeBorder: "border-sky-250", activeText: "text-sky-700 font-extrabold",
+    inactiveBg: "bg-white", inactiveBorder: "border-slate-150", inactiveText: "text-slate-700",
+    iconActiveBg: "bg-sky-600 text-white", iconInactiveBg: "bg-sky-50 text-sky-500 group-hover:bg-sky-100"
+  },
+  Plumbing: {
+    activeBg: "bg-blue-50/70", activeBorder: "border-blue-250", activeText: "text-blue-700 font-extrabold",
+    inactiveBg: "bg-white", inactiveBorder: "border-slate-150", inactiveText: "text-slate-700",
+    iconActiveBg: "bg-blue-600 text-white", iconInactiveBg: "bg-blue-50 text-blue-500 group-hover:bg-blue-100"
+  },
+  Sales: {
+    activeBg: "bg-emerald-50/70", activeBorder: "border-emerald-250", activeText: "text-emerald-700 font-extrabold",
+    inactiveBg: "bg-white", inactiveBorder: "border-slate-150", inactiveText: "text-slate-700",
+    iconActiveBg: "bg-emerald-600 text-white", iconInactiveBg: "bg-emerald-50 text-emerald-500 group-hover:bg-emerald-100"
+  },
+  Partner: {
+    activeBg: "bg-violet-50/70", activeBorder: "border-violet-250", activeText: "text-violet-700 font-extrabold",
+    inactiveBg: "bg-white", inactiveBorder: "border-slate-150", inactiveText: "text-slate-700",
+    iconActiveBg: "bg-violet-600 text-white", iconInactiveBg: "bg-violet-50 text-violet-500 group-hover:bg-violet-100"
+  },
+  BIM: {
+    activeBg: "bg-purple-50/70", activeBorder: "border-purple-250", activeText: "text-purple-700 font-extrabold",
+    inactiveBg: "bg-white", inactiveBorder: "border-slate-150", inactiveText: "text-slate-700",
+    iconActiveBg: "bg-purple-600 text-white", iconInactiveBg: "bg-purple-50 text-purple-500 group-hover:bg-purple-100"
+  },
+  Contractor: {
+    activeBg: "bg-stone-50/80", activeBorder: "border-stone-250", activeText: "text-stone-700 font-extrabold",
+    inactiveBg: "bg-white", inactiveBorder: "border-slate-150", inactiveText: "text-slate-700",
+    iconActiveBg: "bg-stone-600 text-white", iconInactiveBg: "bg-stone-50 text-stone-500 group-hover:bg-stone-100"
+  },
+  "Survey team": {
+    activeBg: "bg-lime-50/70", activeBorder: "border-lime-250", activeText: "text-lime-700 font-extrabold",
+    inactiveBg: "bg-white", inactiveBorder: "border-slate-150", inactiveText: "text-slate-700",
+    iconActiveBg: "bg-lime-650 text-white", iconInactiveBg: "bg-lime-50 text-lime-600 group-hover:bg-lime-100"
+  },
+  Finance: {
+    activeBg: "bg-amber-50/50", activeBorder: "border-yellow-250", activeText: "text-amber-800 font-extrabold",
+    inactiveBg: "bg-white", inactiveBorder: "border-slate-150", inactiveText: "text-slate-700",
+    iconActiveBg: "bg-yellow-600 text-white", iconInactiveBg: "bg-yellow-50 text-yellow-600 group-hover:bg-yellow-100"
+  }
+};
 
 // Custom Neural Nodes SVG Component
 function NeuralNodeCircle() {
@@ -143,6 +270,7 @@ export function Welcome() {
     { id: 2, label: "Building 3D environment", sub: "Mapping coordinate spaces and meshes...", icon: Box, done: false, active: false },
     { id: 3, label: "Doing viewer setup", sub: "Attaching default catalogs and WebGL viewports...", icon: Eye, done: false, active: false },
     { id: 4, label: "Finalizing workspace", sub: "Deploying secure runtime container...", icon: Zap, done: false, active: false },
+    { id: 5, label: "We are creating Channels", sub: "Deploying custom preset channel containers...", icon: MessageSquare, done: false, active: false },
   ]);
   const [newProjectDetails, setNewProjectDetails] = useState<{ name: string; location: string; teams?: string[] } | null>(null);
   const [countdown, setCountdown] = useState(4);
@@ -215,12 +343,21 @@ export function Welcome() {
     setMapPickerOpen(true);
   };
 
+  const beginTeamTemplateStep = () => {
+    const shuffled = [...TEAM_TEMPLATE].sort(() => 0.5 - Math.random());
+    const randomCount = Math.floor(Math.random() * 2) + 3; // Picks 3 or 4
+    const selected = shuffled.slice(0, randomCount);
+    const orderedSelected = TEAM_TEMPLATE.filter(team => selected.includes(team));
+    setProjectTeamStructure(orderedSelected);
+    setStep(3);
+  };
+
   const confirmMapLocation = () => {
     const locationLabel = `${mapPinSelection.label} (${mapPinSelection.lat.toFixed(5)}, ${mapPinSelection.lng.toFixed(5)})`;
     setInputValue(locationLabel);
     setProjectLocation(locationLabel);
     setMapPickerOpen(false);
-    setStep(3);
+    beginTeamTemplateStep();
   };
 
   const handleUseCurrentLocation = () => {
@@ -276,15 +413,23 @@ export function Welcome() {
         openMapPicker(nextLocation);
       } else {
         setProjectLocation(nextLocation);
-        setStep(3);
+        beginTeamTemplateStep();
       }
     }
   };
 
   const handleTeamTemplateChoice = (useTemplate: boolean) => {
-    const teams = useTemplate ? TEAM_TEMPLATE : [];
+    const teams = useTemplate ? projectTeamStructure : [];
     setProjectTeamStructure(teams);
     triggerLoadingSequence(projectName, projectLocation || "Location not specified", teams);
+  };
+
+  const handleToggleTeamTemplate = (team: string) => {
+    setProjectTeamStructure(prev =>
+      prev.includes(team)
+        ? prev.filter(item => item !== team)
+        : TEAM_TEMPLATE.filter(item => item === team || prev.includes(item))
+    );
   };
 
   const handleTogglePhase = (phaseLabel: string) => {
@@ -343,6 +488,7 @@ export function Welcome() {
       { id: 2, label: "Building 3D environment", sub: "Mapping coordinate spaces and meshes...", icon: Box, done: false, active: false },
       { id: 3, label: "Doing viewer setup", sub: "Attaching default catalogs and WebGL viewports...", icon: Eye, done: false, active: false },
       { id: 4, label: "Finalizing workspace", sub: "Deploying secure runtime container...", icon: Zap, done: false, active: false },
+      { id: 5, label: "We are creating Channels", sub: "Deploying custom preset channel containers...", icon: MessageSquare, done: false, active: false },
     ]);
 
     let currentIdx = 0;
@@ -689,7 +835,7 @@ export function Welcome() {
                             const skippedLocation = "Location not specified";
                             setInputValue("");
                             setProjectLocation(skippedLocation);
-                            setStep(3);
+                            beginTeamTemplateStep();
                           }}
                           className="text-[10px] text-slate-450 hover:text-blue-600 font-bold transition-colors cursor-pointer flex items-center gap-1"
                         >
@@ -748,28 +894,69 @@ export function Welcome() {
 
           {/* Team Structure Template */}
           {step === 3 && (
-            <div className="w-full max-w-lg bg-white border border-slate-200/60 rounded-2xl p-5 flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-200 shadow-xs">
+            <div className="w-full max-w-xl bg-white border border-slate-200/60 rounded-3xl p-6 flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-200 shadow-xs">
               <div className="flex items-start gap-3 text-left">
                 <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center shrink-0">
                   <Users className="w-5 h-5" />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-sm font-bold text-slate-800">Recommended coordination teams</div>
+                  <div className="text-sm font-bold text-slate-800">Create a team structure template?</div>
                   <p className="text-[11px] text-slate-450 font-semibold leading-5 mt-1">
-                    Create standard project teams now, or skip and add teams later.
+                    Select the channel presets you want to automatically spin up for this project workspace.
                   </p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-2">
-                {TEAM_TEMPLATE.map((team) => (
-                  <div key={team} className="rounded-xl border border-blue-100 bg-blue-50/40 px-3 py-3 text-center">
-                    <div className="mx-auto mb-1.5 flex h-7 w-7 items-center justify-center rounded-lg bg-white text-blue-600 shadow-xs">
-                      <Check className="h-3.5 w-3.5 stroke-[3]" />
-                    </div>
-                    <div className="text-[10px] font-extrabold text-slate-700">{team}</div>
-                  </div>
-                ))}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-h-[300px] overflow-y-auto pr-1">
+                {TEAM_TEMPLATE.map((team, idx) => {
+                  const isSelected = projectTeamStructure.includes(team);
+                  const IconComp = TEAM_TEMPLATE_ICONS[team] || Users;
+                  const theme = TEAM_THEMES[team] || {
+                    activeBg: "bg-blue-50/70", activeBorder: "border-blue-250", activeText: "text-blue-700 font-extrabold",
+                    inactiveBg: "bg-white", inactiveBorder: "border-slate-150", inactiveText: "text-slate-700",
+                    iconActiveBg: "bg-blue-600 text-white", iconInactiveBg: "bg-slate-100 text-slate-500 group-hover:bg-slate-200"
+                  };
+
+                  return (
+                    <button
+                      key={team}
+                      type="button"
+                      role="checkbox"
+                      aria-checked={isSelected}
+                      onClick={() => handleToggleTeamTemplate(team)}
+                      style={{ animationDelay: `${idx * 40}ms`, animationFillMode: "both" }}
+                      className={`group relative rounded-xl border p-2.5 text-left transition-all cursor-pointer flex flex-col gap-2.5 items-start animate-in fade-in slide-in-from-top-2 duration-300 ${
+                        isSelected
+                          ? `${theme.activeBg} ${theme.activeBorder} shadow-xs`
+                          : `${theme.inactiveBg} ${theme.inactiveBorder} hover:bg-slate-50/80 hover:${theme.activeBorder}`
+                      }`}
+                    >
+                      <div className="flex w-full items-center justify-between pointer-events-none">
+                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
+                          isSelected ? theme.iconActiveBg : theme.iconInactiveBg
+                        }`}>
+                          <IconComp className="w-4 h-4" />
+                        </div>
+                        
+                        <div className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 border transition-all ${
+                          isSelected
+                            ? `${theme.iconActiveBg.split(" ")[0]} border-transparent text-white`
+                            : "border-slate-300 bg-white text-transparent group-hover:border-slate-400"
+                        }`}>
+                          <Check className="h-2.5 w-2.5 stroke-[3]" />
+                        </div>
+                      </div>
+                      
+                      <div className="min-w-0 w-full mt-0.5 pointer-events-none">
+                        <span className={`block text-[11px] font-bold truncate ${
+                          isSelected ? theme.activeText : theme.inactiveText
+                        }`}>
+                          {team}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
 
               <div className="flex gap-3 justify-end mt-1 pt-3 border-t border-slate-100">
@@ -788,10 +975,11 @@ export function Welcome() {
                   Skip
                 </button>
                 <button
+                  type="button"
                   onClick={() => handleTeamTemplateChoice(true)}
-                  className="px-5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-full text-xs transition-all duration-200 cursor-pointer shadow-md shadow-blue-500/10 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
+                  className="px-5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-full text-xs transition-all duration-200 cursor-pointer shadow-md shadow-blue-500/10 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
                 >
-                  Create Teams
+                  {projectTeamStructure.length > 0 ? "Create Teams" : "Continue"}
                 </button>
               </div>
             </div>

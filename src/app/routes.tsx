@@ -19,6 +19,8 @@ import ViewerSetup from "./components/pages/viewer-setup/ViewerSetup";
 import ViewerMain from "./components/pages/viewer-main/ViewerMain";
 import AuthFlow from "./components/pages/AuthFlow";
 import { ChatPage } from "./components/pages/ChatPage";
+import { MeetPage } from "./components/pages/MeetPage";
+import { NotificationsPage } from "./components/pages/NotificationsPage";
 
 // Material Supplier Workspace imports
 import { MaterialSupplierListPage } from "../modules/material-suppliers/pages/MaterialSupplierListPage";
@@ -35,6 +37,8 @@ export const router = createBrowserRouter([
       { path: "dashboard", Component: Hub },
       { path: "projects", Component: AllProjects },
       { path: "chat", Component: ChatPage },
+      { path: "meet", Component: MeetPage },
+      { path: "notifications", Component: NotificationsPage },
       { path: "procurement", Component: Procurement },
       { path: "banking", Component: Banking },
       { path: "ai-hub", Component: AIHub },

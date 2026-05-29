@@ -258,6 +258,8 @@ interface Markup {
   label: string;
   drawingOverlay?: DrawingOverlay | null;
   childLayers?: DrawingLayer[];
+  isPlacedOnMap?: boolean;
+  createdFromDrawing?: boolean;
 }
 
 interface DrawingMarkup {
@@ -782,6 +784,8 @@ export default function ViewerMain() {
   const [uploadedDrawing, setUploadedDrawing] = useState<string | null>(null);
   const [drawingMarkups, setDrawingMarkups] = useState<DrawingMarkup[]>([]);
   const [drawingTool, setDrawingTool] = useState<"pin" | "circle">("pin");
+  const [drawingMarkupTool, setDrawingMarkupTool] = useState<"pointer" | "cloud" | "polygon" | "line" | "rect" | "circle" | "arrow">("pointer");
+  const [isDrawingMarkupToolbarVisible, setIsDrawingMarkupToolbarVisible] = useState(false);
   const [drawingAdjustments, setDrawingAdjustments] = useState({
     zoom: 1.0,
     rotate: 0,
@@ -792,7 +796,7 @@ export default function ViewerMain() {
   const [drawingPanStart, setDrawingPanStart] = useState({ x: 0, y: 0 });
 
   // --- FIGMA-STYLE RULER AND GUIDELINES STATE ---
-  const [showRulers, setShowRulers] = useState(true);
+  const [showRulers] = useState(false);
   const [guidelines, setGuidelines] = useState<Array<{ id: string; type: "h" | "v"; coord: number }>>([]);
   const [draggingGuide, setDraggingGuide] = useState<{ id: string; type: "h" | "v"; isNew: boolean } | null>(null);
   const [hoveredCanvasPos, setHoveredCanvasPos] = useState<{ x: number; y: number } | null>(null);
@@ -881,7 +885,7 @@ export default function ViewerMain() {
   const [editingDrawingId, setEditingDrawingId] = useState<string | null>(null);
   const [drawingLibrarySearchQuery, setDrawingLibrarySearchQuery] = useState<string>("");
   const [previewDrawingFile, setPreviewDrawingFile] = useState<UploadedDrawingFile | null>(null);
-  const [drawingLibraryViewMode, setDrawingLibraryViewMode] = useState<"list" | "grid">("list");
+  const [drawingLibraryViewMode, setDrawingLibraryViewMode] = useState<"list" | "grid">("grid");
   const [isDrawingLeftSetupOpen, setIsDrawingLeftSetupOpen] = useState<boolean>(true);
   const [isDrawingRightLayersOpen, setIsDrawingRightLayersOpen] = useState<boolean>(true);
   const [isUploadMoreModalOpen, setIsUploadMoreModalOpen] = useState<boolean>(false);
@@ -895,14 +899,26 @@ export default function ViewerMain() {
   const [pendingZoneDropAssignment, setPendingZoneDropAssignment] = useState<{ zoneId: string; drawingId: string } | null>(null);
   const [pendingZoneDropLevelId, setPendingZoneDropLevelId] = useState<string>("");
   const [pendingZoneDropService, setPendingZoneDropService] = useState<DrawingService>("Architectural");
+  const [quickSetupZoneId, setQuickSetupZoneId] = useState<string | null>(null);
+  const [quickSetupDrawingIds, setQuickSetupDrawingIds] = useState<string[]>([]);
+  const [quickSetupFloorCount, setQuickSetupFloorCount] = useState<number>(2);
+  const [quickSetupServices, setQuickSetupServices] = useState<DrawingService[]>(["Architectural", "Structural", "Mechanical"]);
+  const [quickSetupAssignments, setQuickSetupAssignments] = useState<Record<string, Partial<Record<DrawingService, string>>>>({});
+  const [quickSetupHighlightedZoneId, setQuickSetupHighlightedZoneId] = useState<string | null>(null);
   const [drawingAnnotations, setDrawingAnnotations] = useState<Record<string, DrawingMarkup[]>>({});
   const [activeDrawingId, setActiveDrawingId] = useState<string | null>(null);
   const [activeDrawingUrl, setActiveDrawingUrl] = useState<string | null>(null);
   const [activeDrawingLabel, setActiveDrawingLabel] = useState<string>("");
   const [selectedDrawingAreaId, setSelectedDrawingAreaId] = useState<string | null>(null);
+  const [renamingLayer, setRenamingLayer] = useState<{ type: "area" | "zone" | "floor" | "drawing"; id: string; parentId?: string } | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
+  const [boundaryPlacementTarget, setBoundaryPlacementTarget] = useState<string | "fresh" | null>(null);
+  const [sitePlanAssignmentBoundaryId, setSitePlanAssignmentBoundaryId] = useState<string | null>(null);
+  const [sitePlanAssignmentSuggestedId, setSitePlanAssignmentSuggestedId] = useState<string | null>(null);
   const [active3DLink, setActive3DLink] = useState<{ zoneId: string; floorId: string; service: string } | null>(null);
   const [isDrawingStackedView, setIsDrawingStackedView] = useState<boolean>(false);
   const blueprintLocalInputRef = useRef<HTMLInputElement>(null);
+  const quickSetupPromptedAreaIdRef = useRef<string | null>(null);
 
   const [uploadedDroneImages, setUploadedDroneImages] = useState<UploadedDrawingFile[]>([
     { id: "drone-1", name: "Drone_Capture_North_Zone_May20.jpg", url: "https://images.unsplash.com/photo-1579829363373-c9694d41a970?auto=format&fit=crop&w=800&q=80", service: "Drone" },
@@ -912,9 +928,17 @@ export default function ViewerMain() {
   const [zoneDroneAssignments, setZoneDroneAssignments] = useState<Record<string, string>>({});
   const [activeDroneEyes, setActiveDroneEyes] = useState<Record<string, boolean>>({});
 
-  const currentFilesList = activeTab === "3d" ? uploaded3DFiles : (activeTab === "drone" ? uploadedDroneImages : uploadedDrawingFiles);
-  const setCurrentFilesList = activeTab === "3d" ? setUploaded3DFiles : (activeTab === "drone" ? setUploadedDroneImages : setUploadedDrawingFiles);
-  const hasLoadedAny = activeTab === "3d" ? true : (activeTab === "drone" ? uploadedDroneImages.length > 0 : hasLoadedDrawings);
+	  const currentFilesList = activeTab === "3d" ? uploaded3DFiles : (activeTab === "drone" ? uploadedDroneImages : uploadedDrawingFiles);
+	  const setCurrentFilesList = activeTab === "3d" ? setUploaded3DFiles : (activeTab === "drone" ? setUploadedDroneImages : setUploadedDrawingFiles);
+	  const hasLoadedAny = activeTab === "3d" ? true : (activeTab === "drone" ? uploadedDroneImages.length > 0 : hasLoadedDrawings);
+  const sitePlanDrawingUrls = useMemo(
+    () => new Set(markups.map((markup) => markup.drawingOverlay?.url).filter(Boolean) as string[]),
+    [markups]
+  );
+  const assignableDrawingFiles = useMemo(
+    () => uploadedDrawingFiles.filter((file) => !sitePlanDrawingUrls.has(file.url)),
+    [sitePlanDrawingUrls, uploadedDrawingFiles]
+  );
   const filteredHubBlueprintFiles = HUB_BLUEPRINT_FILES.filter((file) =>
     file.name.toLowerCase().includes(blueprintHubSearch.toLowerCase()) ||
     file.service.toLowerCase().includes(blueprintHubSearch.toLowerCase())
@@ -931,6 +955,163 @@ export default function ViewerMain() {
     const found = siteAreas.find((area) => area.id === selectedDrawingAreaId);
     return found || siteAreas[0];
   }, [markups, selectedDrawingAreaId]);
+
+  const getNextSiteBoundaryName = (items = markups) =>
+    `Site Boundary ${items.filter((m) => m.type === "area").length + 1}`;
+
+  const startRenameLayer = (target: { type: "area" | "zone" | "floor" | "drawing"; id: string; parentId?: string }, currentName: string) => {
+    setRenamingLayer(target);
+    setRenameDraft(currentName);
+  };
+
+  const cancelRenameLayer = () => {
+    setRenamingLayer(null);
+    setRenameDraft("");
+  };
+
+  const commitRenameLayer = () => {
+    if (!renamingLayer) return;
+    const nextName = renameDraft.trim();
+    if (!nextName) {
+      cancelRenameLayer();
+      return;
+    }
+
+    if (renamingLayer.type === "area") {
+      setMarkups((prev) =>
+        prev.map((markup) => markup.id === renamingLayer.id ? { ...markup, label: nextName } : markup)
+      );
+    } else if (renamingLayer.type === "zone" && renamingLayer.parentId) {
+      setMarkups((prev) =>
+        prev.map((markup) =>
+          markup.id === renamingLayer.parentId
+            ? {
+                ...markup,
+                childLayers: updateLayerTree(markup.childLayers || [], renamingLayer.id, (layer) => ({
+                  ...layer,
+                  label: nextName
+                }))
+              }
+            : markup
+        )
+      );
+    } else if (renamingLayer.type === "floor" && renamingLayer.parentId) {
+      updateZoneConfig(renamingLayer.parentId, (config) => ({
+        ...config,
+        floorsList: config.floorsList.map((floor) =>
+          floor.id === renamingLayer.id ? { ...floor, name: nextName } : floor
+        )
+      }));
+    } else if (renamingLayer.type === "drawing") {
+      setUploadedDrawingFiles((prev) =>
+        prev.map((file) => file.id === renamingLayer.id ? { ...file, name: nextName } : file)
+      );
+    }
+
+    triggerToast(`Renamed to ${nextName}`);
+    cancelRenameLayer();
+  };
+
+  const renderEditableLayerName = (
+    target: { type: "area" | "zone" | "floor" | "drawing"; id: string; parentId?: string },
+    name: string,
+    className: string
+  ) => {
+    const isEditing =
+      renamingLayer?.type === target.type &&
+      renamingLayer.id === target.id &&
+      renamingLayer.parentId === target.parentId;
+
+    if (isEditing) {
+      return (
+        <input
+          value={renameDraft}
+          autoFocus
+          onClick={(event) => event.stopPropagation()}
+          onMouseDown={(event) => event.stopPropagation()}
+          onChange={(event) => setRenameDraft(event.target.value)}
+          onBlur={commitRenameLayer}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") commitRenameLayer();
+            if (event.key === "Escape") cancelRenameLayer();
+          }}
+          className="min-w-0 flex-1 rounded-md border border-blue-200 bg-white px-1.5 py-0.5 text-[10px] font-bold text-slate-800 outline-none focus:border-blue-500"
+        />
+      );
+    }
+
+    return (
+      <span
+        className={className}
+        title="Double-click to rename"
+        onDoubleClick={(event) => {
+          event.stopPropagation();
+          startRenameLayer(target, name);
+        }}
+      >
+        {name}
+      </span>
+    );
+  };
+
+  const startPlaceBoundaryOnMap = (areaId: string) => {
+    setActiveTab("map");
+    setSelectedDrawingAreaId(areaId);
+    setSelectedMarkupId(areaId);
+    setSelectedNestedLayerId(null);
+    setBoundaryPlacementTarget(areaId);
+    setDrawingPoints([]);
+    setRedoPoints([]);
+    setActiveTool("polygon");
+    triggerToast("Draw this pending site boundary on the map. It will stay linked to the base drawing.");
+  };
+
+  const createNewDrawingSitePlan = (file?: UploadedDrawingFile) => {
+    const targetId = `drawing-workspace-${Date.now()}`;
+    const overlay = file ? makeDrawingOverlay(file.url) : null;
+
+    setMarkups((prev) => [
+      ...prev,
+      {
+        id: targetId,
+        type: "area",
+        label: getNextSiteBoundaryName(prev),
+        color: "#2563eb",
+        points: [
+          { x: 520, y: 260 },
+          { x: 1220, y: 260 },
+          { x: 1220, y: 900 },
+          { x: 520, y: 900 }
+        ],
+        drawingOverlay: overlay,
+        childLayers: [],
+        createdFromDrawing: true,
+        isPlacedOnMap: false
+      }
+    ]);
+
+    setSelectedDrawingAreaId(targetId);
+    setSelectedMarkupId(targetId);
+    setSelectedNestedLayerId(null);
+    setActiveEyeDrawing(null);
+    setActiveDrawingId(null);
+    setActiveDrawingUrl(null);
+    setActiveDrawingLabel("");
+    if (file) {
+      setUploadedDrawing(file.url);
+      setHasLoadedDrawings(true);
+    }
+    setDrawingSetupSubTab("configure");
+    setIsDrawingLeftSetupOpen(true);
+    setIsDrawingRightLayersOpen(true);
+    triggerToast(file ? `Created new site plan from ${file.name}` : "Created new empty site plan. Add a base drawing before zoning.");
+  };
+
+  const createNewDrawingSitePlanFromNextAvailable = () => {
+    const usedUrls = new Set(markups.map((markup) => markup.drawingOverlay?.url).filter(Boolean));
+    const nextFile = uploadedDrawingFiles.find((file) => !usedUrls.has(file.url));
+    createNewDrawingSitePlan(nextFile);
+  };
 
   const ensureDrawingSetupAreaFromFile = (file: UploadedDrawingFile, replaceExistingOverlay = false) => {
     const existingArea =
@@ -953,7 +1134,9 @@ export default function ViewerMain() {
                 ...markup,
                 label: markup.label || "Drawing Workspace",
                 drawingOverlay: replaceExistingOverlay || !markup.drawingOverlay ? overlay : markup.drawingOverlay,
-                childLayers: markup.childLayers || []
+                childLayers: markup.childLayers || [],
+                createdFromDrawing: markup.createdFromDrawing ?? false,
+                isPlacedOnMap: markup.isPlacedOnMap ?? true
               }
             : markup
         );
@@ -962,7 +1145,7 @@ export default function ViewerMain() {
       const drawingArea: Markup = {
         id: targetId,
         type: "area",
-        label: "Drawing Workspace",
+        label: getNextSiteBoundaryName(prev),
         color: "#2563eb",
         points: [
           { x: 520, y: 260 },
@@ -971,7 +1154,9 @@ export default function ViewerMain() {
           { x: 520, y: 900 }
         ],
         drawingOverlay: overlay,
-        childLayers: []
+        childLayers: [],
+        createdFromDrawing: true,
+        isPlacedOnMap: false
       };
 
       return [...prev, drawingArea];
@@ -993,11 +1178,15 @@ export default function ViewerMain() {
   };
 
   const activeAreaZoneCount = activeArea?.childLayers?.length || 0;
-  const shouldShowCreateZonesGuide = activeTab === "map" && activeTool === "pan" && Boolean(activeArea?.drawingOverlay) && activeAreaZoneCount === 0;
-  const shouldShowDrawingSetupGuide = activeTab === "map" && activeTool === "pan" && Boolean(activeArea?.drawingOverlay) && activeAreaZoneCount > 0;
+  const shouldShowCreateZonesGuide = activeTab === "map" && activeTool === "pan" && activeArea?.isPlacedOnMap !== false && Boolean(activeArea?.drawingOverlay) && activeAreaZoneCount === 0;
+  const shouldShowDrawingSetupGuide = activeTab === "map" && activeTool === "pan" && activeArea?.isPlacedOnMap !== false && Boolean(activeArea?.drawingOverlay) && activeAreaZoneCount > 0;
   const activeAreaLevelCount = (activeArea?.childLayers || []).reduce((count, zone) => {
     return count + (zoneDrawingConfigs[zone.id]?.floorsList.length || 0);
   }, 0);
+  const activeAreaNeedsQuickSetup =
+    activeTab === "drawing" &&
+    activeAreaZoneCount > 0 &&
+    activeAreaLevelCount === 0;
   const shouldShowLevelReadyGuide = (activeTab === "drawing" || activeTab === "3d") && drawingSetupSubTab === "configure" && activeAreaLevelCount > 0;
 
   const currentDrawingUrl = useMemo(() => {
@@ -1014,7 +1203,8 @@ export default function ViewerMain() {
         }
       }
     }
-    return activeArea?.drawingOverlay?.url || uploadedDrawingFiles[0]?.url || null;
+    if (activeArea) return activeArea.drawingOverlay?.url || null;
+    return uploadedDrawingFiles[0]?.url || null;
   }, [activeTab, activeEyeDrawing, zoneDrawingConfigs, uploadedDrawingFiles, activeArea]);
 
   const currentDrawingLabel = useMemo(() => {
@@ -1032,7 +1222,7 @@ export default function ViewerMain() {
         }
       }
     }
-    if (activeArea) return `${activeArea.label} - Base Plan`;
+    if (activeArea) return activeArea.drawingOverlay ? `${activeArea.label} - Base Plan` : `${activeArea.label} - No base plan linked`;
     return uploadedDrawingFiles[0]?.name || "";
   }, [activeTab, activeEyeDrawing, zoneDrawingConfigs, uploadedDrawingFiles, activeArea]);
 
@@ -1102,6 +1292,16 @@ export default function ViewerMain() {
   const triggerToast = (msg: string) => {
     setToastMessage(msg);
   };
+
+  useEffect(() => {
+    if (!activeArea || !activeAreaNeedsQuickSetup) return;
+    setDrawingSetupSubTab("library");
+    setIsDrawingLeftSetupOpen(true);
+    if (quickSetupPromptedAreaIdRef.current !== activeArea.id) {
+      quickSetupPromptedAreaIdRef.current = activeArea.id;
+      triggerToast("Zones are ready. Upload floor/service drawings, then drag them onto a zone for quick setup.");
+    }
+  }, [activeArea?.id, activeAreaNeedsQuickSetup]);
 
   const handleSetDefaultViewerTab = (tab: ViewerTab) => {
     setDefaultViewerTab(tab);
@@ -1460,18 +1660,25 @@ startxref
       id,
       type: "area",
       color: "#eab308", // Yellow
-      label: `Site Boundary ${markups.length + 1}`,
+      label: getNextSiteBoundaryName(),
       points: pointsToSubmit,
-      drawingOverlay: null
+      drawingOverlay: null,
+      isPlacedOnMap: true,
+      createdFromDrawing: false
     };
     setMarkups([...markups, newMarkup]);
     setSelectedMarkupId(id);
+    setSelectedDrawingAreaId(id);
     setSelectedNestedLayerId(null);
     setDrawingPoints([]);
     setRedoPoints([]);
     setActiveTool("pan");
     focusMapOnMarkup(newMarkup);
-    triggerToast("Completed site boundary polygon!");
+    const suggestedPlanId = boundaryPlacementTarget && boundaryPlacementTarget !== "fresh" ? boundaryPlacementTarget : null;
+    setSitePlanAssignmentBoundaryId(id);
+    setSitePlanAssignmentSuggestedId(suggestedPlanId);
+    setBoundaryPlacementTarget(null);
+    triggerToast("Site boundary created. Choose which site plan should be assigned.");
   };
 
   const clearAreaDraft = () => {
@@ -1513,6 +1720,44 @@ startxref
       return;
     }
     completeAreaDrawing(drawingPoints);
+  };
+
+  const pendingDrawingSitePlans = markups.filter((m) => m.type === "area" && m.isPlacedOnMap === false);
+
+  const availableSitePlanSources = markups.filter((m) => m.type === "area" && Boolean(m.drawingOverlay));
+
+  const assignSitePlanToBoundary = (boundaryId: string, sourcePlanId: string | null) => {
+    const sourcePlan = sourcePlanId ? markups.find((markup) => markup.id === sourcePlanId) : null;
+
+    setMarkups((prev) =>
+      prev.map((markup) => {
+        if (markup.id !== boundaryId) return markup;
+
+        if (!sourcePlan) {
+          return {
+            ...markup,
+            drawingOverlay: null,
+            childLayers: []
+          };
+        }
+
+        return {
+          ...markup,
+          drawingOverlay: sourcePlan.drawingOverlay ? { ...sourcePlan.drawingOverlay } : null,
+          childLayers: sourcePlan.childLayers ? sourcePlan.childLayers.map((layer) => ({ ...layer })) : [],
+          createdFromDrawing: markup.createdFromDrawing ?? false,
+          isPlacedOnMap: true
+        };
+      })
+    );
+
+    setSelectedMarkupId(boundaryId);
+    setSelectedDrawingAreaId(boundaryId);
+    setSelectedNestedLayerId(null);
+    setActiveEyeDrawing(null);
+    setSitePlanAssignmentBoundaryId(null);
+    setSitePlanAssignmentSuggestedId(null);
+    triggerToast(sourcePlan ? `${sourcePlan.label} assigned to site boundary.` : "Site plan removed from boundary.");
   };
 
   // Delete selected markup
@@ -1597,11 +1842,11 @@ startxref
 
 	    setMarkups((prev) =>
 	      prev.map((markup) =>
-	        markup.id === selectedMarkupId
-	          ? { ...markup, drawingOverlay: overlay }
-	          : markup
-	      )
-	    );
+        markup.id === selectedMarkupId
+          ? { ...markup, drawingOverlay: overlay, isPlacedOnMap: markup.isPlacedOnMap ?? true }
+          : markup
+      )
+    );
 	    setUploadedDrawing(file.url);
 	    setSelectedDrawingAreaId(selectedMarkupId);
 	    setActiveEyeDrawing(null);
@@ -1701,6 +1946,7 @@ startxref
   };
 
 	  const handleCreateZoneFromDrawingSetup = () => {
+    setIsDrawingMarkupToolbarVisible(true);
     if (!activeArea) {
       const baseDrawing = uploadedDrawingFiles[0];
       if (baseDrawing) {
@@ -2246,7 +2492,8 @@ startxref
     const config = zoneDrawingConfigs[zoneId];
     const firstLevel = config?.floorsList[0];
     if (!config || !firstLevel) {
-      triggerToast("Create levels for this zone before assigning files.", "warning");
+      openQuickSetupForZone(zoneId, [drawingId]);
+      triggerToast("No floors found. Quick setup opened for this zone.");
       return;
     }
 
@@ -2265,6 +2512,142 @@ startxref
     setPendingZoneDropService("Architectural");
     setDraggedDrawingId(null);
     setDragOverServiceSlot(null);
+  };
+
+  const buildQuickSetupAssignmentDraft = (
+    zoneId: string,
+    drawingIds: string[],
+    services: DrawingService[],
+    floorCount: number
+  ) => {
+    const eligibleIds = new Set(assignableDrawingFiles.map((file) => file.id));
+    const selectedFiles = drawingIds
+      .filter((drawingId) => eligibleIds.has(drawingId))
+      .map((drawingId) => assignableDrawingFiles.find((file) => file.id === drawingId))
+      .filter(Boolean) as UploadedDrawingFile[];
+    const candidateFiles = selectedFiles.length > 0 ? selectedFiles : assignableDrawingFiles;
+    const selectedFileIds = new Set(candidateFiles.map((file) => file.id));
+    const existingFloors = zoneDrawingConfigs[zoneId]?.floorsList || [];
+
+    return Array.from({ length: floorCount }, (_, index) => {
+      const floorDraft: Partial<Record<DrawingService, string>> = {};
+      services.forEach((service) => {
+        const existingAssignment = existingFloors[index]?.assignments?.[service];
+        if (existingAssignment && selectedFileIds.has(existingAssignment)) {
+          floorDraft[service] = existingAssignment;
+          return;
+        }
+
+        const serviceMatch = candidateFiles.find((file) => file.service === service);
+        const fallbackMatch = candidateFiles[index % candidateFiles.length];
+        if (serviceMatch || fallbackMatch) {
+          floorDraft[service] = (serviceMatch || fallbackMatch).id;
+        }
+      });
+
+      return [String(index), floorDraft] as const;
+    }).reduce<Record<string, Partial<Record<DrawingService, string>>>>((draft, [index, floorDraft]) => {
+      draft[index] = floorDraft;
+      return draft;
+    }, {});
+  };
+
+  const openQuickSetupForZone = (zoneId: string, drawingIds: string[]) => {
+    const eligibleIds = new Set(assignableDrawingFiles.map((file) => file.id));
+    const uniqueDrawingIds = Array.from(new Set(drawingIds.filter((drawingId) => eligibleIds.has(drawingId))));
+    const selectedFiles = uniqueDrawingIds
+      .map((drawingId) => assignableDrawingFiles.find((file) => file.id === drawingId))
+      .filter(Boolean) as UploadedDrawingFile[];
+    const candidateFiles = selectedFiles.length > 0 ? selectedFiles : assignableDrawingFiles;
+    const inferredServices = Array.from(new Set(candidateFiles.map((file) => file.service).filter(Boolean)));
+    const floorCount = Math.max(1, floorInputs[zoneId] || zoneDrawingConfigs[zoneId]?.floorsList.length || 2);
+    const services = inferredServices.length > 0 ? inferredServices : ["Architectural", "Structural", "Mechanical"];
+
+    setQuickSetupZoneId(zoneId);
+    setQuickSetupDrawingIds(uniqueDrawingIds);
+    setQuickSetupFloorCount(floorCount);
+    setQuickSetupServices(services);
+    setQuickSetupAssignments(buildQuickSetupAssignmentDraft(zoneId, uniqueDrawingIds, services, floorCount));
+    setQuickSetupHighlightedZoneId(null);
+    setDrawingSetupSubTab("library");
+    setIsDrawingLeftSetupOpen(true);
+  };
+
+  const closeQuickSetup = () => {
+    setQuickSetupZoneId(null);
+    setQuickSetupDrawingIds([]);
+    setQuickSetupFloorCount(2);
+    setQuickSetupServices(["Architectural", "Structural", "Mechanical"]);
+    setQuickSetupAssignments({});
+    setQuickSetupHighlightedZoneId(null);
+    setDraggedDrawingId(null);
+  };
+
+  const confirmQuickSetup = () => {
+    if (!quickSetupZoneId) return;
+    const selectedFiles = assignableDrawingFiles;
+    const safeFloorCount = Math.max(1, Math.min(30, quickSetupFloorCount || 1));
+    const services = Array.from(new Set(quickSetupServices.filter(Boolean)));
+
+    if (services.length === 0) {
+      triggerToast("Select at least one service slot.");
+      return;
+    }
+
+    setZoneDrawingConfigs((prev) => {
+      const config = prev[quickSetupZoneId] || { floorsList: [] };
+      const selectedFileIds = new Set(selectedFiles.map((file) => file.id));
+      const customServices = Array.from(new Set([
+        ...(config.customServices || []),
+        ...services.filter((service) => !isDefaultDrawingService(service))
+      ]));
+      const removedServices = (config.removedServices || []).filter((service) => !services.includes(service));
+      const existingFloors = config.floorsList.length > 0 ? config.floorsList : [];
+      const floorsList: FloorDrawingAssignment[] = Array.from({ length: safeFloorCount }, (_, index) => {
+        const existingFloor = existingFloors[index];
+        const assignments = { ...(existingFloor?.assignments || {}) };
+
+	        services.forEach((service) => {
+          const draftFloor = quickSetupAssignments[String(index)] || {};
+	          const draftAssignment = draftFloor[service];
+          if (Object.prototype.hasOwnProperty.call(draftFloor, service)) {
+            if (draftAssignment && selectedFileIds.has(draftAssignment)) {
+	            assignments[service] = draftAssignment;
+            } else {
+              delete assignments[service];
+            }
+            return;
+	          }
+	          if (assignments[service]) return;
+          const serviceMatch = selectedFiles.find((file) => file.service === service);
+          const matchedFile = serviceMatch || selectedFiles[index % selectedFiles.length];
+          if (matchedFile) {
+            assignments[service] = matchedFile.id;
+          }
+        });
+
+        return {
+          id: existingFloor?.id || `floor-${Date.now()}-${index + 1}`,
+          name: existingFloor?.name || `Floor ${index + 1}`,
+          assignments
+        };
+      });
+
+      return {
+        ...prev,
+        [quickSetupZoneId]: {
+          ...config,
+          customServices,
+          removedServices,
+          floorsList
+        }
+      };
+    });
+
+    const zone = activeArea?.childLayers?.find((layer) => layer.id === quickSetupZoneId);
+    setDrawingSetupSubTab("configure");
+    triggerToast(`${zone?.label || "Zone"} quick setup completed with ${safeFloorCount} floor level${safeFloorCount > 1 ? "s" : ""}.`);
+    closeQuickSetup();
   };
 
   const confirmZoneDropAssignment = () => {
@@ -2558,8 +2941,22 @@ startxref
             }`}
           >
             <PolygonIcon className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-            <span className="text-[11px] font-bold text-slate-800 truncate flex-1">{area.label}</span>
-            <span className="text-[7.5px] uppercase font-bold bg-blue-100 text-blue-750 px-1.5 py-0.5 rounded">Area</span>
+            {renderEditableLayerName({ type: "area", id: area.id }, area.label, "text-[11px] font-bold text-slate-800 truncate flex-1")}
+            {area.isPlacedOnMap === false ? (
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  startPlaceBoundaryOnMap(area.id);
+                }}
+                className="shrink-0 rounded bg-amber-50 px-1.5 py-0.5 text-[7px] font-extrabold uppercase text-amber-700 hover:bg-amber-100"
+                title="Place this linked boundary on map"
+              >
+                Place on map
+              </button>
+            ) : (
+              <span className="text-[7.5px] uppercase font-bold bg-blue-100 text-blue-750 px-1.5 py-0.5 rounded">Area</span>
+            )}
           </div>
 
           {/* Nested Small Areas (Zones) under this Area */}
@@ -2567,20 +2964,31 @@ startxref
             <div className="ml-3 pl-3 border-l border-slate-200 space-y-3 py-1">
               {/* Base Layout Overlay option */}
               {area.drawingOverlay && (
-                <button
-                  onClick={() => {
-                    setActiveEyeDrawing(null);
-                  }}
-                  className={`w-full flex items-center gap-2 rounded-lg px-2 py-1 text-left border text-[9px] font-semibold transition-all ${
-                    !activeEyeDrawing
-                      ? "bg-blue-50 border-blue-200 text-blue-750 font-bold"
-                      : "bg-white border-slate-100 hover:bg-slate-50 text-slate-650"
-                  }`}
-                >
-                  <FolderOpen className="w-3.5 h-3.5 text-blue-500" />
-                  <span className="truncate flex-1">Base Layout Blueprint Overlay</span>
-                  <span className="text-[7px] uppercase bg-slate-100 px-1.5 py-0.5 rounded text-slate-400 font-bold">Base</span>
-                </button>
+                (() => {
+                  const baseFile = uploadedDrawingFiles.find((file) => file.url === area.drawingOverlay?.url);
+                  return (
+                    <button
+                      onClick={() => {
+                        setActiveEyeDrawing(null);
+                      }}
+                      className={`w-full flex items-center gap-2 rounded-lg px-2 py-1 text-left border text-[9px] font-semibold transition-all ${
+                        !activeEyeDrawing
+                          ? "bg-blue-50 border-blue-200 text-blue-750 font-bold"
+                          : "bg-white border-slate-100 hover:bg-slate-50 text-slate-650"
+                      }`}
+                    >
+                      <FolderOpen className="w-3.5 h-3.5 text-blue-500" />
+                      {baseFile
+                        ? renderEditableLayerName(
+                            { type: "drawing", id: baseFile.id },
+                            baseFile.name,
+                            "truncate flex-1"
+                          )
+                        : <span className="truncate flex-1">Base Layout Blueprint Overlay</span>}
+                      <span className="text-[7px] uppercase bg-slate-100 px-1.5 py-0.5 rounded text-slate-400 font-bold">Base</span>
+                    </button>
+                  );
+                })()
               )}
 
               {area.childLayers.map((zone) => {
@@ -2592,7 +3000,11 @@ startxref
                     {/* Zone Heading */}
                     <div className="flex items-center gap-1.5 p-1.5 bg-slate-50 border border-slate-100/60 rounded-lg">
                       <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: zone.color }} />
-                      <span className="text-[10px] font-extrabold text-slate-750 truncate flex-1">{zone.label}</span>
+                      {renderEditableLayerName(
+                        { type: "zone", id: zone.id, parentId: area.id },
+                        zone.label,
+                        "text-[10px] font-extrabold text-slate-750 truncate flex-1"
+                      )}
                       <span className="text-[7.5px] uppercase font-bold text-slate-400">Zone</span>
                     </div>
 
@@ -2608,7 +3020,11 @@ startxref
                             <div key={floor.id} className="space-y-1">
                               <div className="flex items-center gap-1 text-[8.5px] font-bold text-slate-600">
                                 <span className="px-1 py-0.2 bg-slate-100 rounded text-slate-500 font-mono">L</span>
-                                <span>{floor.name}</span>
+                                {renderEditableLayerName(
+                                  { type: "floor", id: floor.id, parentId: zone.id },
+                                  floor.name,
+                                  "truncate"
+                                )}
                               </div>
 
                               {/* Drawings assigned */}
@@ -2637,7 +3053,11 @@ startxref
                                       >
                                         <div className="flex items-center gap-1.5 truncate flex-1">
                                           <FileText className={`w-3 h-3 ${isEyeActive ? "text-emerald-600 animate-pulse" : "text-slate-450"}`} />
-                                          <span className="truncate" title={file.name}>{file.name}</span>
+                                          {renderEditableLayerName(
+                                            { type: "drawing", id: file.id },
+                                            file.name,
+                                            "truncate"
+                                          )}
                                           <span className="text-[7px] text-slate-400 font-semibold lowercase bg-slate-50 px-1 rounded shrink-0">
                                             {service}
                                           </span>
@@ -3504,7 +3924,7 @@ startxref
               }`}
             >
               <MapPin className="w-3.5 h-3.5" style={{ color: markup.color }} />
-              <span className="text-[11px] truncate flex-1 font-semibold">{markup.label}</span>
+              {renderEditableLayerName({ type: "area", id: markup.id }, markup.label, "text-[11px] truncate flex-1 font-semibold")}
               <span className="text-[8px] uppercase tracking-wider text-slate-400 shrink-0 font-bold bg-slate-100 px-1 py-0.5 rounded">Pin</span>
             </button>
           </div>
@@ -3526,7 +3946,7 @@ startxref
               }`}
             >
               <CircleIcon className="w-3.5 h-3.5" style={{ color: markup.color }} />
-              <span className="text-[11px] truncate flex-1 font-semibold">{markup.label}</span>
+              {renderEditableLayerName({ type: "area", id: markup.id }, markup.label, "text-[11px] truncate flex-1 font-semibold")}
               <span className="text-[8px] uppercase tracking-wider text-slate-400 shrink-0 font-bold bg-slate-100 px-1 py-0.5 rounded">Circle</span>
             </button>
           </div>
@@ -3552,23 +3972,64 @@ startxref
                 }`}
               >
                 <PolygonIcon className="w-3.5 h-3.5 shrink-0" style={{ color: markup.color }} />
-                <span className="text-[11px] truncate flex-1 font-semibold">{markup.label}</span>
-                <span className="text-[8px] uppercase tracking-wider text-slate-400 shrink-0 font-bold bg-slate-100 px-1 py-0.5 rounded">Area</span>
+                {renderEditableLayerName({ type: "area", id: markup.id }, markup.label, "text-[11px] truncate flex-1 font-semibold")}
+                {markup.isPlacedOnMap === false ? (
+                  <span className="text-[7px] uppercase tracking-wider text-amber-600 shrink-0 font-bold bg-amber-50 px-1 py-0.5 rounded">Not placed</span>
+                ) : (
+                  <span className="text-[8px] uppercase tracking-wider text-slate-400 shrink-0 font-bold bg-slate-100 px-1 py-0.5 rounded">Area</span>
+                )}
               </button>
               
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedMarkupId(markup.id);
-                  setSelectedNestedLayerId(null);
-                  startChildDrawingLayer();
-                }}
-                className="p-1.5 rounded-lg border border-slate-100/80 bg-white hover:bg-blue-50 hover:text-blue-600 text-slate-400 hover:border-blue-200 transition-all cursor-pointer"
-                title="Add inner zone"
-              >
-                <Plus className="w-3 h-3" />
-              </button>
+              {markup.isPlacedOnMap === false ? (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    startPlaceBoundaryOnMap(markup.id);
+                  }}
+                  className="px-2 py-1.5 rounded-lg border border-amber-100 bg-amber-50 hover:bg-amber-100 text-amber-700 transition-all cursor-pointer text-[8px] font-extrabold uppercase"
+                  title="Place this linked boundary on map"
+                >
+                  Place
+                </button>
+              ) : (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedMarkupId(markup.id);
+                    setSelectedNestedLayerId(null);
+                    startChildDrawingLayer();
+                  }}
+                  className="p-1.5 rounded-lg border border-slate-100/80 bg-white hover:bg-blue-50 hover:text-blue-600 text-slate-400 hover:border-blue-200 transition-all cursor-pointer"
+                  title="Add inner zone"
+                >
+                  <Plus className="w-3 h-3" />
+                </button>
+              )}
             </div>
+
+            {markup.isPlacedOnMap !== false && (
+              <div className="ml-1 rounded-xl border border-slate-100 bg-slate-50/60 px-2 py-1.5">
+                <div className="flex items-center gap-1.5">
+                  <FolderOpen className="h-3 w-3 shrink-0 text-blue-500" />
+                  <select
+                    value={
+                      availableSitePlanSources.find((plan) => plan.id !== markup.id && plan.drawingOverlay?.url === markup.drawingOverlay?.url)?.id ||
+                      (markup.drawingOverlay ? markup.id : "")
+                    }
+                    onChange={(event) => assignSitePlanToBoundary(markup.id, event.target.value || null)}
+                    className="min-w-0 flex-1 rounded-lg border border-slate-100 bg-white px-2 py-1 text-[9px] font-bold text-slate-700 outline-none focus:border-blue-300 cursor-pointer"
+                    title="Change assigned site plan"
+                  >
+                    <option value="">No site plan assigned</option>
+                    {availableSitePlanSources.map((plan) => (
+                      <option key={plan.id} value={plan.id}>
+                        {plan.label}{plan.drawingOverlay ? ` - ${getOverlayName(plan.drawingOverlay.url)}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
 
             {/* Children container with vertical connection lines */}
             {hasChildren && (
@@ -3616,7 +4077,11 @@ startxref
                           }`}
                         >
                           <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: layer.color }} />
-                          <span className="text-[10px] truncate flex-1 font-semibold">{layer.label}</span>
+                          {renderEditableLayerName(
+                            { type: "zone", id: layer.id, parentId: markup.id },
+                            layer.label,
+                            "text-[10px] truncate flex-1 font-semibold"
+                          )}
                           <span className="text-[8px] uppercase tracking-wider text-slate-400 shrink-0 font-bold bg-slate-100 px-1 py-0.5 rounded">Zone</span>
                         </button>
                       </div>
@@ -4040,9 +4505,9 @@ startxref
       
       {/* 1. Header Toolbar */}
       {activeTab === "map" && (
-      <div className="absolute top-6 left-6 z-40 bg-white/95 backdrop-blur border border-slate-100/80/50 shadow-[0_8px_30px_rgb(0,0,0,0.06)] px-4 py-2.5 rounded-2xl flex items-center gap-3 w-80">
-        <div className="w-8 h-8 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-md shadow-blue-500/20">
-          <Compass className="w-4 h-4 animate-spin-slow" />
+      <div className="absolute top-0 left-6 z-40 bg-white/90 backdrop-blur border-x border-b border-slate-100/80 shadow-[0_8px_30px_rgb(0,0,0,0.06)] px-2.5 py-1.5 rounded-b-2xl flex items-center gap-2 w-[280px]">
+        <div className="w-7 h-7 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-md shadow-blue-500/20 shrink-0">
+          <Compass className="w-3.5 h-3.5 animate-spin-slow" />
         </div>
         <form onSubmit={handleSearch} className="flex-1 flex gap-1 items-center">
           <input
@@ -4050,7 +4515,7 @@ startxref
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search address or coordinate..."
-            className="w-full bg-slate-50 border border-slate-100/80 rounded-xl px-3 py-1.5 text-xs font-semibold focus:outline-none focus:border-blue-500 focus:bg-white transition-all text-slate-800"
+            className="w-full bg-slate-50 border border-slate-100/80 rounded-xl px-3 py-1.5 text-[11px] font-semibold focus:outline-none focus:border-blue-500 focus:bg-white transition-all text-slate-800"
           />
           <button type="submit" className="hidden">Search</button>
         </form>
@@ -4298,8 +4763,76 @@ startxref
 	            </div>
 	          )}
 
-	          {(shouldShowCreateZonesGuide || shouldShowDrawingSetupGuide) && activeArea && (
-	            <div className="absolute top-20 left-1/2 -translate-x-1/2 z-40 w-[min(430px,calc(100%-32px))] rounded-2xl border border-blue-100/80 bg-white/95 px-4 py-3 text-left shadow-[0_14px_36px_rgba(15,23,42,0.13)] backdrop-blur-md animate-in fade-in slide-in-from-top-4 duration-200">
+          {pendingDrawingSitePlans.length > 0 && activeTool === "pan" && (
+            <div className="absolute top-20 left-1/2 z-30 w-[min(420px,calc(100%-32px))] -translate-x-1/2 rounded-2xl border border-amber-100/80 bg-white/95 px-3 py-2.5 text-left shadow-[0_12px_30px_rgba(15,23,42,0.12)] backdrop-blur-md animate-in fade-in slide-in-from-top-4 duration-200">
+              <div className="flex items-start gap-2.5">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-700 ring-1 ring-amber-100">
+                  <Layers className="h-4 w-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[9px] font-extrabold uppercase tracking-wider text-amber-700">
+                    {pendingDrawingSitePlans.length} site plan ready
+                  </p>
+                  <h3 className="mt-0.5 text-xs font-extrabold text-slate-900">
+                    Draw boundary, then assign plan.
+                  </h3>
+                  <p className="mt-0.5 text-[9px] font-semibold leading-3.5 text-slate-500">
+                    Choose now as suggestion. Final assignment comes after boundary.
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {pendingDrawingSitePlans.map((plan) => {
+                      const isSelected = boundaryPlacementTarget === plan.id || (!boundaryPlacementTarget && selectedDrawingAreaId === plan.id);
+                      return (
+                        <button
+                          key={plan.id}
+                          type="button"
+                          onClick={() => {
+                            setBoundaryPlacementTarget(plan.id);
+                            setSelectedDrawingAreaId(plan.id);
+                            setSelectedMarkupId(plan.id);
+                            setSelectedNestedLayerId(null);
+                            setActiveTool("polygon");
+                            triggerToast(`${plan.label} selected as suggestion. Draw the boundary, then confirm assignment.`);
+                          }}
+                          className={`rounded-lg border px-2.5 py-1 text-[9px] font-bold transition-all active:scale-95 cursor-pointer ${
+                            isSelected
+                              ? "border-blue-200 bg-blue-600 text-white shadow-sm shadow-blue-500/20"
+                              : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                          }`}
+                          title={plan.drawingOverlay ? "Linked base drawing ready" : "No base drawing linked yet"}
+                        >
+                          {plan.label}
+                        </button>
+                      );
+                    })}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBoundaryPlacementTarget("fresh");
+                        setSelectedDrawingAreaId(null);
+                        setSelectedMarkupId(null);
+                        setSelectedNestedLayerId(null);
+                        setActiveTool("polygon");
+                        triggerToast("Fresh boundary selected. Draw a map boundary without assigning a plan.");
+                      }}
+                      className={`rounded-lg border px-2.5 py-1 text-[9px] font-bold transition-all active:scale-95 cursor-pointer ${
+                        boundaryPlacementTarget === "fresh"
+                          ? "border-slate-900 bg-slate-950 text-white"
+                          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                      }`}
+                    >
+                      Fresh boundary
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+		          {(shouldShowCreateZonesGuide || shouldShowDrawingSetupGuide) && activeArea && (
+		            <div className={`absolute left-1/2 -translate-x-1/2 z-30 w-[min(430px,calc(100%-32px))] rounded-2xl border border-blue-100/80 bg-white/95 px-4 py-3 text-left shadow-[0_14px_36px_rgba(15,23,42,0.13)] backdrop-blur-md animate-in fade-in slide-in-from-top-4 duration-200 ${
+                  isDrawingDropdownOpen ? "top-36" : "top-20"
+                }`}>
 	              <div className="flex items-start gap-2.5">
 	                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-md shadow-blue-500/20">
 	                  {shouldShowCreateZonesGuide ? <Plus className="h-4.5 w-4.5" /> : <CheckCircle2 className="h-4.5 w-4.5" />}
@@ -4380,8 +4913,9 @@ startxref
                 }}
               />
 
-              {/* RENDER DRAWING OVERLAYS ON THE MAP */}
+	              {/* RENDER DRAWING OVERLAYS ON THE MAP */}
 	              {markups.map((markup) => {
+	                if (markup.type === "area" && markup.isPlacedOnMap === false) return null;
 	                if (!markup.drawingOverlay) return null;
                 const { x, y, width, height } = getMarkupCenter(markup);
                 const overlay = markup.drawingOverlay;
@@ -4413,7 +4947,7 @@ startxref
 
 	              {/* CENTER FLOOR PLAN UPLOAD ACTION FOR ZONES WITHOUT BLUEPRINTS */}
 	              {markups
-	                .filter((markup) => markup.type === "area" && !markup.drawingOverlay)
+	                .filter((markup) => markup.type === "area" && markup.isPlacedOnMap !== false && !markup.drawingOverlay)
 	                .map((markup) => {
 	                  const { x, y } = getMarkupCenter(markup);
 	                  const isSelected = selectedMarkupId === markup.id;
@@ -4446,7 +4980,7 @@ startxref
 	                })}
 	
 	              {/* RENDER DYNAMIC FLOATING SETTINGS CONTROLS ON THE MAP */}
-              {activeTool === "pan" && markups.flatMap((markup) => getCalibrationTargets(markup)).map((target) => {
+              {activeTool === "pan" && markups.filter((markup) => markup.isPlacedOnMap !== false).flatMap((markup) => getCalibrationTargets(markup)).map((target) => {
                 const isCalibrating = calibratingMarkupId === target.id;
 
                 return (
@@ -4663,6 +5197,7 @@ startxref
 
                 {/* Render Permanent Markups */}
                 {markups.map((markup) => {
+                  if (markup.type === "area" && markup.isPlacedOnMap === false) return null;
                   const isSelected = selectedMarkupId === markup.id;
                   const isPulsing = focusPulse?.markupId === markup.id && !focusPulse.layerId;
 
@@ -5634,7 +6169,7 @@ startxref
           {/* Floating Drag & Drop Popover Guide */}
           {isDrawingLeftSetupOpen && hasLoadedAny && showDragGuide && (
             <div 
-              className="absolute left-[328px] top-28 z-40 bg-blue-600 text-white border border-blue-500 rounded-xl p-3.5 shadow-2xl w-64 micro-fade-in flex gap-3 items-start select-none"
+              className="absolute left-[328px] top-4 z-[70] bg-blue-600 text-white border border-blue-500 rounded-xl p-3.5 shadow-2xl w-64 micro-fade-in flex gap-3 items-start select-none"
               style={{
                 filter: "drop-shadow(0 20px 25px rgba(29, 78, 216, 0.2))"
               }}
@@ -5781,36 +6316,66 @@ startxref
                     {drawingSetupSubTab === "library" ? (
                       /* TAB 1: Drawing Library - Simple list, no dropdown, has rename inline/edit name & delete */
                       <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <h4 className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider">
+                        <div className="flex items-center justify-between gap-2">
+                          <h4 className="min-w-0 truncate text-[9.5px] font-bold text-slate-400 uppercase tracking-wider">
                             {activeTab === "drone" ? "Uploaded Drone Photos" : (activeTab === "3d" ? "Uploaded 3D Models" : "Uploaded Drawings")} ({currentFilesList.length})
                           </h4>
-                          {/* List / Grid View Toggles */}
-                          <div className="flex items-center bg-slate-100 rounded-lg p-0.5 border border-slate-100/80">
-                            <button
-                              onClick={() => setDrawingLibraryViewMode("list")}
-                              className={`p-1 rounded-md transition-all cursor-pointer ${
-                                drawingLibraryViewMode === "list"
-                                  ? "bg-white text-blue-600 "
-                                  : "text-slate-400 hover:text-slate-600"
-                              }`}
-                              title="List View"
-                            >
-                              <List className="w-3 h-3" />
-                            </button>
-                            <button
-                              onClick={() => setDrawingLibraryViewMode("grid")}
-                              className={`p-1 rounded-md transition-all cursor-pointer ${
-                                drawingLibraryViewMode === "grid"
-                                  ? "bg-white text-blue-600 "
-                                  : "text-slate-400 hover:text-slate-600"
-                              }`}
-                              title="Grid View"
-                            >
-                              <LayoutGrid className="w-3 h-3" />
-                            </button>
+                          <div className="flex shrink-0 items-center gap-1.5">
+                            {activeTab === "drawing" && (
+                              <button
+                                onClick={() => setIsUploadMoreModalOpen(true)}
+                                className="h-7 rounded-lg bg-blue-600 px-2.5 text-[9px] font-extrabold text-white hover:bg-blue-700 transition-all cursor-pointer flex items-center gap-1"
+                                title="Upload more drawings"
+                              >
+                                <Upload className="w-3 h-3" />
+                                Upload More
+                              </button>
+                            )}
+                            {/* List / Grid View Toggles */}
+                            <div className="flex items-center bg-slate-100 rounded-lg p-0.5 border border-slate-100/80">
+                              <button
+                                onClick={() => setDrawingLibraryViewMode("list")}
+                                className={`p-1 rounded-md transition-all cursor-pointer ${
+                                  drawingLibraryViewMode === "list"
+                                    ? "bg-white text-blue-600 "
+                                    : "text-slate-400 hover:text-slate-600"
+                                }`}
+                                title="List View"
+                              >
+                                <List className="w-3 h-3" />
+                              </button>
+                              <button
+                                onClick={() => setDrawingLibraryViewMode("grid")}
+                                className={`p-1 rounded-md transition-all cursor-pointer ${
+                                  drawingLibraryViewMode === "grid"
+                                    ? "bg-white text-blue-600 "
+                                    : "text-slate-400 hover:text-slate-600"
+                                }`}
+                                title="Grid View"
+                              >
+                                <LayoutGrid className="w-3 h-3" />
+                              </button>
+                            </div>
                           </div>
                         </div>
+
+                        {activeAreaNeedsQuickSetup && (
+                          <div className="rounded-2xl border border-blue-100 bg-blue-50/45 p-3 text-left shadow-sm">
+                            <div className="flex items-start gap-2">
+                              <div className="mt-0.5 h-7 w-7 shrink-0 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-sm">
+                                <UploadCloud className="h-3.5 w-3.5" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-[10px] font-extrabold uppercase tracking-wider text-blue-700">
+                                  Quick setup ready
+                                </p>
+                                <p className="mt-1 text-[9.5px] font-semibold leading-4 text-slate-600">
+                                  Upload floor drawings, floor plans, or service-wise plans like Architecture, Structure, MEP, Electrical and Plumbing. Then drag a drawing onto any zone to create floors and assign services instantly.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
 
                         {/* Search Input Bar */}
                         <div className="relative">
@@ -5842,7 +6407,7 @@ startxref
                               <div className="p-6 border border-dashed border-slate-200 rounded-xl bg-white text-center text-slate-400 text-[10px]">
                                 {drawingLibrarySearchQuery ? 
                                   (activeTab === "3d" ? "No matching 3D models found." : "No matching drawings found.") : 
-                                  (activeTab === "3d" ? "No 3D models uploaded yet. Use the upload option to add one." : "No drawings uploaded yet. Click Upload Drawings in the top bar.")
+                                  (activeTab === "3d" ? "No 3D models uploaded yet. Use the upload option to add one." : "No drawings uploaded yet. Use Upload in the library header.")
                                 }
                               </div>
                             );
@@ -5854,6 +6419,10 @@ startxref
                               <div className="grid grid-cols-2 gap-3">
                                 {filtered.map((drawing, index) => {
                                   const isEditing = editingDrawingId === drawing.id;
+                                  const linkedBaseArea = activeTab === "drawing"
+                                    ? markups.find((markup) => markup.type === "area" && markup.drawingOverlay?.url === drawing.url)
+                                    : null;
+                                  const isBasePlan = Boolean(linkedBaseArea);
                                   return (
                                     <div
                                       key={drawing.id}
@@ -5865,7 +6434,11 @@ startxref
                                       onDragEnd={() => {
                                         setDraggedDrawingId(null);
                                       }}
-                                      className="bg-white border border-slate-100/70 rounded-xl overflow-hidden  flex flex-col hover:border-slate-350 transition-all hover-lift micro-fade-in aspect-square relative group cursor-grab active:cursor-grabbing"
+                                      className={`border rounded-xl overflow-hidden flex flex-col transition-all hover-lift micro-fade-in aspect-square relative group cursor-grab active:cursor-grabbing ${
+                                        isBasePlan
+                                          ? "bg-blue-50/35 border-blue-200 shadow-[0_10px_28px_rgba(37,99,235,0.08)]"
+                                          : "bg-white border-slate-100/70 hover:border-slate-350"
+                                      }`}
                                     >
                                       {/* Visual Preview / Thumbnail Block */}
                                       <div className="w-full flex-1 bg-slate-50 relative flex items-center justify-center overflow-hidden">
@@ -5903,6 +6476,11 @@ startxref
                                         <div className="absolute top-2 left-2 bg-slate-900/60 backdrop-blur-sm text-white text-[7.5px] px-1.5 py-0.5 rounded font-bold">
                                           #{index + 1}
                                         </div>
+                                        {isBasePlan && (
+                                          <div className="absolute top-2 right-2 rounded-md bg-blue-600 px-1.5 py-0.5 text-[7px] font-extrabold uppercase tracking-wide text-white shadow-sm">
+                                            Base
+                                          </div>
+                                        )}
 
                                         {/* Hover overlay actions */}
                                         <div className="absolute inset-0 bg-slate-900/65 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-all duration-205 flex items-center justify-center gap-2">
@@ -5943,7 +6521,7 @@ startxref
                                       </div>
 
                                       {/* Lower metadata block */}
-                                      <div className="p-2 border-t border-slate-100 bg-white shrink-0">
+                                      <div className={`p-2 border-t shrink-0 ${isBasePlan ? "border-blue-100 bg-white/85" : "border-slate-100 bg-white"}`}>
                                         {isEditing ? (
                                           <input
                                             type="text"
@@ -5968,9 +6546,16 @@ startxref
                                         
                                         {/* Discipline Service Classification */}
                                         <div className="flex items-center justify-between mt-1">
-                                          <span className="text-[7.5px] font-extrabold text-blue-600 bg-blue-55 px-1 py-0.5 rounded">
-                                            {drawing.service}
+                                          <span className={`text-[7.5px] font-extrabold px-1 py-0.5 rounded ${
+                                            isBasePlan ? "bg-blue-600 text-white" : "text-blue-600 bg-blue-55"
+                                          }`}>
+                                            {isBasePlan ? "Base plan" : drawing.service}
                                           </span>
+                                          {isBasePlan && linkedBaseArea && (
+                                            <span className="min-w-0 truncate text-[7.5px] font-bold text-slate-500" title={linkedBaseArea.label}>
+                                              {linkedBaseArea.label}
+                                            </span>
+                                          )}
                                         </div>
                                       </div>
                                     </div>
@@ -5985,6 +6570,10 @@ startxref
                             <div className="space-y-1">
                               {filtered.map((drawing, index) => {
                                 const isEditing = editingDrawingId === drawing.id;
+                                const linkedBaseArea = activeTab === "drawing"
+                                  ? markups.find((markup) => markup.type === "area" && markup.drawingOverlay?.url === drawing.url)
+                                  : null;
+                                const isBasePlan = Boolean(linkedBaseArea);
                                 return (
                                   <div
                                     key={drawing.id}
@@ -5996,11 +6585,17 @@ startxref
                                     onDragEnd={() => {
                                       setDraggedDrawingId(null);
                                     }}
-                                    className="bg-white border border-slate-100/70 rounded-lg p-2.5  flex items-center justify-between gap-1.5 hover:border-slate-350 transition-all hover-lift micro-fade-in cursor-grab active:cursor-grabbing"
+                                    className={`border rounded-xl p-2.5 flex items-center justify-between gap-1.5 transition-all hover-lift micro-fade-in cursor-grab active:cursor-grabbing ${
+                                      isBasePlan
+                                        ? "bg-blue-50/45 border-blue-200 shadow-[0_8px_22px_rgba(37,99,235,0.08)]"
+                                        : "bg-white border-slate-100/70 hover:border-slate-350"
+                                    }`}
                                   >
                                     <div className="flex items-center gap-2 min-w-0 flex-1">
                                       {/* Small DP Preview Thumbnail */}
-                                      <div className="relative w-8 h-8 rounded border border-slate-100/80 bg-slate-50 overflow-hidden flex items-center justify-center shrink-0">
+                                      <div className={`relative w-9 h-9 rounded-lg border overflow-hidden flex items-center justify-center shrink-0 ${
+                                        isBasePlan ? "border-blue-200 bg-white ring-2 ring-blue-100/70" : "border-slate-100/80 bg-slate-50"
+                                      }`}>
                                         {activeTab === "3d" ? (
                                           <svg className="w-5 h-5 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                                             <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" strokeLinecap="round" strokeLinejoin="round" />
@@ -6030,8 +6625,10 @@ startxref
                                         ) : (
                                           <FileText className="w-4 h-4 text-blue-500" />
                                         )}
-                                        <div className="absolute bottom-0 right-0 bg-blue-600 text-white text-[6.5px] px-0.5 rounded-tl font-bold">
-                                          {index + 1}
+                                        <div className={`absolute bottom-0 right-0 text-white text-[6.5px] px-0.5 rounded-tl font-bold ${
+                                          isBasePlan ? "bg-blue-600" : "bg-slate-900/70"
+                                        }`}>
+                                          {isBasePlan ? "B" : index + 1}
                                         </div>
                                       </div>
                                       
@@ -6052,9 +6649,23 @@ startxref
                                           autoFocus
                                         />
                                       ) : (
-                                        <span className="text-[10px] font-bold text-slate-750 truncate" title={drawing.name}>
-                                          {drawing.name}
-                                        </span>
+                                        <div className="min-w-0 flex-1">
+                                          <div className="flex min-w-0 items-center gap-1.5">
+                                            <span className="min-w-0 truncate text-[10px] font-bold text-slate-750" title={drawing.name}>
+                                              {drawing.name}
+                                            </span>
+                                            {isBasePlan && (
+                                              <span className="shrink-0 rounded-md bg-blue-600 px-1.5 py-0.5 text-[7px] font-extrabold uppercase text-white">
+                                                Base
+                                              </span>
+                                            )}
+                                          </div>
+                                          {isBasePlan && linkedBaseArea && (
+                                            <p className="mt-0.5 truncate text-[8px] font-bold text-blue-600">
+                                              Site plan for {linkedBaseArea.label}
+                                            </p>
+                                          )}
+                                        </div>
                                       )}
                                     </div>
                                     
@@ -6103,9 +6714,23 @@ startxref
                     ) : (
                       /* TAB 2: Configure Zones - The zone and floor level linker cards */
                       <div>
-                        <h4 className="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider mb-2">
-                          Configure Zones
-                        </h4>
+                        <div className="mb-2 flex items-center justify-between gap-2">
+                          <h4 className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">
+                            Configure Zones
+                          </h4>
+                          <button
+                            onClick={() => {
+                              setIsDrawingMarkupToolbarVisible(true);
+                              handleCreateZoneFromDrawingSetup();
+                            }}
+                            disabled={!currentDrawingUrl}
+                            className="h-7 rounded-lg bg-blue-600 px-2.5 text-[9px] font-extrabold text-white hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed transition-all cursor-pointer flex items-center gap-1"
+                            title={currentDrawingUrl ? "Draw a new zone on this drawing" : "Upload or choose a base drawing before drawing zones"}
+                          >
+                            <PolygonIcon className="w-3 h-3" />
+                            Draw Zone
+                          </button>
+                        </div>
                         {activeArea ? (
                           <div className="space-y-3">
                             <div className="bg-slate-50 border border-slate-100/70 rounded-xl p-2.5 space-y-1.5">
@@ -6207,27 +6832,38 @@ startxref
                                         </div>
                                       ) : floorsList.length === 0 ? (
                                         /* Empty state: Create Floors Count Input */
-                                        <div className="bg-slate-50/30 border border-slate-100/60 rounded-lg p-2 flex items-center justify-between gap-1.5">
-                                          <div className="flex items-center gap-1">
-                                            <span className="text-[8.5px] text-slate-500 font-semibold">Levels:</span>
-                                            <input
-                                              type="number"
-                                              min="1"
-                                              max="30"
-                                              value={floorInputs[zone.id] || 2}
-                                              onChange={(e) => {
-                                                const val = parseInt(e.target.value) || 1;
-                                                setFloorInputs((prev) => ({ ...prev, [zone.id]: val }));
-                                              }}
-                                              className="w-10 h-6 border border-slate-100/80 rounded text-center text-[9px] font-bold text-slate-800 focus:outline-none focus:border-blue-500"
-                                            />
+                                        <div className="bg-slate-50/30 border border-slate-100/60 rounded-lg p-2 space-y-2">
+                                          <div className="flex items-center justify-between gap-1.5">
+                                            <div className="flex items-center gap-1">
+                                              <span className="text-[8.5px] text-slate-500 font-semibold">Levels:</span>
+                                              <input
+                                                type="number"
+                                                min="1"
+                                                max="30"
+                                                value={floorInputs[zone.id] || 2}
+                                                onChange={(e) => {
+                                                  const val = parseInt(e.target.value) || 1;
+                                                  setFloorInputs((prev) => ({ ...prev, [zone.id]: val }));
+                                                }}
+                                                className="w-10 h-6 border border-slate-100/80 rounded text-center text-[9px] font-bold text-slate-800 focus:outline-none focus:border-blue-500"
+                                              />
+                                            </div>
+                                            <button
+                                              onClick={() => handleCreateFloors(zone.id, floorInputs[zone.id] || 2)}
+                                              className="h-6 px-2.5 rounded bg-blue-600 hover:bg-blue-700 text-white text-[9px] font-bold transition-all  cursor-pointer"
+                                            >
+                                              Create
+                                            </button>
                                           </div>
-                                          <button
-                                            onClick={() => handleCreateFloors(zone.id, floorInputs[zone.id] || 2)}
-                                            className="h-6 px-2.5 rounded bg-blue-600 hover:bg-blue-700 text-white text-[9px] font-bold transition-all  cursor-pointer"
-                                          >
-                                            Create
-                                          </button>
+                                          {assignableDrawingFiles.length > 0 && (
+                                            <button
+                                              onClick={() => openQuickSetupForZone(zone.id, assignableDrawingFiles.map((file) => file.id))}
+                                              className="w-full h-7 rounded-lg border border-blue-100 bg-blue-50 text-blue-600 text-[9px] font-extrabold hover:bg-blue-100 transition-all cursor-pointer flex items-center justify-center gap-1"
+                                            >
+                                              <Sparkles className="w-3 h-3" />
+                                              Quick assign from library
+                                            </button>
+                                          )}
                                         </div>
                                       ) : (
                                         /* List of floor levels configured */
@@ -6427,6 +7063,7 @@ startxref
                         setZoneDrawingConfigs({});
                         setHasLoadedDrawings(false);
                         setActiveEyeDrawing(null);
+                        setIsDrawingMarkupToolbarVisible(false);
                         triggerToast("Discarded drawings and configurations.");
                       }}
                       className="h-9 rounded-xl border border-rose-100 bg-rose-50 hover:bg-rose-100 text-rose-600 text-[10px] font-bold cursor-pointer transition-colors"
@@ -6437,6 +7074,7 @@ startxref
                       onClick={() => {
                         setIsDrawingLeftSetupOpen(false);
                         setActiveEyeDrawing(null);
+                        setIsDrawingMarkupToolbarVisible(false);
                         triggerToast("All drawing configurations applied! Hierarchy saved to Layers panel.");
                       }}
                       className="h-9 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all cursor-pointer  shadow-blue-500/10"
@@ -6453,8 +7091,9 @@ startxref
           <div className="flex-1 min-w-0 bg-slate-100 flex flex-col relative">
             
             {/* Viewport Top Bar */}
+            {activeTab !== "drawing" && (
             <div className="h-14 border-b border-slate-200 bg-white/95 backdrop-blur px-4 flex items-center justify-between shrink-0 z-20">
-              <div className="flex items-center gap-2">
+              <div className="flex min-w-0 items-center gap-2 pr-3">
                 {!isDrawingLeftSetupOpen && (
                   <button
                     onClick={() => setIsDrawingLeftSetupOpen(true)}
@@ -6465,18 +7104,39 @@ startxref
                   </button>
                 )}
                 <button
-                  onClick={handleCreateZoneFromDrawingSetup}
+                  onClick={() => {
+                    setIsDrawingMarkupToolbarVisible(true);
+                    handleCreateZoneFromDrawingSetup();
+                  }}
                   disabled={!currentDrawingUrl}
                   className="h-8.5 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white text-[10px] font-bold flex items-center gap-1.5 cursor-pointer transition-colors  shadow-blue-500/10"
-                  title={currentDrawingUrl ? "Create a new zone directly on this drawing" : "Upload or choose a base drawing before creating zones"}
+                  title={currentDrawingUrl ? (activeAreaZoneCount > 0 ? "Create another zone on this drawing" : "Create a new zone directly on this drawing") : "Upload or choose a base drawing before creating zones"}
                 >
                   <PolygonIcon className="w-3.5 h-3.5" />
-                  Create Zone
+                  {activeAreaZoneCount > 0 ? "Create more zone" : "Create Zone"}
                 </button>
                 {currentDrawingUrl && (
-                  <div className="bg-slate-50 border border-slate-100/60 rounded-xl px-2.5 py-1 text-xs flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="font-bold text-slate-800">{currentDrawingLabel}</span>
+                  <div
+                    className="bg-slate-50 border border-slate-100/60 rounded-xl px-2.5 py-1 text-xs flex items-center gap-2"
+                    title={currentDrawingLabel}
+                  >
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                    <span className="font-bold text-slate-800">Base plan</span>
+                  </div>
+                )}
+                {activeArea && (
+                  <div
+                    className={`hidden sm:flex items-center gap-1.5 rounded-xl border px-2.5 py-1 text-[10px] font-bold ${
+                      activeArea.isPlacedOnMap === false
+                        ? "border-amber-100 bg-amber-50 text-amber-700"
+                        : "border-blue-100 bg-blue-50 text-blue-700"
+                    }`}
+                    title={activeArea.label}
+                  >
+                    <span className="truncate max-w-[110px]">{activeArea.label}</span>
+                    <span className="text-[7px] uppercase opacity-70">
+                      {activeArea.isPlacedOnMap === false ? "Not placed" : "Linked"}
+                    </span>
                   </div>
                 )}
               </div>
@@ -6500,20 +7160,12 @@ startxref
                     {isDrawingStackedView ? "Disable 3D Stack" : "Stacked 3D View"}
                   </button>
                 )}
-                {hasLoadedDrawings && (
-                  <button
-                    onClick={() => setIsUploadMoreModalOpen(true)}
-                    className="h-8.5 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold flex items-center gap-1.5 cursor-pointer transition-colors  shadow-blue-500/10"
-                  >
-                    <Upload className="w-3.5 h-3.5" />
-                    Upload More
-                  </button>
-                )}
               </div>
             </div>
+            )}
 
             {/* Viewport Canvas or Empty State */}
-            <div className="flex-1 min-h-0 relative flex items-center justify-center p-6 overflow-hidden">
+            <div className="flex-1 min-h-0 relative flex items-center justify-center p-1 overflow-hidden">
               {currentDrawingUrl ? (
                 <div
                   ref={drawingViewportRef}
@@ -6795,7 +7447,41 @@ startxref
                       return (
                         <div
                           key={layer.id}
-                          className="absolute overflow-visible pointer-events-none"
+                          className={`absolute overflow-visible transition-all duration-200 ${
+                            activeTab === "drawing" && draggedDrawingId
+                              ? "pointer-events-auto cursor-copy"
+                              : "pointer-events-none"
+                          } ${
+                            quickSetupHighlightedZoneId === layer.id
+                              ? "z-30 scale-[1.04] drop-shadow-[0_0_18px_rgba(37,99,235,0.75)]"
+                              : ""
+                          }`}
+                          onDragOver={(event) => {
+                            if (activeTab !== "drawing" || !draggedDrawingId) return;
+                            event.preventDefault();
+                            setQuickSetupHighlightedZoneId(layer.id);
+                          }}
+                          onDragEnter={(event) => {
+                            if (activeTab !== "drawing" || !draggedDrawingId) return;
+                            event.preventDefault();
+                            setQuickSetupHighlightedZoneId(layer.id);
+                          }}
+                          onDragLeave={() => {
+                            if (quickSetupHighlightedZoneId === layer.id) {
+                              setQuickSetupHighlightedZoneId(null);
+                            }
+                          }}
+                          onDrop={(event) => {
+                            if (activeTab !== "drawing") return;
+                            event.preventDefault();
+                            const drawingId = draggedDrawingId || event.dataTransfer.getData("drawingId");
+                            if (drawingId) {
+                              openQuickSetupForZone(layer.id, [drawingId]);
+                              triggerToast(`${layer.label} selected. Complete quick setup to assign drawings.`);
+                            }
+                            setDraggedDrawingId(null);
+                            setQuickSetupHighlightedZoneId(null);
+                          }}
                           style={{
                             left: `${layer.bounds.x}%`,
                             top: `${layer.bounds.y}%`,
@@ -6823,8 +7509,11 @@ startxref
                             }
                             return (
                               <div
-                                className="absolute inset-0 overflow-hidden rounded-md pointer-events-none"
-                                style={{ backgroundColor: `${layer.color}18`, clipPath }}
+                                className="absolute inset-0 overflow-hidden rounded-md pointer-events-none transition-all duration-200"
+                                style={{
+                                  backgroundColor: quickSetupHighlightedZoneId === layer.id ? `${layer.color}32` : `${layer.color}18`,
+                                  clipPath
+                                }}
                               />
                             );
                           })()}
@@ -6878,13 +7567,130 @@ startxref
                     )}
                   </div>
 
+                  {!isDrawingStackedView && currentDrawingUrl && isDrawingMarkupToolbarVisible && (
+                    <div
+                      className="absolute left-4 top-1/2 z-45 flex -translate-y-1/2 flex-col gap-1.5 rounded-2xl border border-slate-100/80 bg-white/95 p-1.5 shadow-[0_12px_34px_rgba(15,23,42,0.12)] backdrop-blur-md"
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsDrawingMarkupToolbarVisible(false);
+                          setDrawingMarkupTool("pointer");
+                          setActiveTool("pan");
+                          setNestedDrawingPoints([]);
+                          setNestedRedoPoints([]);
+                          triggerToast("Drawing toolbar hidden");
+                        }}
+                        className="relative flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition-all hover:bg-slate-50 hover:text-slate-900 group/markup"
+                        title="Hide toolbar"
+                      >
+                        <EyeOff className="h-4 w-4" />
+                        <span className="pointer-events-none absolute left-12 z-50 whitespace-nowrap rounded-lg bg-slate-950 px-2 py-1 text-[9px] font-bold text-white opacity-0 shadow-lg transition-all duration-150 group-hover/markup:translate-x-1 group-hover/markup:opacity-100">
+                          Hide toolbar
+                        </span>
+                      </button>
+
+                      <div className="mx-1 h-px bg-slate-100" />
+
+                      {[
+                        { id: "pointer", icon: MousePointer, tooltip: "Select / pan" },
+                        { id: "cloud", icon: Cloud, tooltip: "Cloud markup" },
+                        { id: "polygon", icon: PolygonIcon, tooltip: "Create zone polygon" },
+                        { id: "line", icon: Minus, tooltip: "Line markup" },
+                        { id: "rect", icon: Square, tooltip: "Rectangle markup" },
+                        { id: "circle", icon: CircleIcon, tooltip: "Circle markup" },
+                        { id: "arrow", icon: ArrowUpRight, tooltip: "Arrow pointer" },
+                      ].map((tool) => {
+                        const Icon = tool.icon;
+                        const isActive =
+                          (tool.id === "polygon" && activeTool === "nestedPolygon") ||
+                          (tool.id !== "polygon" && drawingMarkupTool === tool.id && activeTool !== "nestedPolygon");
+
+                        return (
+                          <button
+                            key={tool.id}
+                            type="button"
+                            onClick={() => {
+                              if (tool.id === "polygon") {
+                                setDrawingMarkupTool("polygon");
+                                handleCreateZoneFromDrawingSetup();
+                                return;
+                              }
+
+                              setActiveTool("pan");
+                              setNestedDrawingPoints([]);
+                              setNestedRedoPoints([]);
+                              setDrawingMarkupTool(tool.id as typeof drawingMarkupTool);
+                              triggerToast(`Activated ${tool.tooltip}`);
+                            }}
+                            className={`relative flex h-10 w-10 items-center justify-center rounded-xl transition-all group/markup ${
+                              isActive
+                                ? "bg-blue-600 text-white shadow-md shadow-blue-500/20"
+                                : "text-slate-500 hover:bg-slate-50 hover:text-blue-600"
+                            }`}
+                            title={tool.tooltip}
+                          >
+                            <Icon className="h-4 w-4" />
+                            {tool.id === "polygon" && activeTool === "nestedPolygon" && (
+                              <span className="absolute -right-1 -top-1 rounded-full bg-slate-950 px-1 text-[8px] font-extrabold text-white">
+                                {nestedDrawingPoints.length}
+                              </span>
+                            )}
+                            <span className="pointer-events-none absolute left-12 z-50 whitespace-nowrap rounded-lg bg-slate-950 px-2 py-1 text-[9px] font-bold text-white opacity-0 shadow-lg transition-all duration-150 group-hover/markup:translate-x-1 group-hover/markup:opacity-100">
+                              {tool.tooltip}
+                            </span>
+                          </button>
+                        );
+                      })}
+
+                      <div className="mx-1 h-px bg-slate-100" />
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDrawingMarkupTool("pointer");
+                          setActiveTool("pan");
+                          setNestedDrawingPoints([]);
+                          setNestedRedoPoints([]);
+                          setDrawingMarkups([]);
+                          triggerToast("Cleared drawing markups");
+                        }}
+                        className="relative flex h-10 w-10 items-center justify-center rounded-xl text-rose-500 transition-all hover:bg-rose-50 group/markup"
+                        title="Clear markups"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        <span className="pointer-events-none absolute left-12 z-50 whitespace-nowrap rounded-lg bg-slate-950 px-2 py-1 text-[9px] font-bold text-white opacity-0 shadow-lg transition-all duration-150 group-hover/markup:translate-x-1 group-hover/markup:opacity-100">
+                          Clear markups
+                        </span>
+                      </button>
+                    </div>
+                  )}
+
+                  {!isDrawingStackedView && currentDrawingUrl && !isDrawingMarkupToolbarVisible && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsDrawingMarkupToolbarVisible(true);
+                        triggerToast("Drawing toolbar shown");
+                      }}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      className="absolute left-4 top-1/2 z-45 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-xl border border-slate-100/80 bg-white/95 text-blue-600 shadow-[0_12px_34px_rgba(15,23,42,0.12)] backdrop-blur-md transition-all hover:bg-blue-50"
+                      title="Show toolbar"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </button>
+                  )}
+
                   {activeTool === "nestedPolygon" && activeArea && (
                     <div
                       className="absolute left-4 top-1/2 z-45 flex -translate-y-1/2 items-center gap-2"
                       onMouseDown={(e) => e.stopPropagation()}
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <div className="flex flex-col gap-1.5 rounded-2xl border border-slate-100/80 bg-white/95 p-1.5 shadow-[0_12px_34px_rgba(15,23,42,0.12)] backdrop-blur-md">
+                      <div className="hidden flex-col gap-1.5 rounded-2xl border border-slate-100/80 bg-white/95 p-1.5 shadow-[0_12px_34px_rgba(15,23,42,0.12)] backdrop-blur-md">
                         <div className="relative group/tooltip">
                           <button
                             type="button"
@@ -6965,7 +7771,7 @@ startxref
                         </button>
                       </div>
 
-                      <div className="w-52 rounded-2xl border border-blue-100/80 bg-white/95 p-3 text-left shadow-[0_12px_34px_rgba(15,23,42,0.12)] backdrop-blur-md">
+                      <div className="ml-14 w-52 rounded-2xl border border-blue-100/80 bg-white/95 p-3 text-left shadow-[0_12px_34px_rgba(15,23,42,0.12)] backdrop-blur-md">
                         <p className="text-[9px] font-extrabold uppercase tracking-wider text-blue-600">Create zone</p>
                         <p className="mt-1 text-[11px] font-bold leading-snug text-slate-800">
                           Mark corners on the drawing.
@@ -7219,17 +8025,6 @@ startxref
                     </div>
                     <div className="h-4 w-px bg-slate-200" />
                     <button
-                      onClick={() => setShowRulers(!showRulers)}
-                      className={`text-[9px] font-bold px-2 py-0.5 rounded cursor-pointer transition-colors ${
-                        showRulers 
-                          ? "bg-blue-50 text-blue-600 border border-blue-150" 
-                          : "text-slate-550 hover:bg-slate-50"
-                      }`}
-                    >
-                      Rulers
-                    </button>
-                    <div className="h-4 w-px bg-slate-200" />
-                    <button
                       onClick={() => setDrawingAdjustments({ zoom: 1.0, rotate: 0, panX: 0, panY: 0 })}
                       className="text-[9px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer"
                     >
@@ -7273,14 +8068,24 @@ startxref
           {/* C. Right Sidebar: Collapsible Layers Tree */}
           {isDrawingRightLayersOpen ? (
             <div className="w-80 bg-white border-l border-slate-200 flex flex-col shrink-0 z-30 shadow-[-4px_0_24px_rgba(15,23,42,0.02)] transition-all">
-              <div className="p-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
-                <div className="flex items-center gap-1.5">
-                  <Layers className="w-4 h-4 text-blue-600" />
-                  <h3 className="text-[11px] font-bold text-slate-800 uppercase tracking-wider">
-                    {activeTab === "3d" ? "BIM Model Hierarchy" : (activeTab === "drone" ? "Drone Captures" : "Blueprint Hierarchy")}
+              <div className="p-3 border-b border-slate-100 flex items-center justify-between gap-2 shrink-0 bg-white">
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5 shrink-0 text-blue-600" />
+                  <h3 className="min-w-0 truncate whitespace-nowrap text-[10px] font-bold text-slate-800 uppercase tracking-wide">
+                    {activeTab === "3d" ? "BIM Model Hierarchy" : (activeTab === "drone" ? "Drone Captures" : "Layer")}
                   </h3>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex shrink-0 items-center gap-1">
+                  {activeTab === "drawing" && (
+                    <button
+                      onClick={createNewDrawingSitePlanFromNextAvailable}
+                      className="h-7 px-1.5 rounded-lg bg-emerald-50 border border-emerald-100 text-emerald-700 hover:bg-emerald-100 text-[8px] font-bold transition-all cursor-pointer flex items-center gap-1"
+                      title="Create a separate site plan setup"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span className="hidden 2xl:inline">New Plan</span>
+                    </button>
+                  )}
                   {!isDrawingLeftSetupOpen && (
                     <button
                       onClick={() => setIsDrawingLeftSetupOpen(true)}
@@ -11114,6 +11919,441 @@ startxref
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Site Boundary Plan Assignment Modal */}
+      {sitePlanAssignmentBoundaryId && (
+        <div className="fixed inset-0 z-[126] flex items-center justify-center p-4 bg-slate-900/45 backdrop-blur-sm micro-fade-in">
+          {(() => {
+            const boundary = markups.find((markup) => markup.id === sitePlanAssignmentBoundaryId);
+            const suggestedPlan = sitePlanAssignmentSuggestedId
+              ? availableSitePlanSources.find((plan) => plan.id === sitePlanAssignmentSuggestedId)
+              : null;
+            const orderedPlans = [
+              ...(suggestedPlan ? [suggestedPlan] : []),
+              ...availableSitePlanSources.filter((plan) => plan.id !== suggestedPlan?.id)
+            ];
+
+            return (
+              <div className="w-full max-w-xl rounded-3xl bg-white border border-white/70 shadow-[0_28px_90px_rgba(15,23,42,0.22)] overflow-hidden text-left">
+                <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-br from-white via-blue-50/35 to-slate-50 flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-3 min-w-0">
+                    <div className="h-11 w-11 rounded-2xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-lg shadow-blue-600/20">
+                      <FolderOpen className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-[9px] font-extrabold uppercase tracking-wider text-blue-600">Assign site plan</div>
+                      <h3 className="mt-1 text-base font-extrabold text-slate-900 truncate">
+                        Which plan goes inside {boundary?.label || "this boundary"}?
+                      </h3>
+                      <p className="mt-1 text-[10px] font-semibold leading-4 text-slate-500">
+                        Choose one plan now. You can switch this assignment later from the Layers panel.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setSitePlanAssignmentBoundaryId(null);
+                      setSitePlanAssignmentSuggestedId(null);
+                    }}
+                    className="h-8 w-8 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-white/80 flex items-center justify-center cursor-pointer transition-all"
+                    title="Close"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <div className="p-5 space-y-2.5 max-h-[56vh] overflow-y-auto">
+                  {orderedPlans.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 p-6 text-center">
+                      <UploadCloud className="mx-auto h-7 w-7 text-blue-500" />
+                      <p className="mt-2 text-xs font-extrabold text-slate-700">No site plans ready yet</p>
+                      <p className="mt-1 text-[10px] font-semibold text-slate-400">
+                        Upload or create a site plan in Drawing Setup, then assign it from Layers.
+                      </p>
+                    </div>
+                  ) : (
+                    orderedPlans.map((plan) => {
+                      const isSuggested = plan.id === suggestedPlan?.id;
+                      return (
+                        <button
+                          key={plan.id}
+                          onClick={() => assignSitePlanToBoundary(sitePlanAssignmentBoundaryId, plan.id)}
+                          className={`w-full rounded-2xl border p-3 text-left transition-all cursor-pointer flex items-center gap-3 hover:-translate-y-0.5 ${
+                            isSuggested
+                              ? "border-blue-200 bg-blue-50/70 shadow-sm shadow-blue-600/10"
+                              : "border-slate-100 bg-white hover:bg-slate-50"
+                          }`}
+                        >
+                          <div className="h-14 w-20 rounded-xl border border-slate-100 bg-slate-50 overflow-hidden shrink-0">
+                            {plan.drawingOverlay?.url ? (
+                              <BlueprintImage src={plan.drawingOverlay.url} alt={plan.label} className="h-full w-full object-cover" />
+                            ) : (
+                              <FileText className="m-5 h-4 w-4 text-blue-500" />
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5">
+                              <p className="truncate text-xs font-extrabold text-slate-900">{plan.label}</p>
+                              {isSuggested && (
+                                <span className="rounded-md bg-blue-600 px-1.5 py-0.5 text-[7px] font-extrabold uppercase text-white">
+                                  Suggested
+                                </span>
+                              )}
+                            </div>
+                            <p className="mt-1 truncate text-[10px] font-semibold text-slate-500">
+                              {plan.drawingOverlay ? getOverlayName(plan.drawingOverlay.url) : "No base drawing"}
+                            </p>
+                            <p className="mt-1 text-[9px] font-bold text-blue-600">
+                              {(plan.childLayers || []).length} zone{(plan.childLayers || []).length === 1 ? "" : "s"} in this plan
+                            </p>
+                          </div>
+                          <CheckCircle2 className="h-4 w-4 text-blue-600 shrink-0" />
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+
+                <div className="px-5 py-3.5 border-t border-slate-100 bg-slate-50/60 flex items-center justify-between gap-3">
+                  <button
+                    onClick={() => assignSitePlanToBoundary(sitePlanAssignmentBoundaryId, null)}
+                    className="h-9 rounded-xl border border-slate-200 bg-white px-4 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-all cursor-pointer"
+                  >
+                    Keep without plan
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSitePlanAssignmentBoundaryId(null);
+                      setSitePlanAssignmentSuggestedId(null);
+                    }}
+                    className="h-9 rounded-xl bg-slate-900 px-4 text-xs font-extrabold text-white hover:bg-slate-800 transition-all cursor-pointer"
+                  >
+                    Decide later
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+      {/* Drawing Zone Quick Setup Modal */}
+      {quickSetupZoneId && (
+        <div className="fixed inset-0 z-[125] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm micro-fade-in">
+	          {(() => {
+	            const quickSetupZone = activeArea?.childLayers?.find((zone) => zone.id === quickSetupZoneId);
+	            const selectedFiles = assignableDrawingFiles;
+	            const selectedFileIds = new Set(selectedFiles.map((file) => file.id));
+	            const quickSetupConfig = quickSetupZoneId ? zoneDrawingConfigs[quickSetupZoneId] : undefined;
+            const existingQuickSetupFloors = quickSetupConfig?.floorsList || [];
+            const hasExistingQuickSetupFloors = existingQuickSetupFloors.length > 0;
+            const safeQuickSetupFloorCount = Math.max(1, Math.min(30, quickSetupFloorCount || 1));
+	            const serviceChoices = Array.from(new Set([
+	              ...DRAWING_SERVICES,
+	              ...assignableDrawingFiles.map((file) => file.service),
+	              ...quickSetupServices
+	            ]));
+            const visibleQuickSetupServices = quickSetupServices.filter(Boolean);
+            const levelDrafts = Array.from({ length: safeQuickSetupFloorCount }, (_, index) => ({
+              index,
+              id: existingQuickSetupFloors[index]?.id || `draft-floor-${index + 1}`,
+              name: existingQuickSetupFloors[index]?.name || `Floor ${index + 1}`
+            }));
+	            const getQuickSetupAssignmentValue = (floorIndex: number, service: DrawingService) => {
+              const draftFloor = quickSetupAssignments[String(floorIndex)] || {};
+	              const draftAssignment = draftFloor[service];
+              if (Object.prototype.hasOwnProperty.call(draftFloor, service)) {
+                return draftAssignment || "";
+              }
+
+	              const existingAssignment = existingQuickSetupFloors[floorIndex]?.assignments?.[service];
+	              if (existingAssignment && selectedFileIds.has(existingAssignment)) return existingAssignment;
+
+	              const serviceMatch = selectedFiles.find((file) => file.service === service);
+	              return serviceMatch?.id || selectedFiles[floorIndex % selectedFiles.length]?.id || "";
+	            };
+            const assignQuickSetupDrawingToSlot = (floorIndex: number, service: DrawingService, drawingId: string) => {
+              const file = assignableDrawingFiles.find((item) => item.id === drawingId);
+              if (!file && drawingId) return;
+              setQuickSetupAssignments((prev) => ({
+                ...prev,
+                [String(floorIndex)]: {
+                  ...(prev[String(floorIndex)] || {}),
+                  [service]: drawingId
+                }
+              }));
+              triggerToast(
+                file
+                  ? `${file.name} assigned to Floor ${floorIndex + 1} - ${getServiceShortLabel(service)}.`
+                  : `Cleared Floor ${floorIndex + 1} - ${getServiceShortLabel(service)}.`
+              );
+            };
+
+	            return (
+	              <div className="w-full max-w-2xl max-h-[86vh] rounded-3xl bg-white border border-white/70 shadow-[0_28px_90px_rgba(15,23,42,0.24)] overflow-hidden flex flex-col text-left">
+	                <div className="px-5 py-4 border-b border-slate-100 bg-white flex items-start justify-between gap-4">
+	                  <div className="flex items-start gap-3 min-w-0">
+	                    <div className="h-11 w-11 rounded-2xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-lg shadow-blue-600/20">
+	                      <Sparkles className="h-5 w-5" />
+	                    </div>
+	                    <div className="min-w-0">
+	                      <div className="text-[9px] font-extrabold uppercase tracking-wider text-blue-600">Zone setup</div>
+	                      <h3 className="mt-1 text-base font-extrabold text-slate-900 truncate">
+	                        Set up {quickSetupZone?.label || "this zone"}
+	                      </h3>
+	                      <p className="mt-1 text-[10px] font-semibold leading-4 text-slate-500">
+	                        Pick how many levels you need, then match drawings to each level.
+	                      </p>
+	                    </div>
+	                  </div>
+                  <button
+                    onClick={closeQuickSetup}
+                    className="h-8 w-8 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-white/80 flex items-center justify-center cursor-pointer transition-all"
+                    title="Close"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+
+	                <div className="flex-1 overflow-y-auto p-5 grid gap-4 md:grid-cols-[0.88fr_1.12fr]">
+	                  <div className="space-y-4">
+	                    <div className="rounded-2xl border border-slate-100 bg-white p-3">
+	                      <div className="flex items-center gap-2">
+	                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[10px] font-extrabold text-white">1</span>
+	                        <label className="text-[10px] font-extrabold text-slate-800">How many levels?</label>
+	                      </div>
+	                      <div className="mt-3 flex items-center gap-2">
+	                        <button
+	                          type="button"
+	                          onClick={() => setQuickSetupFloorCount((count) => Math.max(1, count - 1))}
+	                          className="h-8 w-8 rounded-xl border border-slate-100 bg-slate-50 text-slate-600 hover:bg-slate-100"
+	                          title="Remove one level"
+	                        >
+	                          <Minus className="mx-auto h-3.5 w-3.5" />
+	                        </button>
+	                        <input
+	                          type="number"
+	                          min="1"
+	                          max="30"
+	                          value={quickSetupFloorCount}
+	                          onChange={(event) => setQuickSetupFloorCount(Math.max(1, Math.min(30, parseInt(event.target.value) || 1)))}
+	                          className="h-8 w-14 rounded-xl border border-blue-200 bg-blue-50 px-2 text-center text-sm font-extrabold text-blue-700 outline-none focus:border-blue-500"
+	                        />
+	                        <button
+	                          type="button"
+	                          onClick={() => setQuickSetupFloorCount((count) => Math.min(30, count + 1))}
+	                          className="h-8 w-8 rounded-xl border border-slate-100 bg-slate-50 text-slate-600 hover:bg-slate-100"
+	                          title="Add one level"
+	                        >
+	                          <Plus className="mx-auto h-3.5 w-3.5" />
+	                        </button>
+	                      </div>
+	                      <p className="mt-2 text-[9.5px] font-semibold leading-4 text-slate-500">
+	                        We will create these levels if they do not exist.
+	                      </p>
+	                    </div>
+
+	                    <div className="rounded-2xl border border-slate-100 bg-white p-3">
+	                      <div className="flex items-center justify-between gap-2">
+	                        <div className="flex items-center gap-2">
+	                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[10px] font-extrabold text-white">2</span>
+	                          <label className="text-[10px] font-extrabold text-slate-800">Drawing types</label>
+	                        </div>
+	                        <button
+	                          onClick={() => setQuickSetupServices(DRAWING_SERVICES)}
+	                          className="text-[8.5px] font-extrabold text-blue-600 hover:underline cursor-pointer"
+	                        >
+	                          Use all
+	                        </button>
+	                      </div>
+	                      <p className="mt-2 text-[9.5px] font-semibold leading-4 text-slate-500">Choose only the drawing types you want to assign.</p>
+	                      <div className="mt-2 flex flex-wrap gap-1.5">
+	                        {serviceChoices.map((service) => {
+	                          const checked = quickSetupServices.includes(service);
+                          return (
+                            <button
+                              key={service}
+                              onClick={() => {
+                                setQuickSetupServices((prev) =>
+                                  prev.includes(service)
+                                    ? prev.filter((item) => item !== service)
+                                    : [...prev, service]
+                                );
+                              }}
+                              className={`h-7 rounded-lg border px-2 text-[9px] font-extrabold transition-all cursor-pointer flex items-center gap-1 ${
+                                checked
+                                  ? "border-blue-200 bg-blue-50 text-blue-700"
+                                  : "border-slate-100 bg-slate-50 text-slate-500 hover:bg-slate-100"
+	                              }`}
+	                            >
+	                              {checked && <Check className="h-2.5 w-2.5" />}
+	                              {service}
+	                            </button>
+	                          );
+	                        })}
+                      </div>
+                    </div>
+                  </div>
+
+		                  <div className="rounded-2xl border border-slate-100 bg-white overflow-hidden">
+		                    <div className="px-3 py-2.5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+		                      <div>
+		                        <div className="flex items-center gap-2">
+		                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[10px] font-extrabold text-white">3</span>
+		                          <p className="text-[10px] font-extrabold text-slate-800">Available drawings</p>
+		                        </div>
+		                        <p className="text-[9px] font-semibold text-slate-500 mt-0.5">
+		                          Drag one to a level, or use the menu below.
+		                        </p>
+		                      </div>
+	                      <button
+                        onClick={() => {
+                          drawingLibraryInputRef.current?.click();
+                          triggerToast("Choose floor or service drawings to add to the library.");
+                        }}
+                        className="h-7 rounded-lg bg-blue-600 px-2.5 text-[9px] font-extrabold text-white hover:bg-blue-700 transition-all cursor-pointer"
+	                      >
+	                        Upload
+	                      </button>
+	                    </div>
+                    <div className="max-h-72 overflow-y-auto p-2 space-y-1.5">
+                      {assignableDrawingFiles.length === 0 ? (
+                        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-5 text-center">
+	                          <UploadCloud className="mx-auto h-6 w-6 text-blue-500" />
+	                          <p className="mt-2 text-[10px] font-bold text-slate-600">Upload service drawings first</p>
+	                          <p className="mt-1 text-[9px] font-semibold text-slate-400">
+	                            Site plans are kept out of this assignment list.
+	                          </p>
+	                        </div>
+	                      ) : (
+	                        assignableDrawingFiles.map((file) => {
+	                          return (
+	                            <div
+	                              key={file.id}
+                              draggable
+                              onDragStart={(event) => {
+                                event.dataTransfer.setData("drawingId", file.id);
+                                setDraggedDrawingId(file.id);
+                              }}
+                              onDragEnd={() => {
+                                setDraggedDrawingId(null);
+	                              }}
+	                              className="w-full rounded-xl border border-slate-100 bg-white p-2 text-left transition-all cursor-grab active:cursor-grabbing flex items-center gap-2 hover:border-blue-200 hover:bg-blue-50/40"
+	                            >
+	                              <div className="h-9 w-10 rounded-lg border border-slate-100 bg-slate-50 overflow-hidden shrink-0">
+	                                {file.url ? (
+	                                  <BlueprintImage src={file.url} alt={file.name} className="h-full w-full object-cover" />
+                                ) : (
+                                  <FileText className="m-2.5 h-4 w-4 text-blue-500" />
+                                )}
+                              </div>
+                              <div className="min-w-0 flex-1">
+	                                <p className="truncate text-[10px] font-extrabold text-slate-800">{file.name}</p>
+	                                <p className="mt-0.5 text-[8.5px] font-bold text-blue-600">{file.service}</p>
+	                              </div>
+                              <span className="shrink-0 rounded-md bg-slate-50 px-1.5 py-0.5 text-[7px] font-extrabold uppercase text-slate-500">
+                                Drag
+                              </span>
+	                            </div>
+	                          );
+	                        })
+                      )}
+                    </div>
+                  </div>
+
+	                  <div className="md:col-span-2 rounded-2xl border border-slate-100 bg-white p-3">
+	                    <div className="flex items-start justify-between gap-3">
+	                      <div>
+	                        <div className="flex items-center gap-2">
+	                          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[10px] font-extrabold text-white">4</span>
+	                          <p className="text-[10px] font-extrabold text-slate-800">Match drawings to levels</p>
+	                        </div>
+	                        <p className="mt-1 text-[9.5px] font-semibold leading-4 text-slate-500">
+	                          {hasExistingQuickSetupFloors
+	                            ? "Change any level drawing here, then save."
+		                            : `This will create ${safeQuickSetupFloorCount} level${safeQuickSetupFloorCount === 1 ? "" : "s"}. Drawings can be assigned now or later.`}
+	                        </p>
+	                      </div>
+	                    </div>
+
+                    <div className="mt-3 max-h-56 space-y-2 overflow-y-auto pr-1">
+                      {levelDrafts.map((floor) => (
+	                        <div key={floor.id} className="rounded-xl border border-slate-100 bg-slate-50/40 p-2">
+	                          <div className="flex items-center justify-between gap-2">
+	                            <p className="text-[10px] font-extrabold text-slate-800">{floor.name}</p>
+	                            {!existingQuickSetupFloors[floor.index] && (
+	                              <span className="rounded-md bg-blue-50 px-1.5 py-0.5 text-[7px] font-extrabold uppercase text-blue-600">
+	                                Will create
+	                              </span>
+	                            )}
+	                          </div>
+	                          <div className="mt-2 grid gap-2 md:grid-cols-2">
+	                            {visibleQuickSetupServices.map((service) => (
+	                              <label
+                                  key={`${floor.id}-${service}`}
+                                  className="min-w-0 rounded-xl border border-transparent p-1 transition-colors hover:border-blue-100 hover:bg-blue-50/30"
+                                  onDragOver={(event) => {
+                                    event.preventDefault();
+                                  }}
+                                  onDrop={(event) => {
+                                    event.preventDefault();
+                                    const drawingId = event.dataTransfer.getData("drawingId") || draggedDrawingId || "";
+                                    assignQuickSetupDrawingToSlot(floor.index, service, drawingId);
+                                    setDraggedDrawingId(null);
+                                  }}
+                                >
+	                                <span className="mb-1 block text-[8px] font-extrabold uppercase tracking-wider text-slate-400">
+		                                  {service} drawing
+		                                </span>
+		                                <select
+	                                  value={getQuickSetupAssignmentValue(floor.index, service)}
+	                                  onChange={(event) => {
+	                                    assignQuickSetupDrawingToSlot(floor.index, service, event.target.value);
+	                                  }}
+	                                  disabled={selectedFiles.length === 0}
+	                                  className="h-8 w-full rounded-lg border border-slate-100 bg-white px-2 text-[9px] font-semibold text-slate-700 outline-none focus:border-blue-500 disabled:bg-slate-50 disabled:text-slate-400"
+	                                >
+		                                  <option value="">Choose drawing</option>
+	                                  {selectedFiles.map((file) => (
+	                                    <option key={file.id} value={file.id}>
+	                                      {file.name} - {file.service}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+	                </div>
+
+	                <div className="px-5 py-3.5 border-t border-slate-100 bg-slate-50/60 flex items-center justify-between gap-3">
+		                  <div className="text-[9.5px] font-semibold text-slate-500">
+			                    {safeQuickSetupFloorCount} level{safeQuickSetupFloorCount === 1 ? "" : "s"} • {selectedFiles.length} drawing{selectedFiles.length === 1 ? "" : "s"} available
+	                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={closeQuickSetup}
+                      className="h-9 rounded-xl border border-slate-200 bg-white px-4 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-all cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={confirmQuickSetup}
+                      className="h-9 rounded-xl bg-blue-600 px-4 text-xs font-extrabold text-white hover:bg-blue-700 shadow-md shadow-blue-600/10 transition-all cursor-pointer flex items-center gap-1.5"
+	                    >
+	                      <CheckCircle2 className="h-3.5 w-3.5" />
+		                      Save zone setup
+	                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
 
