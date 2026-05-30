@@ -30,7 +30,8 @@ import {
   Compass,
   DollarSign,
   Briefcase,
-  MessageSquare
+  MessageSquare,
+  ArrowLeft
 } from "lucide-react";
 import confetti from "canvas-confetti";
 
@@ -53,6 +54,8 @@ type MapPinSelection = {
   x: number;
   y: number;
 };
+
+type WorkspaceSetupCategory = "automation" | "bimbox";
 
 const CORE_WORKSPACE_OPTIONS = [
   { id: "pre-con", label: "Pre-Construction", desc: "Planning, drawings, BIM setup, BOQ and WBS", icon: Sparkles, route: "/pre-construction/workspace?tab=home" },
@@ -251,7 +254,7 @@ export function Welcome() {
   const [showChat, setShowChat] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const [showRecent, setShowRecent] = useState(false);
-  const [workspaceSetupTab, setWorkspaceSetupTab] = useState<"automation" | "bimbox">("automation");
+  const [activeWorkspaceCategory, setActiveWorkspaceCategory] = useState<WorkspaceSetupCategory | null>(null);
   
   // Dynamic names/roles cycle
   const ROLES = ["Deep", "Project Admin", "BIM Coordinator", "Lead VDC Engineer", "Workspace Owner"];
@@ -283,6 +286,10 @@ export function Welcome() {
   const [newProjectDetails, setNewProjectDetails] = useState<{ name: string; location: string; teams?: string[] } | null>(null);
   const [countdown, setCountdown] = useState(4);
   const selectedCoreWorkspace = CORE_WORKSPACE_OPTIONS.find((option) => selectedPhases.includes(option.label)) || CORE_WORKSPACE_OPTIONS[0];
+  const selectedBimboxService = BIMBOX_SERVICE_OPTIONS.find((option) => selectedPhases.includes(option.label));
+  const isWorkspaceCtaActive =
+    activeWorkspaceCategory === "automation" ||
+    (activeWorkspaceCategory === "bimbox" && Boolean(selectedBimboxService));
   const getPostSetupRoute = (phases = selectedPhases) =>
     phases.includes("Pre-Construction") ? "/pre-construction/workspace?tab=home" : "/projects";
 
@@ -662,16 +669,72 @@ export function Welcome() {
         @keyframes workspaceTabPanelIn {
           from {
             opacity: 0;
-            transform: translateY(10px) scale(0.985);
+            filter: blur(4px);
+            transform: translateY(12px) scale(0.98);
           }
           to {
             opacity: 1;
+            filter: blur(0);
             transform: translateY(0) scale(1);
           }
         }
         .workspace-tab-panel {
           animation: workspaceTabPanelIn 340ms cubic-bezier(0.16, 1, 0.3, 1);
           transform-origin: top center;
+        }
+        @keyframes workspaceCardDock {
+          from {
+            opacity: 0;
+            filter: blur(5px);
+            transform: translateY(18px) scale(0.98);
+          }
+          to {
+            opacity: 1;
+            filter: blur(0);
+            transform: translateY(0) scale(1);
+          }
+        }
+        @keyframes workspaceChildrenIn {
+          from {
+            opacity: 0;
+            filter: blur(3px);
+            transform: translateY(14px) scale(0.985);
+          }
+          to {
+            opacity: 1;
+            filter: blur(0);
+            transform: translateY(0);
+          }
+        }
+        @keyframes workspaceCardLiftIn {
+          from {
+            opacity: 0;
+            filter: blur(4px);
+            transform: translateY(18px) scale(0.97);
+          }
+          to {
+            opacity: 1;
+            filter: blur(0);
+            transform: translateY(0) scale(1);
+          }
+        }
+        @keyframes workspaceCheckPop {
+          0% { transform: scale(0.72); opacity: 0; }
+          70% { transform: scale(1.12); opacity: 1; }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        .workspace-docked-card {
+          animation: workspaceCardDock 460ms cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .workspace-child-panel {
+          animation: workspaceChildrenIn 380ms cubic-bezier(0.16, 1, 0.3, 1) 80ms both;
+        }
+        .workspace-card-lift {
+          animation: workspaceCardLiftIn 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+          will-change: transform, opacity, filter;
+        }
+        .workspace-check-pop {
+          animation: workspaceCheckPop 260ms cubic-bezier(0.16, 1, 0.3, 1);
         }
         @keyframes bimboxRibbonShine {
           0% { transform: translateX(-130%) skewX(-16deg); opacity: 0; }
@@ -736,143 +799,184 @@ export function Welcome() {
           <div className="mb-6 w-full max-w-2xl">
             {/* Workspace Selector */}
             <div className="w-full bg-white/88 rounded-3xl p-4 text-left shadow-[0_18px_60px_rgba(15,23,42,0.07)] border border-white/70 transition-all duration-300 ease-out">
-            <div className="relative grid grid-cols-2 overflow-hidden rounded-2xl bg-slate-100/70 p-1">
-              <span
-                className={`absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-xl bg-white shadow-sm shadow-slate-900/10 transition-transform duration-[350ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${
-                  workspaceSetupTab === "bimbox" ? "translate-x-full" : "translate-x-0"
-                }`}
-                aria-hidden="true"
-              />
-              <button
-                type="button"
-                onClick={() => setWorkspaceSetupTab("automation")}
-                className={`relative z-10 h-10 rounded-xl text-[10.5px] font-extrabold transition-colors duration-[250ms] flex items-center justify-center gap-1.5 ${
-                  workspaceSetupTab === "automation"
-                    ? "text-blue-600"
-                    : "text-slate-500 hover:text-slate-800"
-                }`}
-              >
-                <Workflow className="h-3.5 w-3.5" />
-                Project Management
-              </button>
-              <button
-                type="button"
-                onClick={() => setWorkspaceSetupTab("bimbox")}
-                className={`relative z-10 h-10 rounded-xl text-[10.5px] font-extrabold transition-colors duration-[250ms] flex items-center justify-center gap-1.5 ${
-                  workspaceSetupTab === "bimbox"
-                    ? "text-blue-600"
-                    : "text-slate-500 hover:text-slate-800"
-                }`}
-              >
-                <img
-                  src="/BIMBOXLOGO.png"
-                  alt="BIMBOX"
-                  className="h-5 w-auto object-contain drop-shadow-[0_3px_8px_rgba(37,99,235,0.22)]"
-                />
-                BIMBOX Services
-              </button>
-            </div>
-
-            {workspaceSetupTab === "automation" && (
-              <div key="automation-panel" className="workspace-tab-panel mt-4">
-                <div className="mb-2 flex items-center justify-between px-1">
-                  <div>
-                    <p className="text-[10px] font-extrabold uppercase tracking-wider text-blue-600">Project Management</p>
-                    <p className="mt-0.5 text-[9.5px] font-semibold text-slate-400">Choose one core lifecycle workspace.</p>
-                  </div>
-                  <span className="rounded-full bg-blue-50 px-2 py-1 text-[8px] font-extrabold uppercase text-blue-600">Required</span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {CORE_WORKSPACE_OPTIONS.map((opt) => {
-                    const isChecked = selectedCoreWorkspace.label === opt.label;
-                    const Icon = opt.icon;
-                    return (
-                      <button
-                        type="button"
-                        key={opt.id}
-                        onClick={() => handleSelectCoreWorkspace(opt.label)}
-                        className={`flex min-h-[76px] gap-3 p-3 rounded-2xl cursor-pointer transition-all items-center text-left select-none ${
-                          isChecked
-                            ? "bg-blue-50 text-slate-900 ring-1 ring-blue-500/70 shadow-sm shadow-blue-500/10"
-                            : "bg-slate-50/70 hover:bg-slate-100/70 text-slate-700"
-                        }`}
-                      >
-                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-all ${
-                          isChecked ? "bg-white text-blue-600" : "bg-white/80 text-slate-500"
-                        }`}>
-                          <Icon className="w-4 h-4" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="text-xs font-bold text-slate-800 leading-snug">{opt.label}</div>
-                          <div className="text-[9.5px] text-slate-450 font-semibold mt-0.5 leading-3.5">{opt.desc}</div>
-                        </div>
-                        <div className={`w-4.5 h-4.5 rounded-full flex items-center justify-center shrink-0 ml-auto transition-all ${
-                          isChecked ? "bg-blue-600 text-white" : "bg-white ring-1 ring-slate-200"
-                        }`}>
-                          {isChecked && <Check className="w-2.5 h-2.5 stroke-[3.5] text-white" />}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {workspaceSetupTab === "bimbox" && (
-              <div key="bimbox-panel" className="workspace-tab-panel mt-4">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  {BIMBOX_SERVICE_OPTIONS.map((opt) => {
-                    const isChecked = selectedPhases.includes(opt.label);
-                    const Icon = opt.icon;
-                    return (
-                      <button
-                        type="button"
-                        key={opt.id}
-                        onClick={() => handleToggleBimboxService(opt.label)}
-                        className={`flex min-h-[108px] flex-col gap-2 p-3 rounded-2xl cursor-pointer transition-all text-left select-none ${
-                          isChecked
-                            ? "bg-blue-50 text-slate-900 ring-1 ring-blue-500/70 shadow-sm shadow-blue-500/10"
-                            : "bg-slate-50/70 hover:bg-slate-100/70 text-slate-700"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-all ${
-                            isChecked ? "bg-white text-blue-600" : "bg-white/80 text-slate-500"
-                          }`}>
-                            <Icon className="w-4 h-4" />
-                          </div>
-                          <div className={`w-4.5 h-4.5 rounded-full flex items-center justify-center shrink-0 transition-all ${
-                            isChecked ? "bg-blue-600 text-white" : "bg-white ring-1 ring-slate-200"
-                          }`}>
-                            {isChecked && <Check className="w-2.5 h-2.5 stroke-[3.5] text-white" />}
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-xs font-bold leading-snug text-slate-800">{opt.label}</div>
-                          <div className="text-[9.5px] font-semibold mt-0.5 leading-3.5 text-slate-450">{opt.desc}</div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="bimbox-ribbon-shine relative mt-3 overflow-hidden rounded-xl border border-blue-400/40 bg-gradient-to-r from-blue-700 via-blue-600 to-sky-500 px-3 py-2 text-white shadow-[0_10px_26px_rgba(37,99,235,0.24)]">
-                  <div className="absolute -right-8 -top-12 h-24 w-24 rounded-full bg-white/20 blur-2xl" />
-                  <div className="absolute -bottom-12 left-1/2 h-20 w-40 rounded-full bg-sky-200/20 blur-2xl" />
-                  <div className="relative flex items-center gap-2.5">
-                    <div className="bimbox-logo-shine relative flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/30 bg-white shadow-[0_6px_14px_rgba(15,23,42,0.16)]">
-                      <img src="/BIMBOXLOGO.png" alt="BIMBOX" className="h-5.5 w-5.5 object-contain" />
+              {!activeWorkspaceCategory && (
+                <div key="category-cards" className="workspace-tab-panel grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setActiveWorkspaceCategory("automation")}
+                    className="workspace-card-lift group flex min-h-[124px] flex-col justify-between rounded-2xl bg-slate-50/70 p-4 text-left text-slate-700 transition-all duration-300 hover:-translate-y-0.5 hover:bg-slate-100/80 hover:shadow-lg hover:shadow-slate-900/5 active:scale-[0.98]"
+                    style={{ animationDelay: "40ms" }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-slate-500 shadow-sm shadow-slate-900/5 transition-all group-hover:text-blue-600">
+                        <Workflow className="h-4 w-4" />
+                      </div>
+                      <span className="rounded-full bg-white px-2 py-1 text-[8px] font-extrabold uppercase tracking-wider text-slate-400 shadow-sm shadow-slate-900/5">
+                        Main
+                      </span>
                     </div>
-                    <div className="min-w-0 flex items-center gap-2">
-                      <span className="shrink-0 text-[8px] font-extrabold uppercase tracking-[0.2em] text-blue-100">BIMBOX Services</span>
-                      <span className="truncate text-[11px] font-bold text-white">
-                        Pick one smart service for survey data, model conversion or digital twin handover.
+                    <div>
+                      <div className="text-sm font-extrabold leading-snug text-slate-850">Project Management</div>
+                      <div className="mt-1 text-[10px] font-semibold leading-4 text-slate-450">
+                        {CORE_WORKSPACE_OPTIONS.map((option) => option.label).join(", ")}
+                      </div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveWorkspaceCategory("bimbox")}
+                    className="workspace-card-lift group flex min-h-[124px] flex-col justify-between rounded-2xl bg-slate-50/70 p-4 text-left text-slate-700 transition-all duration-300 hover:-translate-y-0.5 hover:bg-slate-100/80 hover:shadow-lg hover:shadow-blue-500/8 active:scale-[0.98]"
+                    style={{ animationDelay: "110ms" }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="bimbox-logo-shine relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-blue-100 bg-white shadow-sm shadow-blue-500/10">
+                        <img src="/BIMBOXLOGO.png" alt="BIMBOX" className="h-6 w-6 object-contain" />
+                      </div>
+                      <span className="rounded-full bg-blue-50 px-2 py-1 text-[8px] font-extrabold uppercase tracking-wider text-blue-600">
+                        Services
+                      </span>
+                    </div>
+                    <div>
+                      <div className="text-sm font-extrabold leading-snug text-slate-850">BIMBOX Services</div>
+                      <div className="mt-1 text-[10px] font-semibold leading-4 text-slate-450">
+                        {BIMBOX_SERVICE_OPTIONS.map((option) => option.label).join(", ")}
+                      </div>
+                    </div>
+                  </button>
+                </div>
+              )}
+
+              {activeWorkspaceCategory && (
+                <div key={`${activeWorkspaceCategory}-subcategories`} className="space-y-3">
+                  <div className="workspace-docked-card flex min-h-[40px] items-center gap-2 px-1 text-left transition-all duration-300">
+                    <button
+                      type="button"
+                      onClick={() => setActiveWorkspaceCategory(null)}
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-50 text-slate-500 transition-all duration-200 hover:-translate-x-0.5 hover:bg-slate-100 hover:text-blue-600 active:scale-90"
+                      aria-label="Back to categories"
+                    >
+                      <ArrowLeft className="h-3.5 w-3.5" />
+                    </button>
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-blue-600">
+                      {activeWorkspaceCategory === "automation" ? (
+                        <Workflow className="h-3.5 w-3.5" />
+                      ) : (
+                        <img src="/BIMBOXLOGO.png" alt="BIMBOX" className="h-4.5 w-4.5 object-contain" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex flex-1 items-center gap-2">
+                      <p className="truncate text-sm font-bold leading-tight text-slate-900">
+                        {activeWorkspaceCategory === "automation" ? "Project Management" : "BIMBOX Services"}
+                      </p>
+                      <span className="shrink-0 rounded-full bg-slate-50 px-2 py-1 text-[8px] font-extrabold uppercase tracking-wider text-slate-400">
+                        {activeWorkspaceCategory === "automation" ? "Main" : "Services"}
+                      </span>
+                      <span className="min-w-0 truncate text-[10px] font-semibold text-slate-450">
+                        {activeWorkspaceCategory === "automation"
+                          ? selectedCoreWorkspace.label
+                          : selectedBimboxService?.label || "Site survey, BIM migration, digital twin"}
                       </span>
                     </div>
                   </div>
+
+                  {activeWorkspaceCategory === "automation" && (
+                    <div className="workspace-child-panel grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {CORE_WORKSPACE_OPTIONS.map((opt, index) => {
+                        const isChecked = selectedCoreWorkspace.label === opt.label;
+                        const Icon = opt.icon;
+                        return (
+                          <button
+                            type="button"
+                            key={opt.id}
+                            onClick={() => handleSelectCoreWorkspace(opt.label)}
+                            className={`workspace-card-lift flex min-h-[76px] gap-3 p-3 rounded-2xl cursor-pointer transition-all duration-250 items-center text-left select-none hover:-translate-y-0.5 active:scale-[0.98] ${
+                              isChecked
+                                ? "bg-blue-50 text-slate-900 ring-1 ring-blue-500/70 shadow-sm shadow-blue-500/10"
+                                : "bg-slate-50/70 hover:bg-slate-100/70 text-slate-700"
+                            }`}
+                            style={{ animationDelay: `${90 + index * 45}ms` }}
+                          >
+                            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-all ${
+                              isChecked ? "bg-white text-blue-600" : "bg-white/80 text-slate-500"
+                            }`}>
+                              <Icon className="w-4 h-4" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="text-xs font-bold text-slate-800 leading-snug">{opt.label}</div>
+                              <div className="text-[9.5px] text-slate-450 font-semibold mt-0.5 leading-3.5">{opt.desc}</div>
+                            </div>
+                            <div className={`w-4.5 h-4.5 rounded-full flex items-center justify-center shrink-0 ml-auto transition-all ${
+                              isChecked ? "bg-blue-600 text-white" : "bg-white ring-1 ring-slate-200"
+                            }`}>
+                              {isChecked && <Check className="workspace-check-pop w-2.5 h-2.5 stroke-[3.5] text-white" />}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {activeWorkspaceCategory === "bimbox" && (
+                    <div className="workspace-child-panel">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        {BIMBOX_SERVICE_OPTIONS.map((opt, index) => {
+                          const isChecked = selectedPhases.includes(opt.label);
+                          const Icon = opt.icon;
+                          return (
+                            <button
+                              type="button"
+                              key={opt.id}
+                              onClick={() => handleToggleBimboxService(opt.label)}
+                              className={`workspace-card-lift flex min-h-[108px] flex-col gap-2 p-3 rounded-2xl cursor-pointer transition-all duration-250 text-left select-none hover:-translate-y-0.5 active:scale-[0.98] ${
+                                isChecked
+                                  ? "bg-blue-50 text-slate-900 ring-1 ring-blue-500/70 shadow-sm shadow-blue-500/10"
+                                  : "bg-slate-50/70 hover:bg-slate-100/70 text-slate-700"
+                              }`}
+                              style={{ animationDelay: `${90 + index * 45}ms` }}
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-all ${
+                                  isChecked ? "bg-white text-blue-600" : "bg-white/80 text-slate-500"
+                                }`}>
+                                  <Icon className="w-4 h-4" />
+                                </div>
+                                <div className={`w-4.5 h-4.5 rounded-full flex items-center justify-center shrink-0 transition-all ${
+                                  isChecked ? "bg-blue-600 text-white" : "bg-white ring-1 ring-slate-200"
+                                }`}>
+                                  {isChecked && <Check className="workspace-check-pop w-2.5 h-2.5 stroke-[3.5] text-white" />}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-xs font-bold leading-snug text-slate-800">{opt.label}</div>
+                                <div className="text-[9.5px] font-semibold mt-0.5 leading-3.5 text-slate-450">{opt.desc}</div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <div className="bimbox-ribbon-shine relative mt-3 overflow-hidden rounded-xl border border-blue-400/40 bg-gradient-to-r from-blue-700 via-blue-600 to-sky-500 px-3 py-2 text-white shadow-[0_10px_26px_rgba(37,99,235,0.24)]">
+                        <div className="absolute -right-8 -top-12 h-24 w-24 rounded-full bg-white/20 blur-2xl" />
+                        <div className="absolute -bottom-12 left-1/2 h-20 w-40 rounded-full bg-sky-200/20 blur-2xl" />
+                        <div className="relative flex items-center gap-2.5">
+                          <div className="bimbox-logo-shine relative flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/30 bg-white shadow-[0_6px_14px_rgba(15,23,42,0.16)]">
+                            <img src="/BIMBOXLOGO.png" alt="BIMBOX" className="h-5.5 w-5.5 object-contain" />
+                          </div>
+                          <div className="min-w-0 flex items-center gap-2">
+                            <span className="shrink-0 text-[8px] font-extrabold uppercase tracking-[0.2em] text-blue-100">BIMBOX Services</span>
+                            <span className="truncate text-[11px] font-bold text-white">
+                              {selectedBimboxService
+                                ? `${selectedBimboxService.label} is ready for this workspace.`
+                                : "Pick one smart service for survey data, model conversion or digital twin handover."}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
+              )}
             </div>
           </div>
 
@@ -886,7 +990,11 @@ export function Welcome() {
               setProjectTeamStructure([]);
               setShowChat(true);
             }}
-            className="inline-flex items-center gap-2 px-10 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-full text-xs font-bold tracking-wide transition-all duration-250 shadow-md shadow-blue-500/10 hover:shadow-lg hover:shadow-blue-500/20 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+            className={`inline-flex items-center gap-2 px-10 py-3 rounded-full text-xs font-bold tracking-wide transition-all duration-250 hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
+              isWorkspaceCtaActive
+                ? "bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/10 hover:shadow-lg hover:shadow-blue-500/20"
+                : "bg-blue-600/35 hover:bg-blue-600/55 text-white/70 hover:text-white/85 shadow-sm shadow-blue-500/5 hover:shadow-md hover:shadow-blue-500/10"
+            }`}
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
             <span>Create Workspace</span>

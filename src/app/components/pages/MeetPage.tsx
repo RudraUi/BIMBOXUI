@@ -26,7 +26,10 @@ import {
   Smile,
   Pencil,
   ArrowLeft,
-  ListTodo
+  ListTodo,
+  LogIn,
+  Mail,
+  Link
 } from "lucide-react";
 
 export function MeetPage() {
@@ -258,131 +261,89 @@ export function MeetPage() {
   ];
 
   return (
-    <div className="flex h-screen bg-slate-50 select-none text-slate-800">
-      {/* 2-Column Full Screen Workspace Grid */}
-      <div className="flex flex-1 flex-col md:flex-row min-w-0 h-full overflow-hidden">
+    <div className="flex h-screen w-screen bg-gradient-to-tr from-[#d7e6fc] via-[#f2f6ff] to-[#fbfcfe] select-none text-slate-800 items-center justify-center p-8 overflow-hidden font-sans relative">
+      {/* Floating Back to Dashboard Button */}
+      <button
+        onClick={() => navigate("/dashboard")}
+        className="absolute top-6 left-6 px-4 py-2 bg-white/70 hover:bg-white backdrop-blur border border-slate-100 rounded-full text-[10px] font-extrabold text-slate-500 hover:text-slate-700 flex items-center gap-1.5 cursor-pointer shadow-[0_4px_12px_rgba(0,0,0,0.02)] transition-all active:scale-95"
+      >
+        <ArrowLeft className="w-3.5 h-3.5" />
+        <span>Back to Dashboard</span>
+      </button>
+
+      {/* Main Content Layout Container */}
+      <div className="max-w-5xl w-full flex flex-col md:flex-row items-center justify-center gap-16 md:gap-24">
         
-        {/* Left Control Panel (2x2 grid of actions) */}
-        <div className="w-full md:w-[260px] bg-slate-50 p-6 flex flex-col justify-between border-r border-slate-200 shrink-0 text-left">
-          <div className="flex-1 flex flex-col justify-center gap-6">
-            <div>
-              <h3 className="text-sm font-extrabold text-slate-900 tracking-tight">BIMBOX Meet</h3>
-              <p className="text-[10px] text-slate-400 font-bold mt-0.5 uppercase tracking-wider">Communication Hub</p>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-3.5 w-full">
-              {/* Instant */}
-              <button
-                type="button"
-                onClick={() => {
-                  setMeetingRightPanel("instant");
-                  setInstantMeetingLink(`https://meet.bimbox.com/sublime-instant-${Math.floor(1000 + Math.random() * 9000)}`);
-                }}
-                className={`aspect-square rounded-[22px] flex flex-col items-center justify-center gap-1.5 transition-all duration-200 cursor-pointer ${
-                  meetingRightPanel === "instant"
-                    ? "bg-blue-600 text-white shadow-md shadow-blue-500/20 scale-102"
-                    : "bg-white border border-slate-200 hover:border-blue-200 hover:bg-blue-50/10 text-slate-700 shadow-xs"
-                }`}
-              >
-                <div className={`p-2.5 rounded-xl ${meetingRightPanel === "instant" ? "bg-white/20" : "bg-blue-50/60"}`}>
-                  <Video className={`w-4 h-4 ${meetingRightPanel === "instant" ? "text-white" : "text-blue-600"} stroke-[1.8]`} />
-                </div>
-                <span className="text-[10px] font-extrabold tracking-tight">Instant</span>
-              </button>
-
-              {/* Join Meet */}
-              <button
-                type="button"
-                onClick={() => setMeetingRightPanel("join")}
-                className={`aspect-square rounded-[22px] flex flex-col items-center justify-center gap-1.5 transition-all duration-200 cursor-pointer ${
-                  meetingRightPanel === "join"
-                    ? "bg-blue-600 text-white shadow-md shadow-blue-500/20 scale-102"
-                    : "bg-white border border-slate-200 hover:border-blue-200 hover:bg-blue-50/10 text-slate-700 shadow-xs"
-                }`}
-              >
-                <div className={`p-2.5 rounded-xl ${meetingRightPanel === "join" ? "bg-white/20" : "bg-blue-50/60"}`}>
-                  <UserPlus className={`w-4 h-4 ${meetingRightPanel === "join" ? "text-white" : "text-blue-600"} stroke-[1.8]`} />
-                </div>
-                <span className="text-[10px] font-extrabold tracking-tight">Join Meet</span>
-              </button>
-
-              {/* Schedule */}
-              <button
-                type="button"
-                onClick={() => {
-                  setMeetingRightPanel("schedule");
-                  setScheduleStep(1);
-                }}
-                className={`aspect-square rounded-[22px] flex flex-col items-center justify-center gap-1.5 transition-all duration-200 cursor-pointer ${
-                  meetingRightPanel === "schedule"
-                    ? "bg-blue-600 text-white shadow-md shadow-blue-500/20 scale-102"
-                    : "bg-white border border-slate-200 hover:border-blue-200 hover:bg-blue-50/10 text-slate-700 shadow-xs"
-                }`}
-              >
-                <div className={`p-2.5 rounded-xl ${meetingRightPanel === "schedule" ? "bg-white/20" : "bg-blue-50/60"}`}>
-                  <Calendar className={`w-4 h-4 ${meetingRightPanel === "schedule" ? "text-white" : "text-blue-600"} stroke-[1.8]`} />
-                </div>
-                <span className="text-[10px] font-extrabold tracking-tight">Schedule</span>
-              </button>
-
-              {/* Settings */}
-              <button
-                type="button"
-                onClick={() => setMeetingRightPanel("settings")}
-                className={`aspect-square rounded-[22px] flex flex-col items-center justify-center gap-1.5 transition-all duration-200 cursor-pointer ${
-                  meetingRightPanel === "settings"
-                    ? "bg-blue-600 text-white shadow-md shadow-blue-500/20 scale-102"
-                    : "bg-white border border-slate-200 hover:border-blue-200 hover:bg-blue-50/10 text-slate-700 shadow-xs"
-                }`}
-              >
-                <div className={`p-2.5 rounded-xl ${meetingRightPanel === "settings" ? "bg-white/20" : "bg-blue-50/60"}`}>
-                  <Settings className={`w-4 h-4 ${meetingRightPanel === "settings" ? "text-white" : "text-blue-600"} stroke-[1.8]`} />
-                </div>
-                <span className="text-[10px] font-extrabold tracking-tight">Settings</span>
-              </button>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between border-t border-slate-200/80 pt-4 mt-6">
-            <span className="text-[9px] font-bold text-slate-400">BIMBOX MEET</span>
-            <button
-              onClick={() => navigate("/dashboard")}
-              className="text-[10px] text-slate-450 hover:text-slate-700 font-extrabold cursor-pointer transition-colors"
-            >
-              Dashboard
-            </button>
-          </div>
+        {/* Left Side: 2x2 Grid of Actions */}
+        <div className="grid grid-cols-2 gap-6 shrink-0">
+          {[
+            { id: "instant", icon: Video, label: "Instant" },
+            { id: "join", icon: LogIn, label: "Join Meet" },
+            { id: "schedule", icon: Calendar, label: "Schedule" },
+            { id: "settings", icon: Settings, label: "Settings" }
+          ].map((tile) => {
+            const Icon = tile.icon;
+            const isActive = meetingRightPanel === tile.id;
+            return (
+              <div key={tile.id} className="flex flex-col items-center select-none">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (tile.id === "instant") {
+                      setMeetingRightPanel("instant");
+                      setInstantMeetingLink(`https://meet.bimbox.com/sublime-instant-${Math.floor(1000 + Math.random() * 9000)}`);
+                    } else if (tile.id === "schedule") {
+                      setMeetingRightPanel("schedule");
+                      setScheduleStep(1);
+                    } else {
+                      setMeetingRightPanel(tile.id as any);
+                    }
+                  }}
+                  className={`w-20 h-20 bg-white rounded-[26px] flex items-center justify-center border border-[#eff3fa] transition-all duration-200 cursor-pointer shadow-[0_12px_30px_rgba(0,0,0,0.03)] hover:shadow-[0_16px_36px_rgba(37,99,235,0.08)] hover:-translate-y-0.5 hover:scale-103 active:scale-95 ${
+                    isActive ? "ring-2 ring-blue-600/30 border-blue-500/20 shadow-[0_16px_36px_rgba(37,99,235,0.08)]" : ""
+                  }`}
+                >
+                  <Icon className="w-6 h-6 text-blue-600 stroke-[1.8]" />
+                </button>
+                <span className="text-[11px] font-bold text-slate-400 mt-2.5 tracking-tight">{tile.label}</span>
+              </div>
+            );
+          })}
         </div>
 
-        {/* Right Content Panel (Fills screen) */}
-        <div className="flex-1 bg-white p-8 flex flex-col min-w-0 h-full overflow-hidden text-left relative border-l border-slate-100">
+        {/* Right Side: Dynamic Card Panel */}
+        <div className="w-full max-w-[460px] bg-white rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.04)] border border-[#eff3fa] p-5 flex flex-col h-[560px] text-left select-none relative animate-in fade-in zoom-in-98 duration-300">
           
           {/* VIEW 1: MEETINGS LIST DASHBOARD */}
           {meetingRightPanel === "list" && (
-            <div className="flex flex-col h-full overflow-hidden">
-              {/* Tabs header matching exact requirements */}
-              <div className="flex items-center gap-2 border-b border-slate-100 pb-3.5 mb-5 shrink-0 select-none overflow-x-auto">
+            <div className="flex flex-col h-full overflow-hidden animate-in fade-in duration-200">
+              {/* Tabs header matching screenshot */}
+              <div className="flex items-center justify-between bg-slate-50/60 p-1 rounded-2xl border border-slate-100/50 mb-3 shrink-0">
                 {[
                   { id: "scheduled", label: "Scheduled", count: 0 },
                   { id: "ongoing", label: "Ongoing", count: 0, dot: true },
                   { id: "project", label: "Project wise", count: 0 },
-                  { id: "invites", label: "Invites", count: 1, badge: true }
+                  { id: "invites", label: "Invites", count: 3, badge: true }
                 ].map((tab) => {
                   const active = meetingDashboardTab === tab.id;
                   return (
                     <button
                       key={tab.id}
                       onClick={() => setMeetingDashboardTab(tab.id as any)}
-                      className={`px-3 py-1.5 rounded-full text-[10px] font-extrabold tracking-tight transition-all flex items-center gap-1.5 border cursor-pointer shrink-0 ${
+                      className={`px-3 py-1.5 rounded-xl text-[10px] font-extrabold tracking-tight transition-all flex items-center gap-1 cursor-pointer shrink-0 ${
                         active
-                          ? "bg-blue-600 text-white border-blue-600 shadow-sm"
-                          : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:text-slate-800"
+                          ? "bg-blue-600 text-white shadow-sm shadow-blue-500/10"
+                          : "text-slate-450 hover:text-slate-700"
                       }`}
                     >
-                      {tab.dot && <span className={`w-1.5 h-1.5 rounded-full ${active ? "bg-white" : "bg-red-500"} animate-pulse`} />}
+                      {tab.dot && (
+                        <span className={`w-1.5 h-1.5 rounded-full ${active ? "bg-white" : "bg-red-500"} animate-pulse`} />
+                      )}
                       <span>{tab.label}</span>
                       {tab.badge && (
-                        <span className={`px-1.5 py-0.25 rounded-full text-[8px] font-black ${active ? "bg-white text-blue-600" : "bg-red-500 text-white"}`}>
+                        <span className={`px-1.5 py-0.25 rounded-full text-[8px] font-black ${
+                          active ? "bg-white text-blue-600" : "bg-red-500 text-white"
+                        }`}>
                           {tab.count}
                         </span>
                       )}
@@ -392,73 +353,155 @@ export function MeetPage() {
               </div>
 
               {/* Tab views content area */}
-              <div className="flex-1 overflow-y-auto pr-0.5 space-y-3 pb-3">
+              <div className="flex-1 overflow-y-auto pr-0.5 space-y-4 pb-2 scrollbar-none">
                 {meetingDashboardTab === "scheduled" && (
                   <div className="space-y-4">
-                    {/* Header Group */}
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Today · Mon, 10 Mar</span>
-                      <span className="text-[9px] font-semibold text-slate-400">2 meetings</span>
+                    {/* First group (Today) */}
+                    <div className="space-y-3">
+                      <div className="text-center">
+                        <span className="text-[9.5px] font-black text-slate-400 uppercase tracking-widest block my-2">TODAY - MON, 10 MAR</span>
+                      </div>
+                      
+                      {meetings
+                        .filter(m => m.date.includes("TODAY"))
+                        .map((meet, idx) => (
+                          <div key={meet.id} className="bg-slate-50/25 border border-slate-100 rounded-[22px] p-4 hover:border-blue-100 hover:bg-slate-50/50 transition-all duration-200 shadow-2xs">
+                            <div className="flex items-start justify-between">
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-[9px] font-black text-slate-400 tracking-wider uppercase">{meet.project}</span>
+                                  <span className="text-[8px] font-extrabold text-slate-400 flex items-center gap-0.5">
+                                    <Users className="w-2.5 h-2.5 text-slate-350" />
+                                    {meet.peopleCount} People
+                                  </span>
+                                </div>
+                                <h4 className="text-[13px] font-black text-slate-800 mt-1 truncate">{meet.title}</h4>
+                              </div>
+                              <span className="text-[8.5px] font-extrabold text-blue-600 bg-blue-50/60 border border-blue-100/50 px-2 py-0.5 rounded-md uppercase tracking-wider shrink-0">
+                                {meet.service}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100/50">
+                              <div className="flex flex-col">
+                                <span className="text-[9px] text-slate-400 font-bold flex items-center gap-1">
+                                  <Calendar className="w-3 h-3 text-slate-350" />
+                                  {meet.time}
+                                </span>
+                                <div className="flex -space-x-1.5 mt-2">
+                                  {meet.avatars.map((color, aIdx) => (
+                                    <div
+                                      key={aIdx}
+                                      className="w-5 h-5 rounded-full border border-white flex items-center justify-center text-[7.5px] text-white font-extrabold shadow-sm"
+                                      style={{ backgroundColor: color }}
+                                    >
+                                      {String.fromCharCode(65 + aIdx + idx)}
+                                    </div>
+                                  ))}
+                                  <div className="w-5 h-5 rounded-full border border-white bg-slate-100 flex items-center justify-center text-[7.5px] text-slate-555 font-extrabold shadow-sm">
+                                    +{meet.peopleCount - meet.avatars.length}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-1.5 self-end">
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopyLink(meet.link, meet.id)}
+                                  className="h-7 px-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-full text-[9px] font-extrabold flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                                >
+                                  <Link className="w-2.5 h-2.5 text-slate-450" />
+                                  <span>{copiedMeetId === meet.id ? "Copied" : "Copy link"}</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setActiveMeetTitle(meet.title);
+                                    setActiveMeetOpen(true);
+                                  }}
+                                  className="h-7 px-4.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full text-[9px] font-extrabold flex items-center gap-1 cursor-pointer shadow-sm shadow-blue-500/10 transition-all active:scale-95"
+                                >
+                                  <Video className="w-3 h-3 text-white/95" />
+                                  <span>Join</span>
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                     </div>
 
+                    {/* Second group (Upcoming) */}
                     <div className="space-y-3">
-                      {meetings.map((meet, idx) => (
-                        <div key={meet.id} className="bg-white border border-slate-150 hover:border-blue-200 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all shadow-xs hover:shadow-md">
-                          <div className="flex items-center gap-3.5 min-w-0">
-                            {/* Calendar icon placeholder */}
-                            <div className="w-10 h-10 rounded-xl bg-blue-50/50 border border-blue-100 flex items-center justify-center shrink-0">
-                              <Calendar className="w-5 h-5 text-blue-600" />
-                            </div>
-                            <div className="min-w-0 text-left">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-[9px] font-black text-slate-400 tracking-wider uppercase">{meet.project}</span>
-                                <span className="text-[8px] font-black bg-blue-50 text-blue-600 px-2 py-0.5 rounded-md uppercase tracking-wider">{meet.service}</span>
-                              </div>
-                              <h4 className="text-xs font-black text-slate-800 mt-1 truncate">{meet.title}</h4>
-                              <p className="text-[9px] text-slate-400 font-bold mt-0.5">{meet.time}</p>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-3 shrink-0 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 border-slate-100 pt-3 sm:pt-0">
-                            {/* Attendees chips */}
-                            <div className="flex -space-x-1.5 overflow-hidden">
-                              {meet.avatars.map((color, aIdx) => (
-                                <div
-                                  key={aIdx}
-                                  className="w-5.5 h-5.5 rounded-full border-2 border-white flex items-center justify-center text-[8px] text-white font-extrabold shadow-sm"
-                                  style={{ backgroundColor: color }}
-                                >
-                                  {String.fromCharCode(65 + aIdx + idx)}
+                      <div className="text-center">
+                        <span className="text-[9.5px] font-black text-slate-400 uppercase tracking-widest block my-2">MON, 16 MAR</span>
+                      </div>
+                      
+                      {meetings
+                        .filter(m => !m.date.includes("TODAY"))
+                        .map((meet, idx) => (
+                          <div key={meet.id} className="bg-slate-50/25 border border-slate-100 rounded-[22px] p-4 hover:border-blue-100 hover:bg-slate-50/50 transition-all duration-200 shadow-2xs">
+                            <div className="flex items-start justify-between">
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-[9px] font-black text-slate-400 tracking-wider uppercase">{meet.project}</span>
+                                  <span className="text-[8px] font-extrabold text-slate-400 flex items-center gap-0.5">
+                                    <Users className="w-2.5 h-2.5 text-slate-350" />
+                                    {meet.peopleCount} People
+                                  </span>
                                 </div>
-                              ))}
-                              <div className="w-5.5 h-5.5 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center text-[8px] text-slate-500 font-extrabold shadow-sm">
-                                +{meet.peopleCount - meet.avatars.length}
+                                <h4 className="text-[13px] font-black text-slate-805 mt-1 truncate">{meet.title}</h4>
                               </div>
+                              <span className="text-[8.5px] font-extrabold text-blue-600 bg-blue-50/60 border border-blue-100/50 px-2 py-0.5 rounded-md uppercase tracking-wider shrink-0">
+                                {meet.service}
+                              </span>
                             </div>
 
-                            <div className="flex items-center gap-1.5">
-                              <button
-                                type="button"
-                                onClick={() => handleCopyLink(meet.link, meet.id)}
-                                className="h-7 px-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 rounded-lg text-[9px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
-                              >
-                                <Copy className="w-2.5 h-2.5" />
-                                <span>{copiedMeetId === meet.id ? "Copied" : "Copy Link"}</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setActiveMeetTitle(meet.title);
-                                  setActiveMeetOpen(true);
-                                }}
-                                className="h-7 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[9px] font-bold flex items-center gap-1 cursor-pointer shadow-sm shadow-blue-500/10"
-                              >
-                                <span>Join</span>
-                              </button>
+                            <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100/50">
+                              <div className="flex flex-col">
+                                <span className="text-[9px] text-slate-400 font-bold flex items-center gap-1">
+                                  <Calendar className="w-3 h-3 text-slate-350" />
+                                  {meet.time}
+                                </span>
+                                <div className="flex -space-x-1.5 mt-2">
+                                  {meet.avatars.map((color, aIdx) => (
+                                    <div
+                                      key={aIdx}
+                                      className="w-5 h-5 rounded-full border border-white flex items-center justify-center text-[7.5px] text-white font-extrabold shadow-sm"
+                                      style={{ backgroundColor: color }}
+                                    >
+                                      {String.fromCharCode(65 + aIdx + idx)}
+                                    </div>
+                                  ))}
+                                  <div className="w-5 h-5 rounded-full border border-white bg-slate-100 flex items-center justify-center text-[7.5px] text-slate-555 font-extrabold shadow-sm">
+                                    +{meet.peopleCount - meet.avatars.length}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-1.5 self-end">
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopyLink(meet.link, meet.id)}
+                                  className="h-7 px-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-full text-[9px] font-extrabold flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                                >
+                                  <Link className="w-2.5 h-2.5 text-slate-450" />
+                                  <span>{copiedMeetId === meet.id ? "Copied" : "Copy link"}</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setActiveMeetTitle(meet.title);
+                                    setActiveMeetOpen(true);
+                                  }}
+                                  className="h-7 px-4.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full text-[9px] font-extrabold flex items-center gap-1 cursor-pointer shadow-sm shadow-blue-500/10 transition-all active:scale-95"
+                                >
+                                  <Video className="w-3 h-3 text-white/95" />
+                                  <span>Join</span>
+                                </button>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        ))}
                     </div>
                   </div>
                 )}
@@ -475,18 +518,18 @@ export function MeetPage() {
 
                 {meetingDashboardTab === "project" && (
                   <div className="space-y-4 text-left">
-                    <span className="text-[10px] font-black text-slate-400 tracking-wider uppercase">Select project to view sync rooms</span>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <span className="text-[10px] font-black text-slate-400 tracking-wider uppercase block my-2">Select project to view sync rooms</span>
+                    <div className="grid grid-cols-1 gap-3.5">
                       {[
                         { title: "Assotech Iconic Room", desc: "4 members active · Daily standups", active: true },
                         { title: "Utkal Pleasant Sync", desc: "Weekly review · 12 members", active: false }
                       ].map((p, i) => (
-                        <div key={i} className="bg-white border border-slate-200 hover:border-blue-200 rounded-2xl p-4 transition-all shadow-xs relative flex flex-col justify-between h-28">
+                        <div key={i} className="bg-slate-50/20 border border-slate-100 rounded-2xl p-4 transition-all shadow-2xs relative flex flex-col justify-between h-28 hover:border-blue-100">
                           <div>
-                            <h4 className="text-xs font-black text-slate-800">{p.title}</h4>
-                            <p className="text-[9px] text-slate-400 font-bold mt-1">{p.desc}</p>
+                            <h4 className="text-xs font-black text-slate-805">{p.title}</h4>
+                            <p className="text-[9.5px] text-slate-400 font-semibold mt-1">{p.desc}</p>
                           </div>
-                          <div className="flex justify-between items-center mt-3 pt-2.5 border-t border-slate-50">
+                          <div className="flex justify-between items-center mt-3 pt-2.5 border-t border-slate-100/50">
                             <span className="text-[8px] font-black text-slate-400">BIM COLLABORATION</span>
                             <button
                               onClick={() => {
@@ -506,29 +549,36 @@ export function MeetPage() {
 
                 {meetingDashboardTab === "invites" && (
                   <div className="space-y-3 text-left">
-                    <span className="text-[10px] font-black text-slate-400 tracking-wider uppercase">Pending invitations ({1})</span>
-                    <div className="bg-white border border-slate-200/80 rounded-2xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3.5 shadow-xs">
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[8px] font-black bg-blue-50 text-blue-600 px-2 py-0.5 rounded-md uppercase tracking-wider">Weekly Coordination</span>
-                          <span className="text-[8px] font-black text-slate-400">Host: Ashish Dalei</span>
+                    <span className="text-[10px] font-black text-slate-400 tracking-wider uppercase block my-2">Pending invitations (3)</span>
+                    
+                    {[
+                      { title: "Weekly MEP Clash Coordination", details: "Tomorrow, 11 Mar · 10.30 - 11.30 AM", host: "Ashish Dalei" },
+                      { title: "Facade Review", details: "13 Mar · 4.00 - 5.00 PM", host: "Rakesh Mallik" },
+                      { title: "Interior Alignment Sync", details: "15 Mar · 2.00 - 2.30 PM", host: "Deependra Samal" }
+                    ].map((invite, index) => (
+                      <div key={index} className="bg-slate-50/20 border border-slate-100 rounded-2xl p-4 flex flex-col gap-3 shadow-2xs animate-in fade-in duration-200">
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[8px] font-black bg-blue-50 text-blue-600 px-2 py-0.5 rounded-md uppercase tracking-wider">Weekly Coordination</span>
+                            <span className="text-[8px] font-black text-slate-400">Host: {invite.host}</span>
+                          </div>
+                          <h4 className="text-xs font-black text-slate-800 mt-1.5">{invite.title}</h4>
+                          <p className="text-[9px] text-slate-455 font-bold mt-0.5">{invite.details}</p>
                         </div>
-                        <h4 className="text-xs font-black text-slate-800 mt-1.5">Weekly MEP Clash Coordination Meeting</h4>
-                        <p className="text-[9px] text-slate-450 font-bold mt-0.5">Tomorrow, 11 Mar · 10.30 - 11.30 AM</p>
+                        <div className="flex items-center gap-1.5 justify-end pt-2 border-t border-slate-100/50">
+                          <button className="h-7 px-3 border border-slate-200 hover:bg-slate-50 rounded-lg text-[9px] font-bold text-slate-655 cursor-pointer">Decline</button>
+                          <button 
+                            onClick={() => {
+                              alert("Invitation accepted! Added to your schedule.");
+                              setMeetingDashboardTab("scheduled");
+                            }}
+                            className="h-7 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[9px] font-bold cursor-pointer"
+                          >
+                            Accept
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1.5 shrink-0 w-full sm:w-auto justify-end">
-                        <button className="h-7 px-3 border border-slate-200 hover:bg-slate-50 rounded-lg text-[9px] font-bold text-slate-600 cursor-pointer">Decline</button>
-                        <button 
-                          onClick={() => {
-                            alert("Invitation accepted! Added to your schedule.");
-                            setMeetingDashboardTab("scheduled");
-                          }}
-                          className="h-7 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[9px] font-bold cursor-pointer"
-                        >
-                          Accept
-                        </button>
-                      </div>
-                    </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -537,29 +587,32 @@ export function MeetPage() {
 
           {/* VIEW 2: START INSTANT MEETING */}
           {meetingRightPanel === "instant" && (
-            <div className="flex flex-col h-full justify-between text-left select-none animate-in fade-in duration-100">
+            <div className="flex flex-col h-full justify-between text-left select-none animate-in fade-in duration-200">
               <div className="space-y-4">
                 <div className="flex items-center gap-2.5 pb-2.5 border-b border-slate-100 shrink-0">
-                  <div className="w-9 h-9 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center border border-blue-100">
-                    <Video className="w-5 h-5" />
-                  </div>
+                  <button 
+                    onClick={() => setMeetingRightPanel("list")}
+                    className="h-7 w-7 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center cursor-pointer transition-colors"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                  </button>
                   <div>
                     <h4 className="text-xs font-black text-slate-800">Instant Meeting</h4>
                     <p className="text-[9px] text-slate-400 font-bold mt-0.25">Start a video conference immediately</p>
                   </div>
                 </div>
 
-                <div className="bg-slate-50 border border-slate-150 rounded-2xl p-4 flex items-center justify-between gap-4">
+                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex items-center justify-between gap-4">
                   <div className="min-w-0">
                     <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider block">Meeting URL</span>
-                    <span className="text-xs font-bold text-slate-755 truncate block mt-1">{instantMeetingLink}</span>
+                    <span className="text-xs font-bold text-slate-700 truncate block mt-1">{instantMeetingLink}</span>
                   </div>
                   <button
                     type="button"
                     onClick={() => handleCopyLink(instantMeetingLink, "instant-copy")}
-                    className="h-8 px-3.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-650 rounded-xl text-[10px] font-bold flex items-center gap-1.5 cursor-pointer shrink-0 transition-colors"
+                    className="h-8 px-3.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl text-[10px] font-bold flex items-center gap-1.5 cursor-pointer shrink-0 transition-colors"
                   >
-                    <Copy className="w-3 h-3" />
+                    <Copy className="w-3 h-3 text-slate-450" />
                     <span>{copiedMeetId === "instant-copy" ? "Copied" : "Copy"}</span>
                   </button>
                 </div>
@@ -603,12 +656,15 @@ export function MeetPage() {
 
           {/* VIEW 3: JOIN MEET BY CODE */}
           {meetingRightPanel === "join" && (
-            <div className="flex flex-col h-full justify-between text-left select-none animate-in fade-in duration-100">
+            <div className="flex flex-col h-full justify-between text-left select-none animate-in fade-in duration-200">
               <div className="space-y-4">
                 <div className="flex items-center gap-2.5 pb-2.5 border-b border-slate-100 shrink-0">
-                  <div className="w-9 h-9 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center border border-blue-100">
-                    <UserPlus className="w-5 h-5" />
-                  </div>
+                  <button 
+                    onClick={() => setMeetingRightPanel("list")}
+                    className="h-7 w-7 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center cursor-pointer transition-colors"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                  </button>
                   <div>
                     <h4 className="text-xs font-black text-slate-800">Join Meeting</h4>
                     <p className="text-[9px] text-slate-400 font-bold mt-0.25">Enter code or calendar link to join</p>
@@ -623,7 +679,7 @@ export function MeetPage() {
                       placeholder="e.g. ysk-21h3-y673"
                       value={meetingJoinCode}
                       onChange={(e) => setMeetingJoinCode(e.target.value)}
-                      className="w-full pl-8.5 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold placeholder-slate-400 text-slate-800"
+                      className="w-full pl-8.5 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold placeholder-slate-400 text-slate-800 focus:border-blue-500 focus:outline-hidden"
                     />
                     <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
                   </div>
@@ -656,15 +712,18 @@ export function MeetPage() {
 
           {/* VIEW 4: SCHEDULE MEETING (3-STEP SCHEDULER WIZARD) */}
           {meetingRightPanel === "schedule" && (
-            <div className="flex flex-col h-full justify-between text-left select-none animate-in fade-in duration-100">
-              <div className="flex-1 overflow-y-auto pr-0.5 space-y-4">
+            <div className="flex flex-col h-full justify-between text-left select-none animate-in fade-in duration-200">
+              <div className="flex-1 overflow-y-auto pr-0.5 space-y-4 scrollbar-none">
                 
                 {/* Steps tracker progress indicator */}
                 <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 shrink-0">
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center border border-blue-100">
-                      <Calendar className="w-4 h-4" />
-                    </div>
+                    <button 
+                      onClick={() => setMeetingRightPanel("list")}
+                      className="h-7 w-7 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center cursor-pointer transition-colors"
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                    </button>
                     <div>
                       <h4 className="text-xs font-black text-slate-800">Schedule Meeting</h4>
                       <p className="text-[9px] text-slate-400 font-bold mt-0.25">Configure team sync calendar invite</p>
@@ -697,7 +756,7 @@ export function MeetPage() {
                           placeholder="e.g. Design review, Structural sync room.."
                           value={meetingTitle}
                           onChange={(e) => setMeetingTitle(e.target.value)}
-                          className="w-full pl-8.5 pr-3 py-1.75 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold placeholder-slate-400 text-slate-805"
+                          className="w-full pl-8.5 pr-3 py-1.75 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold placeholder-slate-400 text-slate-800 focus:outline-hidden"
                         />
                         <Pencil className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
                       </div>
@@ -738,7 +797,7 @@ export function MeetPage() {
                         </select>
                       </div>
                       <div>
-                        <label className="text-[8px] font-black text-slate-450 uppercase tracking-wider block">Repeat Cycle</label>
+                        <label className="text-[8px] font-black text-slate-455 uppercase tracking-wider block">Repeat Cycle</label>
                         <select
                           value={meetingRepeat}
                           onChange={(e) => setMeetingRepeat(e.target.value as any)}
@@ -761,7 +820,7 @@ export function MeetPage() {
                       <span className="text-[8px] font-black text-slate-450 tracking-wider uppercase block">Invited Participants ({meetingInvitedEmails.length})</span>
                       <div className="flex flex-wrap gap-1 mt-1.5 max-h-[80px] overflow-y-auto">
                         {meetingInvitedEmails.map((email, idx) => (
-                          <div key={idx} className="flex items-center gap-1 px-2.5 py-0.75 bg-blue-50 text-blue-600 rounded-full border border-blue-100 text-[9px] font-bold animate-in zoom-in-95 duration-100">
+                          <div key={idx} className="flex items-center gap-1 px-2.5 py-0.75 bg-blue-50/70 text-blue-600 rounded-full border border-blue-100 text-[9px] font-bold animate-in zoom-in-95 duration-100">
                             <span>{email}</span>
                             <button
                               type="button"
@@ -796,7 +855,7 @@ export function MeetPage() {
                             placeholder="Add email address or select team member below.."
                             value={emailInput}
                             onChange={(e) => setEmailInput(e.target.value)}
-                            className="w-full pl-8.5 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold placeholder-slate-400 text-slate-800"
+                            className="w-full pl-8.5 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold placeholder-slate-400 text-slate-805 focus:outline-hidden"
                           />
                           <UserPlus className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
                         </div>
@@ -863,21 +922,21 @@ export function MeetPage() {
                       ✓
                     </div>
                     <div>
-                      <h4 className="text-xs font-black text-slate-805">Meeting Scheduled Successfully!</h4>
+                      <h4 className="text-xs font-black text-slate-800">Meeting Scheduled Successfully!</h4>
                       <p className="text-[9px] text-slate-400 font-semibold mt-1">Invitation link created and sent to team participants.</p>
                     </div>
 
                     <div className="w-full bg-slate-50 border border-slate-150 rounded-2xl p-3 text-left">
                       <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider block">Agenda</span>
-                      <span className="text-xs font-bold text-slate-755 block mt-0.5">{meetingTitle || "Design Sprint Meeting"}</span>
+                      <span className="text-xs font-bold text-slate-700 block mt-0.5">{meetingTitle || "Design Sprint Meeting"}</span>
                       <div className="flex gap-4 mt-2.5 pt-2 border-t border-slate-150/40">
                         <div>
                           <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider block">Date</span>
-                          <span className="text-[10px] font-bold text-slate-655 mt-0.5 block">{formatDateString(selectedMeetingDate)}</span>
+                          <span className="text-[10px] font-bold text-slate-600 mt-0.5 block">{formatDateString(selectedMeetingDate)}</span>
                         </div>
                         <div>
                           <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider block">Duration</span>
-                          <span className="text-[10px] font-bold text-slate-655 mt-0.5 block">{meetingDuration} ({meetingRepeat})</span>
+                          <span className="text-[10px] font-bold text-slate-600 mt-0.5 block">{meetingDuration} ({meetingRepeat})</span>
                         </div>
                       </div>
                     </div>
@@ -908,26 +967,26 @@ export function MeetPage() {
                       <div className="mt-3 text-left">
                         {step3Tab === "email" && (
                           <div className="bg-slate-50 border border-slate-150 rounded-xl p-2.5 flex items-center justify-between gap-3 animate-in fade-in duration-100">
-                            <span className="text-[9px] font-bold text-slate-650 truncate">meet.bimbox.ai/ysk-21h3-y673</span>
+                            <span className="text-[9px] font-bold text-slate-600 truncate">meet.bimbox.ai/ysk-21h3-y673</span>
                             <button
                               type="button"
                               onClick={() => handleCopyLink("meet.bimbox.ai/ysk-21h3-y673", "step3-email")}
                               className="h-7 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[9px] font-bold flex items-center gap-1 cursor-pointer shrink-0"
                             >
-                              <Copy className="w-2.5 h-2.5" />
+                              <Copy className="w-2.5 h-2.5 text-white/90" />
                               <span>{copiedMeetId === "step3-email" ? "Copied" : "Copy"}</span>
                             </button>
                           </div>
                         )}
                         {step3Tab === "team" && (
                           <div className="bg-slate-50 border border-slate-150 rounded-xl p-2.5 flex items-center justify-between gap-3 animate-in fade-in duration-100">
-                            <span className="text-[9px] font-bold text-slate-655 truncate">https://meet.bimbox.com/sublime-instant-room</span>
+                            <span className="text-[9px] font-bold text-slate-600 truncate">https://meet.bimbox.com/sublime-instant-room</span>
                             <button
                               type="button"
                               onClick={() => handleCopyLink("https://meet.bimbox.com/sublime-instant-room", "step3-team")}
                               className="h-7 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[9px] font-bold flex items-center gap-1 cursor-pointer shrink-0"
                             >
-                              <Copy className="w-2.5 h-2.5" />
+                              <Copy className="w-2.5 h-2.5 text-white/90" />
                               <span>{copiedMeetId === "step3-team" ? "Copied" : "Copy"}</span>
                             </button>
                           </div>
@@ -971,7 +1030,6 @@ export function MeetPage() {
                     <button
                       type="button"
                       onClick={() => {
-                        // Add newly scheduled meeting mock item to list
                         const mockId = `meet-${Date.now()}`;
                         const formattedDateStr = formatDateString(selectedMeetingDate);
                         setMeetings(prev => [
@@ -1015,21 +1073,24 @@ export function MeetPage() {
 
           {/* VIEW 5: SETTINGS */}
           {meetingRightPanel === "settings" && (
-            <div className="flex flex-col h-full overflow-hidden text-left relative select-none animate-in fade-in duration-100">
-              <div className="flex-1 overflow-y-auto space-y-4 pr-0.5 pb-2">
+            <div className="flex flex-col h-full overflow-hidden text-left relative select-none animate-in fade-in duration-200">
+              <div className="flex-1 overflow-y-auto space-y-4 pr-0.5 pb-2 scrollbar-none">
                 <div className="flex items-center gap-2.5 pb-2.5 border-b border-slate-100 shrink-0">
-                  <div className="w-9 h-9 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center border border-blue-100">
-                    <Settings className="w-5 h-5" />
-                  </div>
+                  <button 
+                    onClick={() => setMeetingRightPanel("list")}
+                    className="h-7 w-7 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center cursor-pointer transition-colors"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                  </button>
                   <div>
-                    <h4 className="text-xs font-black text-slate-805">Settings</h4>
-                    <p className="text-[9px] text-slate-405 font-bold mt-0.25">Audio · Video · Device Preferences</p>
+                    <h4 className="text-xs font-black text-slate-800">Settings</h4>
+                    <p className="text-[9px] text-slate-400 font-bold mt-0.25">Audio · Video · Device Preferences</p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4">
                   {/* VIDEO PREVIEW & CAMERA */}
-                  <div className="space-y-3.5">
+                  <div className="space-y-3">
                     <div>
                       <span className="text-[8px] font-black text-slate-400 tracking-wider uppercase flex items-center gap-1 mb-1.5">
                         <Video className="w-3.5 h-3.5 text-slate-350" />
@@ -1042,7 +1103,6 @@ export function MeetPage() {
                       </select>
                     </div>
 
-                    {/* Glowing camera Preview Header */}
                     <div className="bg-blue-700 rounded-2xl p-5 text-center text-white shrink-0 relative flex flex-col items-center justify-center mb-1">
                       <div className="w-14 h-14 rounded-full bg-white/10 text-white font-extrabold text-base flex items-center justify-center border border-white/20 mb-1.5">
                         SK
@@ -1052,26 +1112,25 @@ export function MeetPage() {
                   </div>
 
                   {/* AUDIO & MICROPHONE */}
-                  <div className="space-y-3.5">
+                  <div className="space-y-3">
                     <div>
                       <span className="text-[8px] font-black text-slate-400 tracking-wider uppercase flex items-center gap-1 mb-1.5">
                         <Mic className="w-3.5 h-3.5 text-slate-350" />
                         AUDIO DEVICES
                       </span>
                       <label className="text-[8px] font-black text-[#64748b] block mb-1">Microphone Input</label>
-                      <select className="w-full px-3 py-1.75 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800">
+                      <select className="w-full px-3 py-1.75 bg-slate-55 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800">
                         <option>Built-in MacBook Microphone</option>
                         <option>External USB Studio Microphone</option>
                       </select>
                     </div>
 
-                    {/* Animated Audio Meter */}
                     <div>
                       <label className="text-[8px] font-black text-[#64748b] block mb-1">Live Input Meter</label>
                       <div className="bg-slate-50 border border-slate-150 rounded-xl p-2 flex items-center justify-between h-9 px-3">
-                        <span className="text-[9px] font-bold text-slate-450">Input Level</span>
+                        <span className="text-[9px] font-bold text-slate-400">Input Level</span>
                         <div className="flex items-end gap-0.5 h-full py-1">
-                          {micLevelBars.map((height, i) => (
+                          {micLevelBars.slice(0, 8).map((height, i) => (
                             <div
                               key={i}
                               className="w-1 bg-blue-600 rounded-full transition-all duration-150"
@@ -1084,7 +1143,7 @@ export function MeetPage() {
 
                     <div>
                       <label className="text-[8px] font-black text-[#64748b] block mb-1">Speaker Output</label>
-                      <select className="w-full px-3 py-1.75 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800">
+                      <select className="w-full px-3 py-1.75 bg-slate-55 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800">
                         <option>MacBook Speakers (Built-in)</option>
                         <option>External Headset Speakers</option>
                       </select>
@@ -1093,26 +1152,25 @@ export function MeetPage() {
                 </div>
 
                 {/* GENERAL PREFERENCES */}
-                <div className="space-y-3.5 pt-2">
+                <div className="space-y-3 pt-2">
                   <span className="text-[8px] font-black text-slate-400 tracking-wider uppercase flex items-center gap-1">
                     <Users className="w-3.5 h-3.5 text-slate-355" />
                     GENERAL PREFERENCES
                   </span>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-3">
                     <div>
                       <label className="text-[8px] font-black text-[#64748b] block mb-1">Meeting Display Name</label>
                       <div className="relative">
                         <input
                           type="text"
                           defaultValue="Salman Kumar"
-                          className="w-full pl-8 pr-3 py-1.75 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-850"
+                          className="w-full pl-8 pr-3 py-1.75 bg-slate-55 border border-slate-200 rounded-xl text-xs font-semibold text-slate-805 focus:outline-hidden"
                         />
                         <Users className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
                       </div>
                     </div>
 
-                    {/* Preferences toggles */}
                     <div className="space-y-1.5 pt-1">
                       {[
                         { key: "noise", label: "Noise cancellation (AI filters)", defaultChecked: true, icon: Coffee },
@@ -1123,12 +1181,12 @@ export function MeetPage() {
                         return (
                           <div key={t.key} className="flex items-center justify-between py-1 bg-slate-50/20 px-2 rounded-lg border border-slate-50">
                             <div className="flex items-center gap-2">
-                              <IconComponent className="w-3.5 h-3.5 text-slate-450" />
+                              <IconComponent className="w-3.5 h-3.5 text-slate-400" />
                               <span className="text-[10px] font-bold text-slate-700">{t.label}</span>
                             </div>
                             <label className="relative inline-flex items-center cursor-pointer select-none">
                               <input type="checkbox" defaultChecked={t.defaultChecked} className="sr-only peer" />
-                              <div className="w-8 h-4.5 bg-slate-200 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-blue-600"></div>
+                              <div className="w-8 h-4.5 bg-slate-200 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-blue-600 animate-all"></div>
                             </label>
                           </div>
                         );

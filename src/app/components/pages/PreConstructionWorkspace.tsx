@@ -14,6 +14,7 @@ import {
   Compass,
 } from "lucide-react";
 import ViewerMain from "./viewer-main/ViewerMain";
+import { RFITracker, type RFITrackerOpenItem } from "./RFITracker";
 
 type WorkspaceTab = "home" | "setup" | "viewer" | "tasks" | "wbs" | "rfi-issues" | "docs" | "cde";
 
@@ -45,6 +46,14 @@ const getActiveProject = () => {
 
 const getProjectScopedKey = (baseKey: string, projectId?: string) =>
   projectId ? `${baseKey}.${projectId}` : baseKey;
+
+const normalizeRfiTrackerId = (item: RFITrackerOpenItem) => {
+  const rawId = item.id.replace(/^#/, "");
+  if (item.type === "Issues") {
+    return rawId.replace(/^ISSUE-/, "ISS-");
+  }
+  return rawId;
+};
 
 function EmptyWorkspacePanel({ tab }: { tab: (typeof workspaceTabs)[number] }) {
   const Icon = tab.icon;
@@ -174,6 +183,18 @@ export function PreConstructionWorkspace() {
     return window.localStorage.getItem(viewerStartedKey) === "true";
   });
   const [viewerInstanceKey, setViewerInstanceKey] = useState(0);
+  const [coordinationLaunchItem, setCoordinationLaunchItem] = useState<{
+    type: "rfi" | "issue";
+    id: string;
+    title: string;
+    service?: string;
+    priority?: string;
+    status?: string;
+    assignee?: string;
+    due?: string;
+    isNewAction?: boolean;
+  } | null>(null);
+  const [rfiListReturnTab, setRfiListReturnTab] = useState<"Issues" | "RFI">("Issues");
 
   const handleStartViewer = (tab: "map" | "drawing") => {
     if (typeof window !== "undefined") {
@@ -181,6 +202,27 @@ export function PreConstructionWorkspace() {
       window.localStorage.setItem(getProjectScopedKey(VIEWER_DEFAULT_TAB_KEY, activeProject?.id), tab);
     }
     setHasStartedViewer(true);
+    setViewerInstanceKey((current) => current + 1);
+  };
+
+  const handleOpenRfiIssueInCoordination = (item: RFITrackerOpenItem) => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(viewerStartedKey, "true");
+      window.localStorage.setItem(getProjectScopedKey(VIEWER_DEFAULT_TAB_KEY, activeProject?.id), "coordination");
+    }
+    setHasStartedViewer(true);
+    setRfiListReturnTab(item.type === "RFI" ? "RFI" : "Issues");
+    setCoordinationLaunchItem({
+      type: item.type === "RFI" ? "rfi" : "issue",
+      id: normalizeRfiTrackerId(item),
+      title: item.title,
+      service: item.type === "RFI" ? "Architectural" : "Structural",
+      priority: item.importance,
+      status: item.status === "OPEN" ? "Open" : item.status === "IN PROGRESS" ? "In Progress" : "Resolved",
+      assignee: item.assignee,
+      due: item.endDate !== "No Date Selected" ? item.endDate : "-",
+      isNewAction: item.isNewAction
+    });
     setViewerInstanceKey((current) => current + 1);
   };
 
@@ -192,7 +234,21 @@ export function PreConstructionWorkspace() {
           {!hasStartedViewer && <ProjectViewerWelcome onStart={handleStartViewer} />}
         </>
       )}
-      {safeActiveTab !== "home" && (
+      {safeActiveTab === "rfi-issues" && (
+        coordinationLaunchItem ? (
+          <ViewerMain
+            key={`coordination-${viewerInstanceKey}`}
+            initialTab="coordination"
+            initialCoordinationItem={coordinationLaunchItem}
+            onBackToRfiList={() => setCoordinationLaunchItem(null)}
+          />
+        ) : (
+          <div className="h-full min-h-screen bg-white p-4">
+            <RFITracker initialTab={rfiListReturnTab} onOpenInCoordination={handleOpenRfiIssueInCoordination} />
+          </div>
+        )
+      )}
+      {safeActiveTab !== "home" && safeActiveTab !== "rfi-issues" && (
         <EmptyWorkspacePanel tab={activeTabMeta} />
       )}
     </div>

@@ -59,6 +59,7 @@ import {
   Send,
   Cloud,
   ArrowUpRight,
+  ArrowLeft,
   MessageSquare,
   History,
   Palette
@@ -384,6 +385,23 @@ const countLayerTree = (layers: DrawingLayer[]): number =>
   layers.reduce((total, layer) => total + 1 + countLayerTree(layer.children), 0);
 
 type ViewerTab = "map" | "drawing" | "drone" | "3d" | "coordination" | "split" | "quickCompare";
+type CoordinationLaunchItem = {
+  type: "rfi" | "issue";
+  id: string;
+  title: string;
+  service?: string;
+  priority?: string;
+  status?: string;
+  assignee?: string;
+  due?: string;
+  isNewAction?: boolean;
+};
+
+type ViewerMainProps = {
+  initialTab?: ViewerTab;
+  initialCoordinationItem?: CoordinationLaunchItem | null;
+  onBackToRfiList?: () => void;
+};
 
 const VIEWER_DEFAULT_TAB_KEY = "bimbox.preconstruction.defaultViewerTab";
 const VIEWER_TABS: ViewerTab[] = ["map", "drawing", "drone", "3d", "coordination", "split", "quickCompare"];
@@ -422,10 +440,10 @@ const getViewerDefaultTabKey = () => {
   }
 };
 
-export default function ViewerMain() {
+export default function ViewerMain({ initialTab, initialCoordinationItem, onBackToRfiList }: ViewerMainProps = {}) {
   // Tabs: 'map' | 'drawing' | 'drone' | 'coordination' | 'split' | 'quickCompare'
-  const [activeTab, setActiveTab] = useState<ViewerTab>(() => getInitialViewerTab());
-  const [defaultViewerTab, setDefaultViewerTab] = useState<ViewerTab>(() => getInitialViewerTab());
+  const [activeTab, setActiveTab] = useState<ViewerTab>(() => initialTab || getInitialViewerTab());
+  const [defaultViewerTab, setDefaultViewerTab] = useState<ViewerTab>(() => initialTab || getInitialViewerTab());
 
   // --- QUICK COMPARE A VS B STATE ---
   const [quickCompareLeftFile, setQuickCompareLeftFile] = useState<string | null>(null);
@@ -456,7 +474,9 @@ export default function ViewerMain() {
 
   // --- 3D VIEW & BIM COORDINATION STATE ---
   const [coordinationActiveSideTool, setCoordinationActiveSideTool] = useState("box");
-  const [coordinationActiveBottomTool, setCoordinationActiveBottomTool] = useState("pointer");
+  const [coordinationActiveBottomTool, setCoordinationActiveBottomTool] = useState(
+    initialCoordinationItem?.isNewAction ? initialCoordinationItem.type : "pointer"
+  );
   const [isCoordinationMaxView, setIsCoordinationMaxView] = useState(false);
   const [isCoordinationCompareView, setIsCoordinationCompareView] = useState(false);
   const [coordinationSplitPos, setCoordinationSplitPos] = useState(50);
@@ -494,8 +514,9 @@ export default function ViewerMain() {
   const [isRfiPanelOpen, setIsRfiPanelOpen] = useState(true);
   const [rfiPanelWidth, setRfiPanelWidth] = useState(288);
   const [isResizingRfiPanel, setIsResizingRfiPanel] = useState(false);
-  const [activeRfiTab, setActiveRfiTab] = useState<"rfi" | "issue" | "clashes">("rfi");
+  const [activeRfiTab, setActiveRfiTab] = useState<"rfi" | "issue" | "clashes">(initialCoordinationItem?.type || "rfi");
   const [searchRfiQuery, setSearchRfiQuery] = useState("");
+  const [selectedCoordinationItemId, setSelectedCoordinationItemId] = useState<string | null>(initialCoordinationItem?.id || "RFI-101");
   const [isServiceSettingsOpen, setIsServiceSettingsOpen] = useState(false);
   const [isToolInfoOpen, setIsToolInfoOpen] = useState(false);
   const [coordinationDetailModal, setCoordinationDetailModal] = useState<{ type: "rfi" | "issue" | "clash"; item: any } | null>(null);
@@ -518,19 +539,43 @@ export default function ViewerMain() {
   const [activeColorPickerService, setActiveColorPickerService] = useState<string | null>(null);
 
   // Active RFIs & Issues lists
-  const [rfis, setRfis] = useState([
+  const [rfis, setRfis] = useState(() => {
+    const baseRfis = [
     { id: "RFI-101", title: "HVAC Duct clash with structural steel beam at grid B-4", service: "Mechanical", priority: "High", status: "Open", assignee: "Snehasis Mohapatra", due: "2026-05-30" },
     { id: "RFI-102", title: "Clarification on wall thickness for server room partitions", service: "Architectural", priority: "Medium", status: "Resolved", assignee: "Alex Rivera", due: "2026-06-02" },
     { id: "RFI-103", title: "Concrete foundation anchor bolt specification modification", service: "Structural", priority: "Critical", status: "In Review", assignee: "Emma Watson", due: "2026-05-28" },
     { id: "RFI-104", title: "Main distribution board drainage clearance requirements", service: "Electrical", priority: "Medium", status: "Open", assignee: "Sam K.", due: "2026-06-08" },
-  ]);
+    ];
+    if (initialCoordinationItem?.type !== "rfi" || baseRfis.some((item) => item.id === initialCoordinationItem.id)) return baseRfis;
+    return [{
+      id: initialCoordinationItem.id,
+      title: initialCoordinationItem.title,
+      service: initialCoordinationItem.service || "Architectural",
+      priority: initialCoordinationItem.priority || "Medium",
+      status: initialCoordinationItem.status || "Open",
+      assignee: initialCoordinationItem.assignee || "Unassigned",
+      due: initialCoordinationItem.due || "-"
+    }, ...baseRfis];
+  });
 
-  const [issues, setIssues] = useState([
+  const [issues, setIssues] = useState(() => {
+    const baseIssues = [
     { id: "ISS-301", title: "Cold water main pipe intersecting cable tray in corridor C", service: "Plumbing", priority: "High", status: "Open", assignee: "Snehasis Mohapatra", due: "2026-05-31" },
     { id: "ISS-302", title: "Sprinkler pipe crossing fire door structural frame", service: "Firefighting", priority: "High", status: "In Progress", assignee: "Lisa P.", due: "2026-06-05" },
     { id: "ISS-303", title: "Power conduit pathway blocked by architectural concrete column", service: "Electrical", priority: "Low", status: "Open", assignee: "Emma Watson", due: "2026-06-12" },
     { id: "ISS-304", title: "Staircase headroom clearance below required 2.2m threshold", service: "Architectural", priority: "Critical", status: "Open", assignee: "Alex Rivera", due: "2026-05-29" },
-  ]);
+    ];
+    if (initialCoordinationItem?.type !== "issue" || baseIssues.some((item) => item.id === initialCoordinationItem.id)) return baseIssues;
+    return [{
+      id: initialCoordinationItem.id,
+      title: initialCoordinationItem.title,
+      service: initialCoordinationItem.service || "Architectural",
+      priority: initialCoordinationItem.priority || "Medium",
+      status: initialCoordinationItem.status || "Open",
+      assignee: initialCoordinationItem.assignee || "Unassigned",
+      due: initialCoordinationItem.due || "-"
+    }, ...baseIssues];
+  });
 
   // BIM Coordination Panel (right side) state
   const [isBimCoordinationPanelOpen, setIsBimCoordinationPanelOpen] = useState(true);
@@ -586,13 +631,20 @@ export default function ViewerMain() {
   // --- BIM COORDINATION DRAWING MARKUP & DISCUSSIONS SYSTEM ---
   const [coordinationZoom, setCoordinationZoom] = useState(1.0);
   const [coordinationPan, setCoordinationPan] = useState({ x: 0, y: 0 });
-  const [coordinationActiveMarkupTool, setCoordinationActiveMarkupTool] = useState<"cloud" | "polygon" | "line" | "circle" | "arrow" | "rect" | null>(null);
+  const [coordinationActiveMarkupTool, setCoordinationActiveMarkupTool] = useState<"cloud" | "polygon" | "line" | "circle" | "arrow" | "rect" | null>(
+    initialCoordinationItem?.isNewAction ? "cloud" : null
+  );
   const [coordinationSelectedMarkupId, setCoordinationSelectedMarkupId] = useState<string | null>(null);
-  const [pendingMarkupItemId, setPendingMarkupItemId] = useState<string | null>(null);
+  const [pendingMarkupItemId, setPendingMarkupItemId] = useState<string | null>(
+    initialCoordinationItem?.isNewAction ? initialCoordinationItem.id : null
+  );
   const [pendingNewMarkupComment, setPendingNewMarkupComment] = useState<any | null>(null);
   const [newMarkupItemType, setNewMarkupItemType] = useState<"rfi" | "issue">("issue");
   const [newMarkupCommentText, setNewMarkupCommentText] = useState("");
   const [newCommentText, setNewCommentText] = useState("");
+  const [rightPanelCommentText, setRightPanelCommentText] = useState("");
+  const [expandedCoordinationAssignee, setExpandedCoordinationAssignee] = useState(false);
+  const [coordinationItemComments, setCoordinationItemComments] = useState<Record<string, any[]>>({});
   const [coordinationDrawingPoints, setCoordinationDrawingPoints] = useState<Array<{x: number; y: number}>>([]);
   const [isDrawingMarkup, setIsDrawingMarkup] = useState(false);
   const [drawingStartPoint, setDrawingStartPoint] = useState<{x: number; y: number} | null>(null);
@@ -691,6 +743,8 @@ export default function ViewerMain() {
   };
 
   const handleItemClick = (itemId: string) => {
+    setSelectedCoordinationItemId(itemId);
+    setExpandedCoordinationAssignee(false);
     const linkedMarkup = coordinationMarkups.find(m => m.itemId === itemId);
     if (linkedMarkup) {
       zoomToMarkup(linkedMarkup);
@@ -4422,6 +4476,241 @@ startxref
             </div>
         </div>
 
+      </div>
+    );
+  };
+
+  const renderCoordinationDiscussionPanel = (): React.ReactNode => {
+    const activeItems = activeRfiTab === "rfi" ? rfis : issues;
+    const activeItem = activeItems.find((item) => item.id === selectedCoordinationItemId) || activeItems[0];
+
+    if (!activeItem) {
+      return (
+        <div className="h-full flex items-center justify-center px-5 text-center">
+          <div className="space-y-2">
+            <MessageSquare className="w-8 h-8 text-slate-300 mx-auto" />
+            <p className="text-[11px] font-extrabold text-slate-500">Select an item</p>
+            <p className="text-[9.5px] font-semibold text-slate-350 leading-relaxed">Choose an RFI or Issue from the left panel to view assignment and comments.</p>
+          </div>
+        </div>
+      );
+    }
+
+    const selectedMarkup = coordinationMarkups.find((markup) => markup.itemId === activeItem.id);
+    const comments = selectedMarkup?.comments || coordinationItemComments[activeItem.id] || [];
+    const itemAccent = activeRfiTab === "rfi" ? "blue" : "rose";
+    const extraAssignees: Record<string, string[]> = {
+      "RFI-101": ["Alex Rivera", "Emma Watson"],
+      "RFI-102": ["Lisa P."],
+      "RFI-103": ["Snehasis Mohapatra", "Sam K."],
+      "RFI-104": ["Emma Watson"],
+      "ISS-301": ["Lisa P.", "Alex Rivera"],
+      "ISS-302": ["Snehasis Mohapatra", "Emma Watson"],
+      "ISS-303": ["Sam K."],
+      "ISS-304": ["Lisa P.", "Emma Watson"]
+    };
+    const assignedPeople = Array.from(new Set([activeItem.assignee, ...(extraAssignees[activeItem.id] || [])]));
+    const getInitials = (name: string) => name
+      .split(" ")
+      .map((part) => part[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase();
+    const assignedDate = activeItem.id.endsWith("1") ? "May 28, 2026, 10:30 AM" : activeItem.id.endsWith("2") ? "May 29, 2026, 2:15 PM" : "May 30, 2026, 9:00 AM";
+    const handleStatusUpdate = (nextStatus: string) => {
+      if (activeRfiTab === "rfi") {
+        setRfis((prev) => prev.map((item) => item.id === activeItem.id ? { ...item, status: nextStatus } : item));
+      } else {
+        setIssues((prev) => prev.map((item) => item.id === activeItem.id ? { ...item, status: nextStatus } : item));
+      }
+      triggerToast(`${activeItem.id} status updated to ${nextStatus}`, "success");
+    };
+
+    const submitComment = (event: React.FormEvent) => {
+      event.preventDefault();
+      if (!rightPanelCommentText.trim()) return;
+
+      const newComm = {
+        id: `right-panel-comment-${Date.now()}`,
+        author: "Snehasis Mohapatra",
+        avatar: "SM",
+        time: "Just now",
+        text: rightPanelCommentText.trim()
+      };
+
+      if (selectedMarkup) {
+        setCoordinationMarkups((prev) => prev.map((markup) => (
+          markup.id === selectedMarkup.id
+            ? { ...markup, comments: [...(markup.comments || []), newComm] }
+            : markup
+        )));
+      } else {
+        setCoordinationItemComments((prev) => ({
+          ...prev,
+          [activeItem.id]: [...(prev[activeItem.id] || []), newComm]
+        }));
+      }
+
+      setRightPanelCommentText("");
+      triggerToast("Comment added", "success");
+    };
+
+    return (
+      <div className="h-full flex flex-col text-left bg-white">
+        <div className="px-3 py-2 border-b border-slate-100 bg-white space-y-2 shrink-0">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className={`text-[7.5px] font-extrabold uppercase tracking-wider ${activeRfiTab === "rfi" ? "text-blue-600" : "text-rose-600"}`}>
+                {activeRfiTab === "rfi" ? "RFI Thread" : "Issue Thread"}
+              </p>
+              <h3 className="mt-0.5 text-[10.5px] font-extrabold text-slate-850 leading-snug line-clamp-1">{activeItem.title}</h3>
+            </div>
+            <span className="shrink-0 rounded-md bg-slate-50 border border-slate-100 px-1.5 py-0.5 text-[7.5px] font-black text-slate-500 font-mono">{activeItem.id}</span>
+          </div>
+
+          <div
+            className={`w-full rounded-2xl border p-2.5 text-left transition-all cursor-pointer ${
+              itemAccent === "blue" ? "border-blue-100 bg-blue-50/35 hover:bg-blue-50/60" : "border-rose-100 bg-rose-50/30 hover:bg-rose-50/50"
+            }`}
+          >
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => setExpandedCoordinationAssignee((prev) => !prev)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  setExpandedCoordinationAssignee((prev) => !prev);
+                }
+              }}
+              className="flex items-center justify-between gap-2"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="flex -space-x-2 shrink-0">
+                  {assignedPeople.slice(0, 3).map((person, index) => (
+                    <div
+                      key={person}
+                      className={`h-8 w-8 rounded-full ring-2 ring-white flex items-center justify-center text-[9px] font-black text-white ${itemAccent === "blue" ? "bg-blue-600" : "bg-rose-600"}`}
+                      style={{ opacity: 1 - index * 0.08 }}
+                    >
+                      {getInitials(person)}
+                    </div>
+                  ))}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-extrabold text-slate-800 truncate">
+                    {assignedPeople.length} assigned person{assignedPeople.length === 1 ? "" : "s"}
+                  </p>
+                  <p className="text-[8.5px] font-bold text-slate-400 uppercase tracking-wider truncate">
+                    {assignedPeople.join(", ")}
+                  </p>
+                </div>
+              </div>
+              <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${expandedCoordinationAssignee ? "" : "-rotate-90"}`} />
+            </div>
+
+            {expandedCoordinationAssignee && (
+              <div className="mt-2 space-y-2 border-t border-white/80 pt-2">
+                <div className="space-y-1">
+                  {assignedPeople.map((person, index) => (
+                    <div key={person} className="flex items-center justify-between rounded-xl bg-white/75 border border-white px-2 py-1.5">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <div className={`h-[22px] w-[22px] rounded-full flex items-center justify-center text-[7.5px] font-black text-white shrink-0 ${itemAccent === "blue" ? "bg-blue-600" : "bg-rose-600"}`}>
+                          {getInitials(person)}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[9.5px] font-extrabold text-slate-700 truncate">{person}</p>
+                          <p className="text-[7.5px] font-bold uppercase tracking-wider text-slate-350">{index === 0 ? "Primary owner" : "Collaborator"}</p>
+                        </div>
+                      </div>
+                      <span className="text-[7.5px] font-black uppercase tracking-wider text-slate-350">Assigned</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-2 gap-1.5">
+                  <div className="rounded-xl bg-white/75 border border-white px-2 py-1.5">
+                    <p className="text-[7.5px] font-black uppercase tracking-wider text-slate-350">Deadline</p>
+                    <p className="mt-0.5 text-[9.5px] font-extrabold text-slate-700 truncate">{activeItem.due}</p>
+                  </div>
+                  <div className="rounded-xl bg-white/75 border border-white px-2 py-1.5">
+                    <p className="text-[7.5px] font-black uppercase tracking-wider text-slate-350">Assigned</p>
+                    <p className="mt-0.5 text-[9.5px] font-extrabold text-slate-700 truncate">{assignedDate}</p>
+                  </div>
+                  <div className="rounded-xl bg-white/75 border border-white px-2 py-1.5">
+                    <p className="text-[7.5px] font-black uppercase tracking-wider text-slate-350">Priority</p>
+                    <p className="mt-0.5 text-[9.5px] font-extrabold text-slate-700 truncate">{activeItem.priority}</p>
+                  </div>
+                  <div className="rounded-xl bg-white/75 border border-white px-2 py-1.5">
+                    <p className="text-[7.5px] font-black uppercase tracking-wider text-slate-350">Status</p>
+                    <select
+                      value={activeItem.status}
+                      onClick={(event) => event.stopPropagation()}
+                      onChange={(event) => handleStatusUpdate(event.target.value)}
+                      className="mt-0.5 w-full bg-transparent text-[9.5px] font-extrabold text-slate-700 focus:outline-none cursor-pointer"
+                    >
+                      {["Open", "In Progress", "In Review", "Resolved", "Closed"].map((status) => (
+                        <option key={status} value={status}>{status}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-3 py-3 bg-slate-50/35">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-1.5">
+              <MessageSquare className="w-3.5 h-3.5 text-blue-600" />
+              <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">Comments</h4>
+            </div>
+            <span className="text-[8.5px] font-bold text-slate-350">{comments.length} message{comments.length === 1 ? "" : "s"}</span>
+          </div>
+
+          {comments.length === 0 ? (
+            <div className="h-full min-h-[180px] flex items-center justify-center text-center">
+              <div className="space-y-1.5">
+                <MessageSquare className="w-7 h-7 text-slate-300 mx-auto" />
+                <p className="text-[11px] font-extrabold text-slate-500">No comments yet</p>
+                <p className="text-[9.5px] font-semibold text-slate-350">Start the discussion from the box below.</p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              {comments.map((comment: any, index: number) => (
+                <div key={comment.id || index} className="flex gap-2">
+                  <div className="h-7 w-7 rounded-full bg-white border border-slate-100 text-slate-700 flex items-center justify-center text-[9px] font-black shrink-0">
+                    {comment.avatar || comment.author?.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="min-w-0 flex-1 rounded-2xl bg-white border border-slate-100 px-2.5 py-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-extrabold text-slate-750 truncate">{comment.author}</span>
+                      <span className="text-[8px] font-semibold text-slate-350 shrink-0">{comment.time}</span>
+                    </div>
+                    <p className="mt-1 text-[10px] font-semibold leading-relaxed text-slate-550 break-words">{comment.text}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <form onSubmit={submitComment} className="shrink-0 border-t border-slate-100 bg-white p-2.5">
+          <div className="flex items-center gap-1.5 rounded-2xl border border-slate-150 bg-slate-50 px-2 py-1.5 focus-within:bg-white focus-within:border-blue-300 transition-all">
+            <input
+              type="text"
+              value={rightPanelCommentText}
+              onChange={(event) => setRightPanelCommentText(event.target.value)}
+              placeholder={`Comment on ${activeItem.id}...`}
+              className="min-w-0 flex-1 bg-transparent text-[11px] font-semibold text-slate-800 placeholder:text-slate-400 focus:outline-none"
+            />
+            <button type="submit" className="h-7 w-7 rounded-xl bg-blue-600 text-white flex items-center justify-center hover:bg-blue-700 active:scale-95 transition-all cursor-pointer">
+              <Send className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </form>
       </div>
     );
   };
@@ -8170,25 +8459,35 @@ startxref
                 </div>
               )}
               {/* Panel Header */}
-              <div className="px-3 py-3 border-b border-slate-100/80 shrink-0 bg-white space-y-2.5">
-                <div className="flex justify-between items-start gap-2">
+              <div className="px-3 py-2.5 border-b border-slate-100/80 shrink-0 bg-white space-y-2">
+                <div className="flex justify-between items-center gap-2">
                   <div className="min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
-                      <h2 className="text-[11.5px] font-extrabold text-slate-800 tracking-tight">
+                    <div className="flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-600 shrink-0" />
+                      <h2 className="text-[10.5px] font-extrabold text-slate-800 tracking-tight truncate whitespace-nowrap">
                         BIM Coordination
                       </h2>
                     </div>
-                    <p className="mt-0.5 text-[8px] font-bold uppercase tracking-wider text-slate-400">
+                    <p className="mt-0.5 text-[8px] font-bold uppercase tracking-wider text-slate-400 whitespace-nowrap">
                       {activeRfiTab === "rfi" ? `${rfis.length} RFIs` : activeRfiTab === "issue" ? `${issues.length} Issues` : `${clashResults.length} Clashes`}
                     </p>
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 shrink-0">
+                    {onBackToRfiList && (
+                      <button
+                        type="button"
+                        onClick={onBackToRfiList}
+                        className="h-6.5 rounded-lg border border-blue-100 bg-blue-50 px-2 text-[8.5px] font-extrabold text-blue-700 hover:bg-blue-100 transition-all cursor-pointer inline-flex items-center gap-1 whitespace-nowrap shrink-0"
+                      >
+                        <ArrowLeft className="w-2.5 h-2.5" />
+                        Back to list
+                      </button>
+                    )}
                     <button 
                       onClick={() => setIsRfiPanelOpen(false)}
-                      className="h-7 w-7 hover:bg-slate-50 rounded-lg text-slate-400 hover:text-slate-700 transition-all cursor-pointer flex items-center justify-center"
+                      className="h-6.5 w-6.5 hover:bg-slate-50 rounded-lg text-slate-400 hover:text-slate-700 transition-all cursor-pointer flex items-center justify-center shrink-0"
                     >
-                      <X className="w-3.5 h-3.5" />
+                      <X className="w-3 h-3" />
                     </button>
                   </div>
                 </div>
@@ -8201,7 +8500,13 @@ startxref
                   ].map((tab) => (
                     <button
                       key={tab.id}
-                      onClick={() => setActiveRfiTab(tab.id as "rfi" | "issue" | "clashes")}
+                      onClick={() => {
+                        const nextTab = tab.id as "rfi" | "issue" | "clashes";
+                        setActiveRfiTab(nextTab);
+                        if (nextTab === "rfi") setSelectedCoordinationItemId((current) => current?.startsWith("RFI-") ? current : rfis[0]?.id || null);
+                        if (nextTab === "issue") setSelectedCoordinationItemId((current) => current?.startsWith("ISS-") ? current : issues[0]?.id || null);
+                        if (nextTab === "clashes") setSelectedCoordinationItemId((current) => current?.startsWith("CL-") ? current : clashResults[0]?.id || null);
+                      }}
                       className={`h-7 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer ${
                         activeRfiTab === tab.id
                           ? "bg-white text-blue-600 shadow-sm"
@@ -8238,7 +8543,9 @@ startxref
                     rfis.filter(r => r.title.toLowerCase().includes(searchRfiQuery.toLowerCase()) || r.id.toLowerCase().includes(searchRfiQuery.toLowerCase())).map(item => (
                       <div 
                         key={item.id} 
-                        className="relative p-3 bg-white border border-slate-100/80 hover:border-blue-100 hover:shadow-[0_10px_26px_rgba(15,23,42,0.06)] rounded-2xl transition-all space-y-2 cursor-pointer overflow-hidden group/card"
+                        className={`relative p-3 bg-white border hover:shadow-[0_10px_26px_rgba(15,23,42,0.06)] rounded-2xl transition-all space-y-2 cursor-pointer overflow-hidden group/card ${
+                          selectedCoordinationItemId === item.id ? "border-blue-300 ring-1 ring-blue-100 shadow-[0_10px_26px_rgba(37,99,235,0.08)]" : "border-slate-100/80 hover:border-blue-100"
+                        }`}
                         onClick={() => handleItemClick(item.id)}
                       >
                         <span className="absolute left-0 top-3 bottom-3 w-0.5 rounded-r-full bg-blue-500 opacity-80" />
@@ -8289,7 +8596,9 @@ startxref
                     issues.filter(i => i.title.toLowerCase().includes(searchRfiQuery.toLowerCase()) || i.id.toLowerCase().includes(searchRfiQuery.toLowerCase())).map(item => (
                       <div 
                         key={item.id} 
-                        className="relative p-3 bg-white border border-slate-100/80 hover:border-rose-100 hover:shadow-[0_10px_26px_rgba(15,23,42,0.06)] rounded-2xl transition-all space-y-2 cursor-pointer overflow-hidden group/card"
+                        className={`relative p-3 bg-white border hover:shadow-[0_10px_26px_rgba(15,23,42,0.06)] rounded-2xl transition-all space-y-2 cursor-pointer overflow-hidden group/card ${
+                          selectedCoordinationItemId === item.id ? "border-rose-300 ring-1 ring-rose-100 shadow-[0_10px_26px_rgba(244,63,94,0.08)]" : "border-slate-100/80 hover:border-rose-100"
+                        }`}
                         onClick={() => handleItemClick(item.id)}
                       >
                         <span className="absolute left-0 top-3 bottom-3 w-0.5 rounded-r-full bg-rose-500 opacity-80" />
@@ -8379,7 +8688,9 @@ startxref
                       {clashResults.map(clash => (
                         <div 
                           key={clash.id}
-                          className="p-2.5 bg-white border border-slate-100/70 hover:border-slate-250 hover:bg-slate-50/20 rounded-xl space-y-1 transition-all cursor-pointer"
+                          className={`p-2.5 bg-white border hover:border-slate-250 hover:bg-slate-50/20 rounded-xl space-y-1 transition-all cursor-pointer ${
+                            selectedCoordinationItemId === clash.id ? "border-blue-300 ring-1 ring-blue-100 shadow-[0_10px_26px_rgba(37,99,235,0.08)]" : "border-slate-100/70"
+                          }`}
                           onClick={() => {
                             handleItemClick(clash.id);
                           }}
@@ -9734,8 +10045,9 @@ startxref
               })}
             </div>
 
-            {/* Figma Rulers & Guidelines for Coordination Workspace */}
-            {showCoordinationRulers && (
+            {/* Figma Rulers & Guidelines for Coordination Workspace
+                Temporarily disabled: hides the top/left ruler strips and red guide lines. */}
+            {false && showCoordinationRulers && (
               <>
                 {/* Top Ruler */}
                 <div
@@ -10151,7 +10463,12 @@ startxref
                 </div>
               </div>
 
-              {/* Scrollable Tree and Visibility Manager */}
+              {activeRfiTab !== "clashes" && !isCoordinationSetupReferenceMode ? (
+                <div className="flex-1 min-h-0 bg-white">
+                  {renderCoordinationDiscussionPanel()}
+                </div>
+              ) : (
+              /* Scrollable Tree and Visibility Manager */
               <div className="flex-1 overflow-y-auto px-2 py-3 space-y-3 text-left bg-white">
                 {isCoordinationSetupReferenceMode ? (
                   <div className="h-full min-h-[360px] flex flex-col">
@@ -10173,6 +10490,7 @@ startxref
                   </div>
                 ) : renderCoordinationLayerPanel()}
               </div>
+              )}
               
             </div>
           )}
